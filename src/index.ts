@@ -1,4 +1,5 @@
-export * from './core/registry.js';
+export { createRegistry, getRegistry } from './core/registry.js';
+export type { InternalRegistry } from './core/registry.js';
 export * from './core/errors.js';
 export * from './core/config.js';
 

@@ -8,7 +8,8 @@ export type NodulusErrorCode =
   | "INVALID_CONTROLLER"
   | "ALIAS_NOT_FOUND"
   | "DUPLICATE_ALIAS"
-  | "DUPLICATE_BOOTSTRAP";
+  | "DUPLICATE_BOOTSTRAP"
+  | "REGISTRY_MISSING_CONTEXT";
 
 export class NodulusError extends Error {
   readonly code: NodulusErrorCode;
@@ -32,5 +33,6 @@ export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
   INVALID_CONTROLLER:  "Controller has no default export of a Router. Add export default router.",
   ALIAS_NOT_FOUND:     "Alias is configured but the target directory does not exist.",
   DUPLICATE_ALIAS:     "An alias with this name is already registered to a different target path.",
-  DUPLICATE_BOOTSTRAP: "createApp() was called more than once with the same Express instance.",
+  DUPLICATE_BOOTSTRAP:        "createApp() was called more than once with the same Express instance.",
+  REGISTRY_MISSING_CONTEXT:   "No active registry found in the current async context. Ensure code runs inside a createApp() execution scope.",
 };

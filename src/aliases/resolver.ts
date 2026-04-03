@@ -18,6 +18,11 @@ export type ResolveHook = (
 
 let isHookRegistered = false;
 
+/** @internal exclusively for tests */
+export function clearAliasResolverOptions(): void {
+  isHookRegistered = false;
+}
+
 /**
  * Activates the ESM Alias Resolver using Node.js module.register.
  * 
@@ -30,19 +35,23 @@ export function activateAliasResolver(moduleAliases: Record<string, string>, fol
   
   const combinedAliases = { ...folderAliases, ...moduleAliases };
 
+  // Aliases are serialised directly into the hook source so they are available
+  // in the hook's closure regardless of whether Node.js propagates context.data
+  // across all resolution chains (not guaranteed in every Node 20.6+ build).
+  const serialisedAliases = JSON.stringify(combinedAliases);
+
   const loaderCode = `
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
+const aliases = ${serialisedAliases};
+
 export async function resolve(specifier, context, nextResolve) {
-  const { aliases } = context.data || {};
-  if (aliases) {
-    for (const alias of Object.keys(aliases)) {
-      if (specifier === alias || specifier.startsWith(alias + '/')) {
-        const target = aliases[alias];
-        const resolvedPath = specifier.replace(alias, target);
-        return nextResolve(pathToFileURL(path.resolve(resolvedPath)).href, context);
-      }
+  for (const alias of Object.keys(aliases)) {
+    if (specifier === alias || specifier.startsWith(alias + '/')) {
+      const target = aliases[alias];
+      const resolvedPath = specifier.replace(alias, target);
+      return nextResolve(pathToFileURL(path.resolve(resolvedPath)).href, context);
     }
   }
   return nextResolve(specifier, context);
@@ -54,10 +63,7 @@ export async function resolve(specifier, context, nextResolve) {
     const parentUrl = typeof __filename === 'undefined' ? import.meta.url : pathToFileURL(__filename).href;
     
     if (typeof register === 'function') {
-      register(dataUrl, {
-        parentURL: parentUrl,
-        data: { aliases: combinedAliases }
-      });
+      register(dataUrl, { parentURL: parentUrl });
       isHookRegistered = true;
     } else {
       console.warn('[Nodulus] Warning: node:module register() is not available. ESM aliases might not function properly in runtime. Please upgrade to Node.js >= 20.6.0');

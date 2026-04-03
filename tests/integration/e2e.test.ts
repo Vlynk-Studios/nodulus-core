@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import path from 'node:path';
-import { registry } from '../../src/core/registry.js';
 import type { NodulusApp } from '../../src/types/index.js';
 
 describe('E2E Integration V0.9.0 - basic-app', () => {
@@ -9,9 +8,6 @@ describe('E2E Integration V0.9.0 - basic-app', () => {
   let nodulusInfo: NodulusApp;
 
   beforeAll(async () => {
-    // Isolate registry for E2E
-    registry.clearRegistry();
-
     // Pivot CWD into the fixture to mimic a real project running locally
     const fixtureDir = path.join(process.cwd(), 'tests/fixtures/basic-app');
     vi.spyOn(process, 'cwd').mockReturnValue(fixtureDir);
@@ -26,7 +22,6 @@ describe('E2E Integration V0.9.0 - basic-app', () => {
 
   afterAll(() => {
     vi.restoreAllMocks();
-    registry.clearRegistry();
   });
 
   it('should successfully boot without errors and resolve all modules', () => {

@@ -6,8 +6,9 @@ import type { Application } from 'express';
 import type { CreateAppOptions, NodulusApp } from '../types/index.js';
 import { loadConfig } from '../core/config.js';
 import { NodulusError } from '../core/errors.js';
-import { registry } from '../core/registry.js';
+import { createRegistry, registryContext } from '../core/registry.js';
 import { activateAliasResolver } from '../aliases/resolver.js';
+import { updateAliasCache } from '../aliases/cache.js';
 
 export async function createApp(
   app: Application,
@@ -20,7 +21,12 @@ export async function createApp(
       'createApp() was called more than once with the same Express instance.'
     );
   }
-  
+
+  const registry = createRegistry();
+
+  return registryContext.run(registry, async () => {
+    try {
+
   // Step 1 — Load configuration
   const config = await loadConfig(options);
 
@@ -75,6 +81,7 @@ export async function createApp(
     }
 
     activateAliasResolver(pureModuleAliases, config.aliases);
+    updateAliasCache(registry.getAllAliases());
   }
 
   // Step 4 — Import modules
@@ -177,7 +184,11 @@ export async function createApp(
       try {
         imported = await import(pathToFileURL(file).href);
       } catch (err: any) {
-        throw new Error(`[Nodulus] Failed to import potential controller at ${file}: ${err.message}`);
+        throw new NodulusError(
+          'INVALID_CONTROLLER',
+          `Failed to import controller file. Check for syntax errors or missing dependencies.`,
+          `File: ${file} — ${err.message}`
+        );
       }
 
       const ctrlMeta = registry.getControllerMetadata(file);
@@ -254,15 +265,23 @@ export async function createApp(
     }
   }
 
-  // Tag Express app to prevent double boot
-  (app as any).__nodulusBootstrapped = true;
+    // Tag Express app to prevent double boot
+    (app as any).__nodulusBootstrapped = true;
 
-  // Step 8 — Return NodulusApp
-  const safeRegisteredModules = allModules.map(m => registry.getModule(m.name)!);
-  
-  return {
-    modules: safeRegisteredModules,
-    routes: mountedRoutes,
-    registry
-  };
+    // Step 8 — Return NodulusApp
+    const safeRegisteredModules = allModules.map(m => registry.getModule(m.name)!);
+
+    return {
+      modules: safeRegisteredModules,
+      routes: mountedRoutes,
+      registry
+    };
+
+    } catch (err) {
+      // Rollback: discard any partially registered state so a retry
+      // does not encounter leftover modules or aliases.
+      registry.clearRegistry();
+      throw err;
+    }
+  });
 }
