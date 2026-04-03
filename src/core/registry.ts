@@ -2,7 +2,8 @@ import { NodulusError } from './errors.js';
 import type { 
   ModuleEntry, 
   RegisteredModule, 
-  NodulusRegistryAdvanced 
+  NodulusRegistryAdvanced,
+  ModuleOptions
 } from '../types/index.js';
 
 // Private internal structure
@@ -20,7 +21,7 @@ const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
 // Extended interface for internal use (includes mutators)
 export interface InternalRegistry extends NodulusRegistryAdvanced {
   /** Registers an internal module and throws DUPLICATE_MODULE if it already exists */
-  registerModule(entry: ModuleEntry): void;
+  registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void;
   /** Adds an alias to the registry */
   registerAlias(alias: string, path: string): void;
   /** Gets the raw module entry (with router, middlewares, etc.) */
@@ -94,15 +95,25 @@ export const registry: InternalRegistry = {
     return cycles;
   },
 
-  registerModule(entry: ModuleEntry): void {
-    if (modules.has(entry.name)) {
+  registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void {
+    if (modules.has(name)) {
       throw new NodulusError(
         'DUPLICATE_MODULE',
         `A module with this name already exists. Each module must have a unique name.`,
-        `Module name: ${entry.name}`
+        `Module name: ${name}`
       );
     }
-    modules.set(entry.name, entry);
+    
+    const entry: ModuleEntry = {
+      name,
+      path: dirPath,
+      indexPath,
+      imports: options.imports || [],
+      exports: options.exports || [],
+      controllers: []
+    };
+    
+    modules.set(name, entry);
   },
 
   registerAlias(alias: string, targetPath: string): void {

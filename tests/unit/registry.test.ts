@@ -9,16 +9,12 @@ describe('Registry V0.3.0', () => {
   });
 
   it('registers and retrieves a module', () => {
-    const entry: ModuleEntry = {
-      name: 'users',
-      path: '/src/modules/users',
-      indexPath: '/src/modules/users/index.ts',
-      imports: [],
-      exports: ['UserService'],
-      controllers: []
-    };
-
-    registry.registerModule(entry);
+    registry.registerModule(
+      'users', 
+      { imports: [], exports: ['UserService'] }, 
+      '/src/modules/users', 
+      '/src/modules/users/index.ts'
+    );
 
     expect(registry.hasModule('users')).toBe(true);
     
@@ -38,20 +34,16 @@ describe('Registry V0.3.0', () => {
   });
 
   it('throws DUPLICATE_MODULE when registering twice', () => {
-    const entry: ModuleEntry = {
-      name: 'auth',
-      path: '/some/path',
-      indexPath: '/some/path/index.ts',
-      imports: [],
-      exports: [],
-      controllers: []
-    };
+    const name = 'auth';
+    const options = { imports: [], exports: [] };
+    const dirPath = '/some/path';
+    const indexPath = '/some/path/index.ts';
 
-    registry.registerModule(entry);
+    registry.registerModule(name, options, dirPath, indexPath);
 
-    expect(() => registry.registerModule(entry)).toThrowError(NodulusError);
+    expect(() => registry.registerModule(name, options, dirPath, indexPath)).toThrowError(NodulusError);
     try {
-      registry.registerModule(entry);
+      registry.registerModule(name, options, dirPath, indexPath);
     } catch (e: any) {
       expect(e.code).toBe('DUPLICATE_MODULE');
     }
@@ -74,9 +66,9 @@ describe('Registry V0.3.0', () => {
 
   it('finds circular dependencies', () => {
     // A -> B -> C -> A
-    registry.registerModule({ name: 'moduleA', path: '', indexPath: '', imports: ['moduleB'], exports: [], controllers: [] });
-    registry.registerModule({ name: 'moduleB', path: '', indexPath: '', imports: ['moduleC'], exports: [], controllers: [] });
-    registry.registerModule({ name: 'moduleC', path: '', indexPath: '', imports: ['moduleA'], exports: [], controllers: [] });
+    registry.registerModule('moduleA', { imports: ['moduleB'] }, '', '');
+    registry.registerModule('moduleB', { imports: ['moduleC'] }, '', '');
+    registry.registerModule('moduleC', { imports: ['moduleA'] }, '', '');
     
     const cycles = registry.findCircularDependencies();
     expect(cycles.length).toBeGreaterThan(0);
