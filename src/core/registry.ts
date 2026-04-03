@@ -3,7 +3,8 @@ import type {
   ModuleEntry, 
   RegisteredModule, 
   NodulusRegistryAdvanced,
-  ModuleOptions
+  ModuleOptions,
+  ControllerEntry
 } from '../types/index.js';
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
@@ -20,6 +21,12 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void;
   /** Adds an alias to the registry */
   registerAlias(alias: string, path: string): void;
+  /** Agrega la metadata temporal de un controlador recién evaluado */
+  registerControllerMetadata(entry: ControllerEntry): void;
+  /** Obtiene la metadata de todos los controladores (útil para tests y bootstrap) */
+  getAllControllersMetadata(): ControllerEntry[];
+  /** Obtiene la metadata de un controlador filtrando por el filepath */
+  getControllerMetadata(filePath: string): ControllerEntry | undefined;
   /** Gets the raw module entry (with router, middlewares, etc.) */
   getRawModule(name: string): ModuleEntry | undefined;
   /**
@@ -35,6 +42,7 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
 export function createRegistry(): InternalRegistry {
   const modules = new Map<string, ModuleEntry>();
   const aliases = new Map<string, string>();
+  const controllers = new Map<string, ControllerEntry>();
 
   return {
     hasModule(name: string): boolean {
@@ -122,17 +130,29 @@ export function createRegistry(): InternalRegistry {
     modules.set(name, entry);
   },
 
-  registerAlias(alias: string, targetPath: string): void {
-    const existing = aliases.get(alias);
-    if (existing && existing !== targetPath) {
-      throw new NodulusError(
-        'DUPLICATE_ALIAS',
-        `An alias with this name is already registered to a different target path.`,
-        `Alias: ${alias}, Existing: ${existing}, New: ${targetPath}`
-      );
-    }
-    aliases.set(alias, targetPath);
-  },
+    registerAlias(alias: string, targetPath: string): void {
+      const existing = aliases.get(alias);
+      if (existing && existing !== targetPath) {
+        throw new NodulusError(
+          'DUPLICATE_ALIAS',
+          `An alias with this name is already registered to a different target path.`,
+          `Alias: ${alias}, Existing: ${existing}, New: ${targetPath}`
+        );
+      }
+      aliases.set(alias, targetPath);
+    },
+
+    registerControllerMetadata(entry: ControllerEntry): void {
+      controllers.set(entry.path, entry);
+    },
+
+    getControllerMetadata(filePath: string): ControllerEntry | undefined {
+      return controllers.get(filePath);
+    },
+
+    getAllControllersMetadata(): ControllerEntry[] {
+      return Array.from(controllers.values());
+    },
 
     getRawModule(name: string): ModuleEntry | undefined {
       return modules.get(name);
@@ -141,6 +161,7 @@ export function createRegistry(): InternalRegistry {
     clearRegistry(): void {
       modules.clear();
       aliases.clear();
+      controllers.clear();
     }
   };
 }
