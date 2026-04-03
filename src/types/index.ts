@@ -69,6 +69,16 @@ export interface CreateAppOptions {
   logger?: (level: 'info' | 'warn' | 'error', message: string) => void;
 }
 
+/** Resolved configuration used internally (defaults applied). */
+export interface ResolvedConfig {
+  modules: string;
+  prefix: string;
+  aliases: Record<string, string>;
+  strict: boolean;
+  resolveAliases: boolean;
+  logger: (level: 'info' | 'warn' | 'error', message: string) => void;
+}
+
 /** A module as it appears in the NodularApp result after bootstrap. */
 export interface RegisteredModule {
   name: string;
@@ -86,7 +96,7 @@ export interface MountedRoute {
 }
 
 /** Stable registry interface — guaranteed across minor versions. */
-export interface NodularRegistry {
+export interface NodulusRegistry {
   hasModule(name: string): boolean;
   getModule(name: string): RegisteredModule | undefined;
   getAllModules(): RegisteredModule[];
@@ -98,7 +108,7 @@ export interface NodularRegistry {
  * Advanced registry interface — exposes internal graph utilities.
  * @unstable May change between minor versions.
  */
-export interface NodularRegistryAdvanced extends NodularRegistry {
+export interface NodulusRegistryAdvanced extends NodulusRegistry {
   /** @unstable */
   getDependencyGraph(): Map<string, string[]>;
   /** @unstable */
@@ -106,14 +116,14 @@ export interface NodularRegistryAdvanced extends NodularRegistry {
 }
 
 /** Value returned by createApp() after a successful bootstrap. */
-export interface NodularApp {
+export interface NodulusApp {
   modules: RegisteredModule[];
   routes: MountedRoute[];
-  registry: NodularRegistry;
+  registry: NodulusRegistry;
 }
 
 /** Shape of nodulus.config.ts. Options passed directly to createApp() take priority. */
-export interface NodularConfig extends CreateAppOptions {}
+export interface NodulusConfig extends CreateAppOptions {}
 
 export interface GetAliasesOptions {
   /** If false, only returns module aliases. Default: true. */
