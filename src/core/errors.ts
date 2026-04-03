@@ -1,9 +1,9 @@
-export class ModularError extends Error {
+export class NodulusError extends Error {
   code: string;
 
   constructor(message: string, code: string) {
     super(message);
-    this.name = 'ModularError';
+    this.name = 'NodulusError';
     this.code = code;
   }
 }

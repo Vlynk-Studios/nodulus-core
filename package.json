@@ -1,5 +1,5 @@
 {
-  "name": "modular",
+  "name": "nodulus",
   "version": "0.1.0",
   "type": "module",
   "module": "./dist/index.js",
@@ -11,9 +11,14 @@
     }
   },
   "files": [
-    "dist",
-    "types"
+    "dist"
   ],
+  "peerDependencies": {
+    "express": ">=4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

@@ -1,2 +1,2 @@
-// Internal registry for Modular
+// Internal registry for Nodulus
 export const registry = new Map();
