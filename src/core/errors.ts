@@ -7,6 +7,7 @@ export type NodulusErrorCode =
   | "EXPORT_MISMATCH"
   | "INVALID_CONTROLLER"
   | "ALIAS_NOT_FOUND"
+  | "DUPLICATE_ALIAS"
   | "DUPLICATE_BOOTSTRAP";
 
 export class NodulusError extends Error {
@@ -30,5 +31,6 @@ export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
   EXPORT_MISMATCH:     "A name declared in exports does not exist as a real export of index.ts.",
   INVALID_CONTROLLER:  "Controller has no default export of a Router. Add export default router.",
   ALIAS_NOT_FOUND:     "Alias is configured but the target directory does not exist.",
+  DUPLICATE_ALIAS:     "An alias with this name is already registered to a different target path.",
   DUPLICATE_BOOTSTRAP: "createApp() was called more than once with the same Express instance.",
 };
