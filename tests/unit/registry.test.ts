@@ -5,7 +5,7 @@ import type { ModuleEntry } from '../../src/types/index.js';
 
 describe('Registry V0.3.0', () => {
   beforeEach(() => {
-    registry.clear();
+    registry.clearRegistry();
   });
 
   it('registers and retrieves a module', () => {
@@ -64,7 +64,41 @@ describe('Registry V0.3.0', () => {
     });
   });
 
-  it('finds circular dependencies', () => {
+  it('throws DUPLICATE_ALIAS when registering the same alias with a different target', () => {
+    registry.registerAlias('@utils', '/src/utils');
+    
+    // Repeating the same target is fine (idempotent)
+    expect(() => registry.registerAlias('@utils', '/src/utils')).not.toThrow();
+    
+    // Different target throws error
+    expect(() => registry.registerAlias('@utils', '/src/other-utils')).toThrowError(NodulusError);
+    try {
+      registry.registerAlias('@utils', '/src/other-utils');
+    } catch (e: any) {
+      expect(e.code).toBe('DUPLICATE_ALIAS');
+    }
+  });
+
+  it('getDependencyGraph() reflects declared imports', () => {
+    registry.registerModule('users', { imports: ['database'] }, '', '');
+    registry.registerModule('database', { imports: [] }, '', '');
+    
+    const graph = registry.getDependencyGraph();
+    expect(graph.get('users')).toEqual(['database']);
+    expect(graph.get('database')).toEqual([]);
+  });
+
+  it('findCircularDependencies() detects A -> B -> A', () => {
+    registry.registerModule('A', { imports: ['B'] }, '', '');
+    registry.registerModule('B', { imports: ['A'] }, '', '');
+    
+    const cycles = registry.findCircularDependencies();
+    expect(cycles.length).toBeGreaterThan(0);
+    // Cycle A -> B -> A
+    expect(cycles[0]).toEqual(['A', 'B', 'A']);
+  });
+
+  it('findCircularDependencies() detects A -> B -> C -> A', () => {
     // A -> B -> C -> A
     registry.registerModule('moduleA', { imports: ['moduleB'] }, '', '');
     registry.registerModule('moduleB', { imports: ['moduleC'] }, '', '');
@@ -74,6 +108,16 @@ describe('Registry V0.3.0', () => {
     expect(cycles.length).toBeGreaterThan(0);
     // Cycle A -> B -> C -> A means ['moduleA', 'moduleB', 'moduleC', 'moduleA']
     expect(cycles[0]).toEqual(['moduleA', 'moduleB', 'moduleC', 'moduleA']);
+  });
+
+  it('findCircularDependencies() returns [] if there are no cycles', () => {
+    // A -> B -> C
+    registry.registerModule('X', { imports: ['Y'] }, '', '');
+    registry.registerModule('Y', { imports: ['Z'] }, '', '');
+    registry.registerModule('Z', { imports: [] }, '', '');
+    
+    const cycles = registry.findCircularDependencies();
+    expect(cycles).toEqual([]);
   });
 
   it('getRegistry() exposes NodulusRegistryAdvanced interface', () => {

@@ -6,10 +6,6 @@ import type {
   ModuleOptions
 } from '../types/index.js';
 
-// Private internal structure
-const modules = new Map<string, ModuleEntry>();
-const aliases = new Map<string, string>();
-
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
   name: entry.name,
   path: entry.path,
@@ -26,14 +22,24 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   registerAlias(alias: string, path: string): void;
   /** Gets the raw module entry (with router, middlewares, etc.) */
   getRawModule(name: string): ModuleEntry | undefined;
-  /** Clears the registry (useful for tests) */
-  clear(): void;
+  /**
+   * @internal solo para tests
+   */
+  clearRegistry(): void;
 }
 
-export const registry: InternalRegistry = {
-  hasModule(name: string): boolean {
-    return modules.has(name);
-  },
+/**
+ * Creates a new independent registry instance.
+ * Mainly used to build the singleton, but can be instantiated separately if needed.
+ */
+export function createRegistry(): InternalRegistry {
+  const modules = new Map<string, ModuleEntry>();
+  const aliases = new Map<string, string>();
+
+  return {
+    hasModule(name: string): boolean {
+      return modules.has(name);
+    },
 
   getModule(name: string): RegisteredModule | undefined {
     const entry = modules.get(name);
@@ -117,18 +123,29 @@ export const registry: InternalRegistry = {
   },
 
   registerAlias(alias: string, targetPath: string): void {
+    const existing = aliases.get(alias);
+    if (existing && existing !== targetPath) {
+      throw new NodulusError(
+        'DUPLICATE_ALIAS',
+        `An alias with this name is already registered to a different target path.`,
+        `Alias: ${alias}, Existing: ${existing}, New: ${targetPath}`
+      );
+    }
     aliases.set(alias, targetPath);
   },
 
-  getRawModule(name: string): ModuleEntry | undefined {
-    return modules.get(name);
-  },
+    getRawModule(name: string): ModuleEntry | undefined {
+      return modules.get(name);
+    },
 
-  clear(): void {
-    modules.clear();
-    aliases.clear();
-  }
-};
+    clearRegistry(): void {
+      modules.clear();
+      aliases.clear();
+    }
+  };
+}
+
+export const registry: InternalRegistry = createRegistry();
 
 /**
  * Publicly exported function that returns a read-only version (stable/advanced interface)
