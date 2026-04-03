@@ -15,6 +15,14 @@ export async function createApp(
   app: Application,
   options: CreateAppOptions = {}
 ): Promise<NodulusApp> {
+  // Step 0 — Prevent Duplicate Bootstrap
+  if ((app as any).__nodulusBootstrapped) {
+    throw new NodulusError(
+      'DUPLICATE_BOOTSTRAP',
+      'createApp() was called more than once with the same Express instance.'
+    );
+  }
+  
   // Step 1 — Load configuration
   const config = await loadConfig(options);
 
@@ -229,6 +237,69 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
-  // Placeholder for the upcoming blocks
-  throw new Error('createApp() — more steps pending...');
+  // Step 7 — Mount routes
+  const mountedRoutes: import('../types/index.js').MountedRoute[] = [];
+
+  for (const mod of allModules) {
+    const rawMod = registry.getRawModule(mod.name);
+    if (!rawMod) continue;
+
+    for (const ctrl of rawMod.controllers) {
+      if (!ctrl.enabled) continue;
+
+      const fullPath = (config.prefix + ctrl.prefix).replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+
+      if (ctrl.router) {
+        if (ctrl.middlewares && ctrl.middlewares.length > 0) {
+           app.use(fullPath, ...ctrl.middlewares, ctrl.router);
+        } else {
+           app.use(fullPath, ctrl.router);
+        }
+
+        // Try to extract individual routes from Express router stack
+        // If impossible, fallback to USE basepath.
+        let foundRoutes = false;
+        if (ctrl.router.stack && Array.isArray(ctrl.router.stack)) {
+          for (const layer of ctrl.router.stack) {
+            const routeObj = layer.route as any;
+            if (routeObj && routeObj.methods) {
+              foundRoutes = true;
+              const routePath = routeObj.path;
+              const methods = Object.keys(routeObj.methods).filter(m => routeObj.methods[m]).map(m => m.toUpperCase());
+              
+              for (const method of methods) {
+                mountedRoutes.push({
+                  method: method as any,
+                  path: (fullPath + (routePath === '/' ? '' : routePath)).replace(/\/+/g, '/'),
+                  module: mod.name,
+                  controller: ctrl.name
+                });
+              }
+            }
+          }
+        }
+
+        if (!foundRoutes) {
+          mountedRoutes.push({
+            method: 'USE',
+            path: fullPath,
+            module: mod.name,
+            controller: ctrl.name
+          });
+        }
+      }
+    }
+  }
+
+  // Tag Express app to prevent double boot
+  (app as any).__nodulusBootstrapped = true;
+
+  // Step 8 — Return NodulusApp
+  const safeRegisteredModules = allModules.map(m => registry.getModule(m.name)!);
+  
+  return {
+    modules: safeRegisteredModules,
+    routes: mountedRoutes,
+    registry
+  };
 }
