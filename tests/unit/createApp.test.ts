@@ -104,8 +104,80 @@ describe('Core: createApp Integration V0.5.0', () => {
     await runInTmpApp(validAppStructure, async (_, app) => {
       await createApp(app as any);
       
-      // Second run against the same referenced 'app' should trigger safety guard
       await expect(createApp(app as any)).rejects.toThrow(/was called more than once/);
+    });
+  });
+
+  // --------------
+  // USER REQUIREMENT VALIDATIONS
+  // --------------
+
+  it('EXPORT_MISMATCH se lanza si exports declara un nombre que no existe en index.ts', async () => {
+    const invalidApp: Record<string, string> = { ...validAppStructure };
+    invalidApp['src/modules/users/index.ts'] = `
+      import { Module } from '{{SOURCE}}';
+      Module('users', { exports: ['NonExistentExport'] });
+      export const FakeExport = true;
+    `;
+    await runInTmpApp(invalidApp, async (_, app) => {
+      await expect(createApp(app as any)).rejects.toThrow(/A name declared in exports does not exist/);
+    });
+  });
+
+  it('MISSING_IMPORT se lanza si imports referencia un módulo inexistente', async () => {
+    const invalidApp: Record<string, string> = { ...validAppStructure };
+    invalidApp['src/modules/users/index.ts'] = `
+      import { Module } from '{{SOURCE}}';
+      Module('users', { imports: ['fake_target'] });
+    `;
+    await runInTmpApp(invalidApp, async (_, app) => {
+      await expect(createApp(app as any)).rejects.toThrow(/A module declared in imports does not exist/);
+    });
+  });
+
+  it('CIRCULAR_DEPENDENCY se detecta en modo strict', async () => {
+    const invalidApp: Record<string, string> = { ...validAppStructure };
+    invalidApp['nodulus.config.js'] = `export default { strict: true }`;
+    invalidApp['src/modules/alpha/index.ts'] = `
+      import { Module } from '{{SOURCE}}';
+      Module('alpha', { imports: ['beta'] });
+    `;
+    invalidApp['src/modules/beta/index.ts'] = `
+      import { Module } from '{{SOURCE}}';
+      Module('beta', { imports: ['alpha'] });
+    `;
+    await runInTmpApp(invalidApp, async (_, app) => {
+      await expect(createApp(app as any)).rejects.toThrow(/Circular dependency detected/);
+    });
+  });
+
+  it('INVALID_CONTROLLER se lanza si el controlador no tiene default export de Router', async () => {
+    const invalidApp: Record<string, string> = { ...validAppStructure };
+    invalidApp['src/modules/users/controller.ts'] = `
+      import { Controller } from '{{SOURCE}}';
+      Controller('UsersController', { prefix: '/users' });
+      // Missing default export completely!
+      export const notARouter = true;
+    `;
+    await runInTmpApp(invalidApp, async (_, app) => {
+      await expect(createApp(app as any)).rejects.toThrow(/Controller has no default export of a Router/);
+    });
+  });
+
+  it('Módulo deshabilitado (enabled: false en Controller()) no monta sus rutas', async () => {
+    const customApp: Record<string, string> = { ...validAppStructure };
+    customApp['src/modules/users/controller.ts'] = `
+      import { Controller } from '{{SOURCE}}';
+      Controller('UsersController', { prefix: '/users', enabled: false });
+      const fakeRouter = function() {};
+      fakeRouter.use = function() {};
+      fakeRouter.stack = [{ route: { path: '/me', methods: { get: true } } }];
+      export default fakeRouter;
+    `;
+    await runInTmpApp(customApp, async (_, app) => {
+      const result = await createApp(app as any);
+      expect(result.routes).toHaveLength(0); // the only controller is blocked!
+      expect(app.use).not.toHaveBeenCalled();
     });
   });
 });
