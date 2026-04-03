@@ -182,6 +182,53 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
+  // Step 6 — Discover controllers
+  for (const mod of allModules) {
+    const rawMod = registry.getRawModule(mod.name);
+    if (!rawMod) continue; // Failsafe, should always exist
+
+    const files = await fg('**/*.{ts,js,mts,mjs,cjs}', {
+      cwd: mod.path,
+      absolute: true,
+      ignore: [
+        '**/*.types.*',
+        '**/*.d.ts',
+        '**/*.spec.*',
+        '**/*.test.*',
+        'index.*' // Escapes root index.ts/js
+      ]
+    });
+
+    files.sort();
+
+    for (const file of files) {
+      let imported: any;
+      try {
+        imported = await import(pathToFileURL(file).href);
+      } catch (err: any) {
+        throw new Error(`[Nodulus] Failed to import potential controller at ${file}: ${err.message}`);
+      }
+
+      const ctrlMeta = registry.getControllerMetadata(file);
+      if (ctrlMeta) {
+        // Evaluate router validity (must be default export & resemble an Express router)
+        const isRouter = imported.default && typeof imported.default === 'function' && typeof imported.default.use === 'function';
+        
+        if (!isRouter) {
+          throw new NodulusError(
+            'INVALID_CONTROLLER',
+            `Controller has no default export of a Router. Add export default router.`,
+            `File: ${file}`
+          );
+        }
+
+        // Bind the active Express Router instance directly to the internally saved metadata
+        ctrlMeta.router = imported.default;
+        rawMod.controllers.push(ctrlMeta);
+      }
+    }
+  }
+
   // Placeholder for the upcoming blocks
   throw new Error('createApp() — more steps pending...');
 }
