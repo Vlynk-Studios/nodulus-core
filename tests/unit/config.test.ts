@@ -26,7 +26,7 @@ describe('Core: loadConfig V0.3.0', () => {
     }
   };
 
-  it('Sin archivo de config retorna solo defaults', async () => {
+  it('should return only defaults when no config file exists', async () => {
     await runInTmpDir({}, async () => {
       const config = await loadConfig();
 
@@ -39,7 +39,7 @@ describe('Core: loadConfig V0.3.0', () => {
     });
   });
 
-  it('Con archivo de config los valores sobreescriben defaults', async () => {
+  it('should overwrite defaults dynamically with the config file values', async () => {
     // Generate JS file because running TS dynamically requires tsx / special loaders in pure nodulus run environment
     await runInTmpDir({
       'nodulus.config.js': 'export default { prefix: "/file-prefix", strict: false };'
@@ -52,7 +52,7 @@ describe('Core: loadConfig V0.3.0', () => {
     });
   });
 
-  it('Los options directos sobreescriben el archivo de config', async () => {
+  it('should prioritize inline options over config file values', async () => {
     await runInTmpDir({
       'nodulus.config.js': 'export default { prefix: "/file-prefix", strict: false };'
     }, async () => {
@@ -62,7 +62,7 @@ describe('Core: loadConfig V0.3.0', () => {
     });
   });
 
-  it('Un archivo de config con error de sintaxis lanza error con contexto claro', async () => {
+  it('should throw clear error context when config file has a syntax error', async () => {
     await runInTmpDir({
       'nodulus.config.js': 'module.exports = { prefix: "/fail", invalid-syntax here };'
     }, async () => {

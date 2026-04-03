@@ -15,10 +15,10 @@ export async function createApp(
   app: Application,
   options: CreateAppOptions = {}
 ): Promise<NodulusApp> {
-  // Paso 1 — Cargar configuración
+  // Step 1 — Load configuration
   const config = await loadConfig(options);
 
-  // Paso 2 — Resolver módulos
+  // Step 2 — Resolve modules
   const globPattern = config.modules.replace(/\\/g, '/');
   const moduleDirs = await fg(globPattern, {
     onlyDirectories: true,
@@ -26,10 +26,10 @@ export async function createApp(
     cwd: process.cwd()
   });
 
-  // Asegurar ordenamiento alfabético estricto
+  // Ensure strict alphabetical ordering
   moduleDirs.sort();
 
-  // Guardamos un array de paths útiles para los siguientes pasos (opcional, pero útil)
+  // Store useful resolved paths for the upcoming steps
   const resolvedModules: { dirPath: string, indexPath: string }[] = [];
 
   for (const dirPath of moduleDirs) {
@@ -55,11 +55,11 @@ export async function createApp(
     resolvedModules.push({ dirPath, indexPath });
   }
 
-  // Paso 3 — Activar aliases en runtime
+  // Step 3 — Activate runtime aliases
   if (config.resolveAliases !== false) {
     const hookAliases: Record<string, string> = { ...config.aliases };
     
-    // El hook también resuelve @modules/<name> automáticamente para cada módulo
+    // Automatically resolve @modules/<name> for each module
     for (const mod of resolvedModules) {
       const modName = path.basename(mod.dirPath);
       const aliasKey = `@modules/${modName}`;
@@ -67,7 +67,7 @@ export async function createApp(
       registry.registerAlias(aliasKey, mod.dirPath);
     }
 
-    // El hook solo se registra una vez — flag privado
+    // Register the hook only once — private flag avoids duplicate registers
     if (!isHookRegistered) {
       const loaderCode = `
 import { pathToFileURL } from 'node:url';
@@ -106,6 +106,55 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
-  // Placeholder para los siguientes bloques
+  // Step 4 — Import modules
+  for (const mod of resolvedModules) {
+    let imported: any;
+    try {
+      imported = await import(pathToFileURL(mod.indexPath).href);
+    } catch (importErr: any) {
+      // DUPLICATE_MODULE will be explicitly thrown from inside Module() upon conflict.
+      throw importErr; 
+    }
+
+    // Correlate the imported module with the one added to the registry based on dirPath
+    const allRegistered = registry.getAllModules();
+    const registeredMod = allRegistered.find(m => m.path === mod.dirPath);
+
+    if (!registeredMod) {
+      throw new NodulusError(
+        'MODULE_NOT_FOUND',
+        `No index.ts found calling Module(). Add Module() to the module's index.ts.`,
+        `File: ${mod.indexPath}`
+      );
+    }
+
+    // Validate Exports
+    // CJS/ESM behavior: on dynamic imports, named exports are mapped as object keys.
+    const actualExports = Object.keys(imported).filter(key => key !== 'default');
+    const declaredExports = registeredMod.exports || [];
+
+    for (const declared of declaredExports) {
+      if (!actualExports.includes(declared)) {
+        throw new NodulusError(
+          'EXPORT_MISMATCH',
+          `A name declared in exports does not exist as a real export of index.ts.`,
+          `Module: ${registeredMod.name}, Missing Export: ${declared}`
+        );
+      }
+    }
+
+    if (config.strict) {
+      for (const actual of actualExports) {
+        if (!declaredExports.includes(actual)) {
+          config.logger(
+            'warn', 
+            `Strict Mode: Module "${registeredMod.name}" exports "${actual}" but it is not declared in Module() options "exports" array.`
+          );
+        }
+      }
+    }
+  }
+
+  // Placeholder for the upcoming blocks
   throw new Error('createApp() — more steps pending...');
 }
