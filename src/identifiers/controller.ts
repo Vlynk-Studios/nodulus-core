@@ -1,9 +1,7 @@
-import { ControllerDefinition } from '../types/index.js';
+import type { ControllerOptions } from '../types/index.js';
 
-export const Controller = (name: string, definition: any): ControllerDefinition => {
-  return {
-    type: 'controller',
-    name,
-    definition,
-  };
+// Registers controller metadata in the internal registry.
+// Implementation will be filled in the registry block.
+export const Controller = (_name: string, _options?: ControllerOptions): void => {
+  // no-op until registry is implemented
 };

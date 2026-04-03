@@ -1,9 +1,7 @@
-import { ModuleDefinition } from '../types/index.js';
+import type { ModuleOptions } from '../types/index.js';
 
-export const Module = (name: string, definition: any): ModuleDefinition => {
-  return {
-    type: 'module',
-    name,
-    definition,
-  };
+// Registers module metadata in the internal registry.
+// Implementation will be filled in the registry block.
+export const Module = (_name: string, _options?: ModuleOptions): void => {
+  // no-op until registry is implemented
 };
