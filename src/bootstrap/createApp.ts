@@ -155,6 +155,33 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
+  // Step 5 — Validate dependencies
+  const allModules = registry.getAllModules();
+  for (const mod of allModules) {
+    for (const importName of mod.imports) {
+      if (!registry.hasModule(importName)) {
+        throw new NodulusError(
+          'MISSING_IMPORT',
+          `A module declared in imports does not exist in the registry.`,
+          `Module "${mod.name}" is trying to import missing module "${importName}"`
+        );
+      }
+    }
+  }
+
+  // Strict mode validations for circular dependencies
+  if (config.strict) {
+    const cycles = registry.findCircularDependencies();
+    if (cycles.length > 0) {
+      const cycleStrings = cycles.map(cycle => cycle.join(' -> ')).join(' | ');
+      throw new NodulusError(
+        'CIRCULAR_DEPENDENCY',
+        `Circular dependency detected. Extract the shared dependency into a separate module.`,
+        `Cycles found: ${cycleStrings}`
+      );
+    }
+  }
+
   // Placeholder for the upcoming blocks
   throw new Error('createApp() — more steps pending...');
 }
