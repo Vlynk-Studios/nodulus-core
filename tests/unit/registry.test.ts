@@ -89,8 +89,8 @@ describe('Registry V0.3.0', () => {
   it('getDependencyGraph() reflects declared imports', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('users', { imports: ['database'] }, '', '');
-      getActiveRegistry().registerModule('database', { imports: [] }, '', '');
+      getActiveRegistry().registerModule('users', { imports: ['database'] }, '/users', '/users/index.ts');
+      getActiveRegistry().registerModule('database', { imports: [] }, '/database', '/database/index.ts');
 
       const graph = getActiveRegistry().getDependencyGraph();
       expect(graph.get('users')).toEqual(['database']);
@@ -101,8 +101,8 @@ describe('Registry V0.3.0', () => {
   it('findCircularDependencies() detects A -> B -> A', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('A', { imports: ['B'] }, '', '');
-      getActiveRegistry().registerModule('B', { imports: ['A'] }, '', '');
+      getActiveRegistry().registerModule('A', { imports: ['B'] }, '/a', '/a/index.ts');
+      getActiveRegistry().registerModule('B', { imports: ['A'] }, '/b', '/b/index.ts');
 
       const cycles = getActiveRegistry().findCircularDependencies();
       expect(cycles.length).toBeGreaterThan(0);
@@ -113,9 +113,9 @@ describe('Registry V0.3.0', () => {
   it('findCircularDependencies() detects A -> B -> C -> A', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('moduleA', { imports: ['moduleB'] }, '', '');
-      getActiveRegistry().registerModule('moduleB', { imports: ['moduleC'] }, '', '');
-      getActiveRegistry().registerModule('moduleC', { imports: ['moduleA'] }, '', '');
+      getActiveRegistry().registerModule('moduleA', { imports: ['moduleB'] }, '/ma', '/ma/index.ts');
+      getActiveRegistry().registerModule('moduleB', { imports: ['moduleC'] }, '/mb', '/mb/index.ts');
+      getActiveRegistry().registerModule('moduleC', { imports: ['moduleA'] }, '/mc', '/mc/index.ts');
 
       const cycles = getActiveRegistry().findCircularDependencies();
       expect(cycles.length).toBeGreaterThan(0);
@@ -126,9 +126,9 @@ describe('Registry V0.3.0', () => {
   it('findCircularDependencies() returns [] if there are no cycles', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('X', { imports: ['Y'] }, '', '');
-      getActiveRegistry().registerModule('Y', { imports: ['Z'] }, '', '');
-      getActiveRegistry().registerModule('Z', { imports: [] }, '', '');
+      getActiveRegistry().registerModule('X', { imports: ['Y'] }, '/x', '/x/index.ts');
+      getActiveRegistry().registerModule('Y', { imports: ['Z'] }, '/y', '/y/index.ts');
+      getActiveRegistry().registerModule('Z', { imports: [] }, '/z', '/z/index.ts');
 
       const cycles = getActiveRegistry().findCircularDependencies();
       expect(cycles).toEqual([]);
