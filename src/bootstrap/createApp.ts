@@ -96,7 +96,7 @@ export async function createApp(
 
     // Correlate the imported module with the one added to the registry based on dirPath
     const allRegistered = registry.getAllModules();
-    const registeredMod = allRegistered.find(m => m.path === mod.dirPath);
+    const registeredMod = allRegistered.find(m => path.normalize(m.path) === path.normalize(mod.dirPath));
 
     if (!registeredMod) {
       throw new NodulusError(
@@ -179,7 +179,8 @@ export async function createApp(
 
     files.sort();
 
-    for (const file of files) {
+    for (let file of files) {
+      file = path.normalize(file);
       let imported: any;
       try {
         imported = await import(pathToFileURL(file).href);
@@ -191,7 +192,7 @@ export async function createApp(
         );
       }
 
-      const ctrlMeta = registry.getControllerMetadata(file);
+      const resolvedFile = require('path').normalize(file); const ctrlMeta = registry.getControllerMetadata(resolvedFile) || registry.getAllControllersMetadata().find(c => require('path').normalize(c.path) === resolvedFile);
       if (ctrlMeta) {
         // Evaluate router validity (must be default export & resemble an Express router)
         const isRouter = imported.default && typeof imported.default === 'function' && typeof imported.default.use === 'function';
