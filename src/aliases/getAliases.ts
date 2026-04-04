@@ -1,12 +1,12 @@
 import path from 'node:path';
-import { registry } from '../core/registry.js';
+import { getAliasCache } from './cache.js';
 import type { GetAliasesOptions } from '../types/index.js';
 
 export function getAliases(options: GetAliasesOptions = {}): Record<string, string> {
   const includeFolders = options.includeFolders ?? true;
   const absolute = options.absolute ?? false;
-  
-  const allAliases = registry.getAllAliases();
+
+  const allAliases = getAliasCache();
   const result: Record<string, string> = {};
   const cwd = process.cwd();
   

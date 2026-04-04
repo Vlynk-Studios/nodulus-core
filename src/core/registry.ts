@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { NodulusError } from './errors.js';
 import type { 
   ModuleEntry, 
@@ -21,16 +22,16 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void;
   /** Adds an alias to the registry */
   registerAlias(alias: string, path: string): void;
-  /** Agrega la metadata temporal de un controlador recién evaluado */
+  /** Stores temporary metadata for a recently evaluated controller */
   registerControllerMetadata(entry: ControllerEntry): void;
-  /** Obtiene la metadata de todos los controladores (útil para tests y bootstrap) */
+  /** Returns metadata for all controllers (useful for tests and bootstrap) */
   getAllControllersMetadata(): ControllerEntry[];
-  /** Obtiene la metadata de un controlador filtrando por el filepath */
+  /** Returns metadata for a single controller filtered by its filepath */
   getControllerMetadata(filePath: string): ControllerEntry | undefined;
   /** Gets the raw module entry (with router, middlewares, etc.) */
   getRawModule(name: string): ModuleEntry | undefined;
   /**
-   * @internal solo para tests
+   * @internal for tests only
    */
   clearRegistry(): void;
 }
@@ -166,9 +167,31 @@ export function createRegistry(): InternalRegistry {
   };
 }
 
-export const registry: InternalRegistry = createRegistry();
+/**
+ * AsyncLocalStorage context that holds the active registry for the current execution scope.
+ * Populated by createApp() — all code running within that scope can retrieve
+ * the registry via getActiveRegistry().
+ */
+export const registryContext = new AsyncLocalStorage<InternalRegistry>();
 
 /**
- * Publicly exported function that returns a read-only version (stable/advanced interface)
+ * Returns the registry bound to the current async execution context.
+ * Throws REGISTRY_MISSING_CONTEXT if called outside a createApp() scope.
+ * @internal — not exported from index.ts
  */
-export const getRegistry = (): NodulusRegistryAdvanced => registry;
+export function getActiveRegistry(): InternalRegistry {
+  const store = registryContext.getStore();
+  if (!store) {
+    throw new NodulusError(
+      'REGISTRY_MISSING_CONTEXT',
+      'No active registry found in the current async context. Ensure code runs inside a createApp() execution scope.'
+    );
+  }
+  return store;
+}
+
+/**
+ * Publicly exported function that returns a read-only (stable/advanced) view
+ * of the registry active in the current async context.
+ */
+export const getRegistry = (): NodulusRegistryAdvanced => getActiveRegistry();

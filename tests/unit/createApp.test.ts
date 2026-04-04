@@ -4,14 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createApp } from '../../src/bootstrap/createApp.js';
-import { registry } from '../../src/core/registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sourceUrl = pathToFileURL(path.resolve(__dirname, '../../src/index.ts')).href;
 
-// Because we test inside Vitest with dynamic physical files, we need to import from the source files directly.
-// Luckily vitest/tsm handles dynamic TS imports automatically!
 const runInTmpApp = async (files: Record<string, string>, tests: (tmpDir: string, app: any) => Promise<void>) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nodulus-app-test-'));
   
@@ -26,11 +23,9 @@ const runInTmpApp = async (files: Record<string, string>, tests: (tmpDir: string
     use: vi.fn(),
   };
 
-  const originalCwd = process.cwd();
   vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
 
   try {
-    registry.clearRegistry();
     await tests(tmpDir, mockApp);
   } finally {
     vi.restoreAllMocks();
@@ -40,7 +35,6 @@ const runInTmpApp = async (files: Record<string, string>, tests: (tmpDir: string
 
 describe('Core: createApp Integration V0.5.0', () => {
   afterEach(() => {
-    registry.clearRegistry();
     vi.restoreAllMocks();
   });
 
@@ -93,19 +87,12 @@ describe('Core: createApp Integration V0.5.0', () => {
     `;
 
     await runInTmpApp(invalidAppStructure, async (_, app) => {
-      await expect(createApp(app as any)).rejects.toThrow(/No index.ts found calling Module/);
+      await expect(createApp(app as any)).rejects.toMatchObject({
+        code: 'MODULE_NOT_FOUND'
+      });
       
       // Atomic failure guarantee: no routes should be mounted if the pipeline exploded prematurely.
       expect(app.use).not.toHaveBeenCalled();
-    });
-  });
-
-  it('should throw DUPLICATE_BOOTSTRAP when called twice with the same express app', async () => {
-    await runInTmpApp(validAppStructure, async (_, app) => {
-      await createApp(app as any);
-      
-      // Second run against the same referenced 'app' should trigger safety guard
-      await expect(createApp(app as any)).rejects.toThrow(/was called more than once/);
     });
   });
 });

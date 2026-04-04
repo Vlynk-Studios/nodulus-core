@@ -26,12 +26,20 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
   const tsPath = path.join(cwd, 'nodulus.config.ts');
   const jsPath = path.join(cwd, 'nodulus.config.js');
   
+  // In production only .js is safe to import (no ts-node/tsx available).
+  // In development, .ts is tried first so authors don't need a separate compile step.
+  const candidates: string[] =
+    process.env.NODE_ENV !== 'production'
+      ? [tsPath, jsPath]
+      : [jsPath];
+
   let configPathToLoad: string | null = null;
-  
-  if (fs.existsSync(tsPath)) {
-    configPathToLoad = tsPath;
-  } else if (fs.existsSync(jsPath)) {
-    configPathToLoad = jsPath;
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      configPathToLoad = candidate;
+      break;
+    }
   }
 
   if (configPathToLoad) {

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { registry } from '../core/registry.js';
+import { getActiveRegistry } from '../core/registry.js';
+import { NodulusError } from '../core/errors.js';
 import type { ModuleOptions } from '../types/index.js';
 
 function getCallerInfo(): { dirPath: string; indexPath: string } {
@@ -15,14 +16,19 @@ function getCallerInfo(): { dirPath: string; indexPath: string } {
     if (stack && stack.length > 2) {
       callerFile = stack[2].getFileName() || null;
     }
-  } catch (e) {
-    // Fail silently, use defaults if error tracing isn't available
+  } catch {
+    // getFileName() is unavailable in this environment;
+    // the null-check below will throw a descriptive NodulusError.
   } finally {
     Error.prepareStackTrace = originalFunc;
   }
 
   if (!callerFile) {
-    return { dirPath: '', indexPath: '' };
+    throw new NodulusError(
+      'MODULE_NOT_FOUND',
+      'Module() could not determine caller path. Stack trace unavailable.',
+      'Ensure you are using Node.js >= 20.6 with ESM and no bundler obfuscation.'
+    );
   }
 
   // Handle ESM URLs
@@ -50,5 +56,5 @@ export function Module(name: string, options: ModuleOptions = {}): void {
     }
   }
 
-  registry.registerModule(name, options, dirPath, indexPath);
+  getActiveRegistry().registerModule(name, options, dirPath, indexPath);
 }
