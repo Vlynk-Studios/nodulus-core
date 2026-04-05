@@ -216,9 +216,26 @@ Aliases are resolved at runtime via the Node.js ESM Hooks API (Node ≥ 20.6). F
 // vite.config.ts
 import { getAliases } from 'nodulus'
 
+const aliases = await getAliases()
+
 export default {
-  resolve: { alias: await getAliases() },
+  resolve: { alias: aliases }
 }
+```
+
+```ts
+// esbuild.config.ts
+import { getAliases } from 'nodulus'
+import * as esbuild from 'esbuild'
+
+const aliases = await getAliases()
+
+await esbuild.build({
+  entryPoints: ['src/index.ts'],
+  alias: aliases,
+  bundle: true,
+  outfile: 'dist/app.js'
+})
 ```
 
 `getAliases()` accepts a `GetAliasesOptions` object:

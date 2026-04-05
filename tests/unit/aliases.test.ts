@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { updateAliasCache } from '../../src/aliases/cache.js';
+import { updateAliasCache, clearAliasCache } from '../../src/aliases/cache.js';
 import { getAliases } from '../../src/aliases/getAliases.js';
 import * as resolver from '../../src/aliases/resolver.js';
 import { register } from 'node:module';
@@ -9,7 +9,7 @@ vi.mock('node:module', () => ({
   register: vi.fn()
 }));
 
-describe('Aliases API V0.7.0', () => {
+describe('Aliases API V1.0.0', () => {
   const mockLogger = {
     debug: vi.fn(),
     info: vi.fn(),
@@ -20,6 +20,7 @@ describe('Aliases API V0.7.0', () => {
   afterEach(() => {
     vi.clearAllMocks();
     resolver.clearAliasResolverOptions();
+    clearAliasCache();
   });
 
   // Helper: seed the cache as createApp would after Phase 3
@@ -31,32 +32,39 @@ describe('Aliases API V0.7.0', () => {
     });
   }
 
-  it('getAliases() returns entries for all seeded aliases', () => {
+  it('getAliases() returns {} without throwing when called before createApp()', async () => {
+    // clearAliasCache ensures we are working with an empty cache
+    clearAliasCache();
+    const result = await getAliases();
+    expect(result).toEqual({});
+  });
+
+  it('getAliases() returns entries for all seeded aliases', async () => {
     seedCache();
-    const result = getAliases();
+    const result = await getAliases();
     expect(result['@modules/users']).toBeDefined();
     expect(result['@config/database']).toBeDefined();
   });
 
-  it('getAliases({ includeFolders: false }) keeps @modules/* and drops others', () => {
+  it('getAliases({ includeFolders: false }) keeps @modules/* and drops others', async () => {
     seedCache();
-    const result = getAliases({ includeFolders: false });
+    const result = await getAliases({ includeFolders: false });
     // @modules/* should still be present
     expect(result['@modules/users']).toBeDefined();
     // @config/* is not a @modules/ prefix — excluded
     expect(result['@config/database']).toBeUndefined();
   });
 
-  it('getAliases({ absolute: true }) returns the exact stored paths', () => {
+  it('getAliases({ absolute: true }) returns the exact stored paths', async () => {
     seedCache();
-    const result = getAliases({ absolute: true });
+    const result = await getAliases({ absolute: true });
     expect(result['@modules/users']).toBe(path.join(process.cwd(), 'modules/users'));
     expect(result['@config/database']).toBe(path.join(process.cwd(), 'config/db'));
   });
 
-  it('getAliases({ absolute: false }) returns POSIX-relative paths starting with ./', () => {
+  it('getAliases({ absolute: false }) returns POSIX-relative paths starting with ./', async () => {
     seedCache();
-    const result = getAliases({ absolute: false });
+    const result = await getAliases({ absolute: false });
     for (const val of Object.values(result)) {
       expect(val.startsWith('./')).toBe(true);
       // POSIX — no backslashes
