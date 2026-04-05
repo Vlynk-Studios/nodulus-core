@@ -274,6 +274,37 @@ await createApp(app, {
 
 ---
 
+## Use Cases
+
+### Microservices
+Create lightweight, maintainable Express services by isolating domains into modules. Easily share schemas and types via `@modules/shared`.
+
+### Monoliths
+Manage large-scale Express apps without the spaghetti. Nodulus enforces a clean module boundary and catches circular dependencies before they hit production.
+
+### Fast Prototyping
+Scaffold new features by just creating a folder and an `index.ts`. Nodulus handles all the boilerplate of wiring routes and middlewares to your Express instance.
+
+---
+
+## Advanced Usage
+
+### `getRegistry()`
+
+Returns the read-only registry bound to the current execution context. 
+
+> [!CAUTION]
+> **@unstable API**: This property is intended for advanced framework integrations and debugging. Its structure may change without a major version bump.
+
+```ts
+import { getRegistry } from 'nodulus'
+
+const registry = getRegistry()
+const allModules = registry.getAllModules()
+```
+
+---
+
 ## Error handling
 
 All Nodulus errors are instances of `NodulusError`:

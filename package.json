@@ -1,6 +1,6 @@
 {
   "name": "nodulus",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "module": "./dist/index.js",
   "main": "./dist/index.cjs",
@@ -11,7 +11,10 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "peerDependencies": {
     "express": ">=4.0.0"

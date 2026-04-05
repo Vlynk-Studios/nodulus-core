@@ -208,7 +208,10 @@ export function getActiveRegistry(): InternalRegistry {
 }
 
 /**
- * Publicly exported function that returns a read-only (stable/advanced) view
- * of the registry active in the current async context.
+ * Returns a read-only view of the registry active in the current async context.
+ * 
+ * @unstable This function is intended for advanced framework integrations or 
+ * internal debugging. The structure of the returned registry may change in future 
+ * minor updates. For standard use cases, rely on the properties returned by `createApp()`.
  */
 export const getRegistry = (): NodulusRegistryAdvanced => getActiveRegistry();
