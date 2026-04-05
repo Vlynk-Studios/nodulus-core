@@ -10,6 +10,13 @@ vi.mock('node:module', () => ({
 }));
 
 describe('Aliases API V0.7.0', () => {
+  const mockLogger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  };
+
   afterEach(() => {
     vi.clearAllMocks();
     resolver.clearAliasResolverOptions();
@@ -58,8 +65,8 @@ describe('Aliases API V0.7.0', () => {
   });
 
   it('activateAliasResolver registers the hook exactly once on repeated calls', () => {
-    resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' });
-    resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' });
+    resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' }, mockLogger as any);
+    resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' }, mockLogger as any);
 
     expect(register).toHaveBeenCalledTimes(1);
 
@@ -79,7 +86,7 @@ describe('Aliases API V0.7.0', () => {
   it('activateAliasResolver embeds all combined aliases into the hook source', () => {
     const moduleAliases = { '@modules/auth': '/path/auth' };
     const folderAliases = { '@shared': '/path/shared' };
-    resolver.activateAliasResolver(moduleAliases, folderAliases);
+    resolver.activateAliasResolver(moduleAliases, folderAliases, mockLogger as any);
 
     const [dataUrl] = (register as any).mock.calls[0];
     const decoded = decodeURIComponent(dataUrl.replace('data:text/javascript,', ''));

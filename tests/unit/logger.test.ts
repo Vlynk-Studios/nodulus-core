@@ -52,15 +52,17 @@ describe('Logger Utility', () => {
   });
 
   describe('defaultLogHandler', () => {
-    it('should prefix messages with [Nodulus]', () => {
+    it('should prefix and write messages correctly', () => {
       const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
       const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
       defaultLogHandler('info', 'hello world');
-      expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining('[Nodulus] info  hello world\n'));
+      expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining('hello world\n'));
+      expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining('[Nodulus]'));
 
       defaultLogHandler('warn', 'warning');
-      expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('[Nodulus] warn  warning\n'));
+      expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('warning\n'));
+      expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('[Nodulus]'));
 
       stdoutSpy.mockRestore();
       stderrSpy.mockRestore();

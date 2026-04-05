@@ -9,6 +9,9 @@ import { NodulusError } from '../core/errors.js';
 import { createRegistry, registryContext } from '../core/registry.js';
 import { activateAliasResolver } from '../aliases/resolver.js';
 import { updateAliasCache } from '../aliases/cache.js';
+import { createLogger } from '../core/logger.js';
+import { performance } from 'node:perf_hooks';
+import pc from 'picocolors';
 
 export async function createApp(
   app: Application,
@@ -25,10 +28,19 @@ export async function createApp(
   const registry = createRegistry();
 
   return registryContext.run(registry, async () => {
+    const startTime = performance.now();
     try {
 
   // Step 1 — Load configuration
   const config = await loadConfig(options);
+  const log = createLogger(config.logger, config.logLevel);
+
+  log.info('Bootstrap started', {
+    modules: pc.cyan(config.modules),
+    prefix: pc.cyan(config.prefix || '(none)'),
+    strict: pc.yellow(String(config.strict)),
+    nodeVersion: pc.gray(process.version),
+  });
 
   // Step 2 — Resolve modules
   const globPattern = config.modules.replace(/\\/g, '/');
@@ -45,6 +57,7 @@ export async function createApp(
   const resolvedModules: { dirPath: string, indexPath: string }[] = [];
 
   for (const dirPath of moduleDirs) {
+    log.debug(`Discovered module directory: ${dirPath}`, { dirPath });
     const tsPath = path.join(dirPath, 'index.ts');
     const jsPath = path.join(dirPath, 'index.js');
     
@@ -80,7 +93,7 @@ export async function createApp(
       registry.registerAlias(aliasKey, mod.dirPath);
     }
 
-    activateAliasResolver(pureModuleAliases, config.aliases);
+    activateAliasResolver(pureModuleAliases, config.aliases, log);
     updateAliasCache(registry.getAllAliases());
   }
 
@@ -106,6 +119,13 @@ export async function createApp(
       );
     }
 
+    log.info(`Module loaded: ${pc.green(registeredMod.name)}`, {
+      name: registeredMod.name,
+      imports: registeredMod.imports,
+      exports: registeredMod.exports,
+      path: registeredMod.path,
+    });
+
     // Validate Exports
     // CJS/ESM behavior: on dynamic imports, named exports are mapped as object keys.
     const actualExports = Object.keys(imported).filter(key => key !== 'default');
@@ -124,9 +144,9 @@ export async function createApp(
     if (config.strict) {
       for (const actual of actualExports) {
         if (!declaredExports.includes(actual)) {
-          config.logger(
-            'warn', 
-            `Strict Mode: Module "${registeredMod.name}" exports "${actual}" but it is not declared in Module() options "exports" array.`
+          log.warn(
+            `Module "${registeredMod.name}" exports "${actual}" but it is not declared in Module() options "exports" array.`,
+            { name: registeredMod.name, exportName: actual }
           );
         }
       }
@@ -180,6 +200,7 @@ export async function createApp(
     files.sort();
 
     for (let file of files) {
+      log.debug(`Scanning controller file: ${file}`, { filePath: file, module: mod.name });
       file = path.normalize(file);
       let imported: any;
       try {
@@ -206,10 +227,24 @@ export async function createApp(
           );
         }
 
+        log.debug(`Controller registered: ${pc.green(ctrlMeta.name)} → ${pc.cyan(ctrlMeta.prefix)}`, {
+          name: ctrlMeta.name,
+          prefix: ctrlMeta.prefix,
+          module: mod.name,
+          middlewareCount: ctrlMeta.middlewares.length,
+        });
+
         // Bind the active Express Router instance directly to the internally saved metadata
         ctrlMeta.router = imported.default;
         rawMod.controllers.push(ctrlMeta);
       }
+    }
+
+    if (rawMod.controllers.length === 0) {
+      log.warn(`Module "${mod.name}" has no controllers — no routes will be mounted from it`, {
+        name: mod.name,
+        path: mod.path,
+      });
     }
   }
 
@@ -226,6 +261,15 @@ export async function createApp(
       const fullPath = (config.prefix + ctrl.prefix).replace(/\/+/g, '/').replace(/\/$/, '') || '/';
 
       if (ctrl.router) {
+        if (!ctrl.enabled) {
+          log.info(`Controller "${ctrl.name}" is disabled — skipping mount`, {
+            name: ctrl.name,
+            module: mod.name,
+            prefix: ctrl.prefix,
+          });
+          continue;
+        }
+
         if (ctrl.middlewares && ctrl.middlewares.length > 0) {
            app.use(fullPath, ...ctrl.middlewares, ctrl.router);
         } else {
@@ -235,6 +279,8 @@ export async function createApp(
         // Try to extract individual routes from Express router stack
         // If impossible, fallback to USE basepath.
         let foundRoutes = false;
+        const extractedRoutes: { method: string, path: string }[] = [];
+
         if (ctrl.router.stack && Array.isArray(ctrl.router.stack)) {
           for (const layer of ctrl.router.stack) {
             const routeObj = layer.route as any;
@@ -244,9 +290,11 @@ export async function createApp(
               const methods = Object.keys(routeObj.methods).filter(m => routeObj.methods[m]).map(m => m.toUpperCase());
               
               for (const method of methods) {
+                const fullRoutePath = (fullPath + (routePath === '/' ? '' : routePath)).replace(/\/+/g, '/');
+                extractedRoutes.push({ method, path: fullRoutePath });
                 mountedRoutes.push({
                   method: method as any,
-                  path: (fullPath + (routePath === '/' ? '' : routePath)).replace(/\/+/g, '/'),
+                  path: fullRoutePath,
                   module: mod.name,
                   controller: ctrl.name
                 });
@@ -256,11 +304,31 @@ export async function createApp(
         }
 
         if (!foundRoutes) {
+          extractedRoutes.push({ method: 'USE', path: fullPath });
           mountedRoutes.push({
             method: 'USE',
             path: fullPath,
             module: mod.name,
             controller: ctrl.name
+          });
+        }
+
+        const methodColors: Record<string, (msg: string) => string> = {
+          GET: pc.green,
+          POST: pc.yellow,
+          PUT: pc.cyan,
+          PATCH: pc.magenta,
+          DELETE: pc.red,
+          USE: pc.gray,
+        };
+
+        for (const route of extractedRoutes) {
+          const colorFn = methodColors[route.method] || pc.white;
+          log.info(`  ${colorFn(route.method.padEnd(6))} ${pc.white(route.path)}  ${pc.gray(`(${ctrl.name})`)}`, {
+            method: route.method,
+            path: route.path,
+            module: mod.name,
+            controller: ctrl.name,
           });
         }
       }
@@ -272,6 +340,13 @@ export async function createApp(
 
     // Step 8 — Return NodulusApp
     const safeRegisteredModules = allModules.map(m => registry.getModule(m.name)!);
+    
+    const durationMs = Math.round(performance.now() - startTime);
+    log.info(`${pc.green('Bootstrap complete')} — ${pc.cyan(allModules.length)} module(s), ${pc.cyan(mountedRoutes.length)} route(s) in ${pc.yellow(`${durationMs}ms`)}`, {
+      moduleCount: allModules.length,
+      routeCount: mountedRoutes.length,
+      durationMs,
+    });
 
     return {
       modules: safeRegisteredModules,

@@ -83,10 +83,10 @@ src/
 
 ### `createApp(app, options?)`
 
-Bootstraps the entire application. Runs module discovery, alias resolution, controller mounting, and validation in a deterministic sequence. Throws a `NodularError` before mounting any routes if anything is invalid — the app is never left in a partial state.
+Bootstraps the entire application. Runs module discovery, alias resolution, controller mounting, and validation in a deterministic sequence. Throws a `NodulusError` before mounting any routes if anything is invalid — the app is never left in a partial state.
 
 ```ts
-createApp(app: Application, options?: CreateAppOptions): Promise<NodularApp>
+createApp(app: Application, options?: CreateAppOptions): Promise<NodulusApp>
 ```
 
 | Option | Type | Default | Description |
@@ -94,17 +94,18 @@ createApp(app: Application, options?: CreateAppOptions): Promise<NodularApp>
 | `modules` | `string` | `'src/modules/*'` | Glob pointing to module folders |
 | `prefix` | `string` | `''` | Global route prefix (e.g. `'/api/v1'`) |
 | `aliases` | `Record<string, string>` | `{}` | Folder aliases beyond `@modules/*` |
-| `strict` | `boolean` | `true` in dev | Enables circular dependency detection and undeclared import errors |
+| `strict` | `boolean` | `true` in dev | Enables circular dependency detection |
 | `resolveAliases` | `boolean` | `true` | Disable if you resolve aliases with a bundler |
-| `logger` | `function` | `console.warn` for warnings | Custom log handler |
+| `logger` | `LogHandler` | `defaultLogHandler` | Custom log handler (supports Pino, Winston) |
+| `logLevel` | `LogLevel` | `'info'` in dev | Minimum severity for events |
 
-Returns `NodularApp`:
+Returns `NodulusApp`:
 
 ```ts
-interface NodularApp {
+interface NodulusApp {
   modules:  RegisteredModule[]
   routes:   MountedRoute[]
-  registry: NodularRegistry
+  registry: NodulusRegistry
 }
 ```
 
@@ -221,9 +222,9 @@ Centralise configuration in the project root. Options passed directly to `create
 
 ```ts
 // nodulus.config.ts
-import type { NodularConfig } from 'nodulus'
+import type { NodulusConfig } from 'nodulus'
 
-const config: NodularConfig = {
+const config: NodulusConfig = {
   modules: 'src/modules/*',
   prefix: '/api/v1',
   strict: process.env.NODE_ENV !== 'production',
@@ -239,17 +240,51 @@ export default config
 
 ---
 
-## Error handling
+## Logging
 
-All Nodulus errors are instances of `NodularError`:
+Nodulus 1.0 features a rich, color-coded logging system to help you visualize your application's bootstrap process.
+
+### Default behavior
+- **Development**: Level `info` is enabled by default. You see modules loading, routes mounting, and startup duration.
+- **Production**: Level `warn` is default. Only critical warnings and errors are logged.
+- **Debug**: Enable `NODE_DEBUG=nodulus` to see detailed internal events (file scans, alias registrations).
+
+### Using a custom logger (Pino)
+The `LogHandler` is compatible with most modern loggers:
 
 ```ts
-import { NodularError } from 'nodulus'
+import pino from 'pino'
+const log = pino()
+
+await createApp(app, {
+  logger: (level, message, meta) => {
+    log[level]({ ...meta, framework: 'nodulus' }, message)
+  }
+})
+```
+
+### Total silence
+If you don't want any output from Nodulus:
+
+```ts
+await createApp(app, {
+  logger: () => {} // Silences all logs regardless of level
+})
+```
+
+---
+
+## Error handling
+
+All Nodulus errors are instances of `NodulusError`:
+
+```ts
+import { NodulusError } from 'nodulus'
 
 try {
   await createApp(app, { modules: 'src/modules/*' })
 } catch (err) {
-  if (err instanceof NodularError) {
+  if (err instanceof NodulusError) {
     console.error(err.code)    // 'EXPORT_MISMATCH'
     console.error(err.message) // human-readable description
     console.error(err.details) // additional context
@@ -307,10 +342,10 @@ Types are bundled — no `@types/nodulus` needed.
 ```ts
 import type {
   CreateAppOptions,
-  NodularApp,
-  NodularRegistry,
-  NodularConfig,
-  NodularError,
+  NodulusApp,
+  NodulusRegistry,
+  NodulusConfig,
+  NodulusError,
   ModuleOptions,
   ControllerOptions,
   RegisteredModule,

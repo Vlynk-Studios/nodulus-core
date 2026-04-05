@@ -254,7 +254,7 @@ describe('Integration Tests V0.9.0', () => {
   // -----------------------------------------------------------------------
   describe('Strict Mode Warnings', () => {
     it('warns about undeclared exports in strict mode but does not interrupt bootstrap', async () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const loggerHandler = vi.fn();
 
       await runInTmpApp({
         'nodulus.config.js': 'export default { strict: true };',
@@ -265,13 +265,16 @@ describe('Integration Tests V0.9.0', () => {
           export const undeclaredExport = 2;
         `
       }, async (_, app) => {
-        const result = await createApp(app as any);
+        const result = await createApp(app as any, { logger: loggerHandler });
         expect(result.modules).toHaveLength(1);
-        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Strict Mode'));
-        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('undeclaredExport'));
+        
+        // Verify we got a warning about the undeclared export
+        expect(loggerHandler).toHaveBeenCalledWith(
+          'warn',
+          expect.stringContaining('undeclaredExport'),
+          expect.objectContaining({ name: 'test2', exportName: 'undeclaredExport' })
+        );
       });
-
-      warnSpy.mockRestore();
     });
   });
 

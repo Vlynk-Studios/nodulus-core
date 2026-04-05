@@ -1,3 +1,4 @@
+import pc from 'picocolors';
 import type { LogLevel, LogHandler } from '../types/index.js';
 
 const LEVEL_ORDER: Record<LogLevel, number> = {
@@ -5,6 +6,13 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   info:  1,
   warn:  2,
   error: 3,
+};
+
+const LEVEL_STYLE: Record<LogLevel, (msg: string) => string> = {
+  debug: (msg) => pc.gray(msg),
+  info:  (msg) => pc.cyan(msg),
+  warn:  (msg) => pc.yellow(msg),
+  error: (msg) => pc.red(msg),
 };
 
 const LEVEL_LABELS: Record<LogLevel, string> = {
@@ -19,7 +27,10 @@ const LEVEL_LABELS: Record<LogLevel, string> = {
  * All lines are prefixed with [Nodulus].
  */
 export const defaultLogHandler: LogHandler = (level, message) => {
-  const line = `[Nodulus] ${LEVEL_LABELS[level]} ${message}`;
+  const prefix = pc.gray('[Nodulus]');
+  const label = LEVEL_STYLE[level](LEVEL_LABELS[level]);
+  const line = `${prefix} ${label} ${message}`;
+  
   if (level === 'warn' || level === 'error') {
     process.stderr.write(line + '\n');
   } else {
