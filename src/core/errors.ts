@@ -9,7 +9,8 @@ export type NodulusErrorCode =
   | "ALIAS_NOT_FOUND"
   | "DUPLICATE_ALIAS"
   | "DUPLICATE_BOOTSTRAP"
-  | "REGISTRY_MISSING_CONTEXT";
+  | "REGISTRY_MISSING_CONTEXT"
+  | "INVALID_MODULE_DECLARATION";
 
 export class NodulusError extends Error {
   readonly code: NodulusErrorCode;
@@ -35,4 +36,5 @@ export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
   DUPLICATE_ALIAS:     "An alias with this name is already registered to a different target path.",
   DUPLICATE_BOOTSTRAP:        "createApp() was called more than once with the same Express instance.",
   REGISTRY_MISSING_CONTEXT:   "No active registry found in the current async context. Ensure code runs inside a createApp() execution scope.",
+  INVALID_MODULE_DECLARATION: "The Module() call violates architectural rules (naming or location).",
 };

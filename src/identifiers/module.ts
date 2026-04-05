@@ -49,11 +49,27 @@ export function Module(name: string, options: ModuleOptions = {}): void {
 
   const { dirPath, indexPath } = getCallerInfo();
 
+  // Rule 1: Name must match folder name
   if (dirPath) {
     const folderName = path.basename(dirPath);
     if (folderName && folderName !== name) {
-      console.warn(`[Nodulus] Warning: Module name "${name}" does not match its containing folder "${folderName}".`);
+      throw new NodulusError(
+        'INVALID_MODULE_DECLARATION',
+        `Module name "${name}" does not match its containing folder "${folderName}".`,
+        `The module name in Module() MUST match the folder name exactly.`
+      );
     }
+  }
+
+  // Rule 2: Must be called from index file
+  const fileName = path.basename(indexPath);
+  const isIndexFile = /index\.(ts|js|mts|mjs|cjs|cts)$/.test(fileName);
+  if (!isIndexFile) {
+    throw new NodulusError(
+      'INVALID_MODULE_DECLARATION',
+      `Module() was called from "${fileName}", but it must be called only from the module's index file.`,
+      `File: ${indexPath}`
+    );
   }
 
   getActiveRegistry().registerModule(name, options, dirPath, indexPath);

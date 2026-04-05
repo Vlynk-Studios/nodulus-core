@@ -119,6 +119,16 @@ export function createRegistry(): InternalRegistry {
       );
     }
     
+    // Check if this directory already has a module registered
+    const existing = Array.from(modules.values()).find(m => m.path === dirPath);
+    if (existing) {
+      throw new NodulusError(
+        'DUPLICATE_MODULE',
+        `A module is already registered for this folder. Call Module() only once per directory.`,
+        `Existing: ${existing.name}, New: ${name}, Folder: ${dirPath}`
+      );
+    }
+    
     const entry: ModuleEntry = {
       name,
       path: dirPath,
@@ -144,6 +154,13 @@ export function createRegistry(): InternalRegistry {
     },
 
     registerControllerMetadata(entry: ControllerEntry): void {
+      if (controllers.has(entry.path)) {
+        throw new NodulusError(
+          'INVALID_CONTROLLER',
+          `Controller() was called more than once in the same file.`,
+          `File: ${entry.path}`
+        );
+      }
       controllers.set(entry.path, entry);
     },
 

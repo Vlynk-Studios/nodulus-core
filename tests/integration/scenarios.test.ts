@@ -181,7 +181,7 @@ describe('Integration Tests V0.9.0', () => {
         `,
         'src/modules/test/bad.controller.ts': `
           import { Controller } from '{{SOURCE}}';
-          Controller('BadController', { prefix: '/bad' });
+          Controller('/bad');
           export const foo = 'bar';
         `
       }, async (_, app) => {
@@ -200,7 +200,7 @@ describe('Integration Tests V0.9.0', () => {
         `,
         'src/modules/badmod/no-router.ts': `
           import { Controller } from '{{SOURCE}}';
-          Controller('NoRouter');
+          Controller('/');
           export const notARouter = true;
         `
       }, async (_, app) => {
@@ -226,7 +226,7 @@ describe('Integration Tests V0.9.0', () => {
         'src/modules/users/active.routes.ts': `
           import { Controller } from '{{SOURCE}}';
           import { Router } from 'express';
-          Controller('ActiveController', { prefix: '/active' });
+          Controller('/active');
           const router = Router();
           router.get('/test', (req, res) => res.json({ ok: true }));
           export default router;
@@ -234,15 +234,15 @@ describe('Integration Tests V0.9.0', () => {
         'src/modules/users/disabled.routes.ts': `
           import { Controller } from '{{SOURCE}}';
           import { Router } from 'express';
-          Controller('DisabledController', { prefix: '/disabled', enabled: false });
+          Controller('/disabled', { enabled: false });
           const router = Router();
           router.get('/test', (req, res) => res.json({ disabled: true }));
           export default router;
         `
       }, async (_, app) => {
         const result = await createApp(app as any);
-        const activeRoutes = result.routes.filter(r => r.controller === 'ActiveController');
-        const disabledRoutes = result.routes.filter(r => r.controller === 'DisabledController');
+        const activeRoutes = result.routes.filter(r => r.controller === 'active.routes');
+        const disabledRoutes = result.routes.filter(r => r.controller === 'disabled.routes');
         expect(activeRoutes.length).toBeGreaterThan(0);
         expect(disabledRoutes.length).toBe(0);
       });
@@ -289,7 +289,7 @@ describe('Integration Tests V0.9.0', () => {
         'src/modules/users/routes.ts': `
           import { Controller } from '{{SOURCE}}';
           import { Router } from 'express';
-          Controller('UsersRoutes', { prefix: '/users' });
+          Controller('/users');
           const router = Router();
           router.get('/list', (req, res) => res.json([]));
           export default router;
@@ -398,7 +398,7 @@ describe('Integration Tests V0.9.0', () => {
         'src/modules/shape/ctrl.ts': `
           import { Controller } from '{{SOURCE}}';
           import { Router } from 'express';
-          Controller('ShapeCtrl', { prefix: '/shape' });
+          Controller('/shape');
           const router = Router();
           router.get('/ping', (req, res) => res.json({ ok: true }));
           export default router;
@@ -412,7 +412,7 @@ describe('Integration Tests V0.9.0', () => {
           method: 'GET',
           path: '/api/shape/ping',
           module: 'shape',
-          controller: 'ShapeCtrl'
+          controller: 'ctrl'
         });
         expect(result.registry).toBeDefined();
         expect(typeof result.registry.hasModule).toBe('function');
