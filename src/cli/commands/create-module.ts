@@ -43,11 +43,11 @@ export function createModuleCommand() {
         fs.writeFileSync(path.join(modulePath, filename), content.trim() + '\n', 'utf-8');
       }
 
-      console.log(pc.green(`\n✔ Módulo '${name}' creado en ${path.relative(process.cwd(), modulePath)}/`));
+      console.log(pc.green(`\n✔ Module '${name}' created successfully at ${path.relative(process.cwd(), modulePath)}/`));
       for (const filename of Object.keys(files)) {
         console.log(`  ${pc.cyan(filename)}`);
       }
-      console.log(`\nPróximo paso: agregá '${name}' a los imports de los módulos que lo necesiten.\n`);
+      console.log(`\nNext step: add '${name}' to the imports array of modules that require it.\n`);
     });
 }
 
@@ -71,7 +71,7 @@ Controller('/${name}')
 
 const router = Router()
 
-// Agregá tus rutas acá
+// Add your routes here
 // router.get('/', (req, res) => { ... })
 
 export default router
@@ -86,7 +86,7 @@ import { Service } from 'nodulus'
 Service('${capName}Service', { module: '${name}' })
 
 export class ${capName}Service {
-  // Lógica de negocio acá
+  // Business logic here
 }
 `;
 }
@@ -99,7 +99,7 @@ import { Repository } from 'nodulus'
 Repository('${capName}Repository', { module: '${name}', source: 'database' })
 
 export class ${capName}Repository {
-  // Queries a la base de datos acá
+  // Database queries here
 }
 `;
 }
@@ -113,7 +113,7 @@ import { z } from 'zod'
 Schema('${capName}Schema', { module: '${name}', library: 'zod' })
 
 export const create${capName}Schema = z.object({
-  // Definí tu schema acá
+  // Define your schema here
 })
 `;
 }
