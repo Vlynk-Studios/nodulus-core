@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Core structural layer**: Automatic module discovery and controller registration for Express apps.
+- **Nodulus CLI**: Shipped the `nodulus` binary with `create-module` (scaffolding) and `sync-tsconfig` (IDE sync) commands.
+- **Identifiers**: Added `Service()`, `Repository()`, and `Schema()` structural markers for registering domain concepts alongside `Controller()`.
 - **Bootstrapping**: Robust `createApp()` pipeline with performance metrics and validation.
 - **Logging System**: Color-coded, structured logging with `picocolors` and injectable handlers.
 - **Isolation**: Per-execution registry isolation using `AsyncLocalStorage` to prevent state contamination.

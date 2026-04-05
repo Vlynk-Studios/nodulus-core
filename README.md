@@ -189,6 +189,23 @@ app.use(globalPrefix + controllerPrefix, ...middlewares, router)
 
 ---
 
+### Domain Identifiers
+
+To guarantee accurate error-tracing, structured logs, and framework-level validation, label your business logic with domain identifiers. They capture stack metadata to bind exports effectively to their parent module without any extra configuration.
+
+```ts
+import { Service, Repository, Schema } from 'nodulus'
+import { z } from 'zod'
+
+Service('UserService')
+Repository('UserRepository', { source: 'database' })
+Schema('UserSchema', { library: 'zod' })
+```
+
+Unlike `Controller` or `Module`, these identifiers do not alter runtime execution traces or wrap payloads—they simply announce presence and ownership into the `NodulusRegistry`.
+
+---
+
 ### Import aliases
 
 Nodulus registers two kinds of aliases:
@@ -273,6 +290,53 @@ Config file loading order (first match wins):
 
 1. `nodulus.config.ts` — development only
 2. `nodulus.config.js` — always
+
+---
+
+## CLI Tools
+
+Nodulus provides a built-in CLI to enforce conventions effortlessly and improve developer experience without memorizing boilerplate.
+
+### `nodulus create-module <name>`
+
+Scaffolds a perfectly structured module conforming to the framework constraints instantaneously.
+
+```bash
+npx nodulus create-module payments
+```
+
+```text
+✔ Module 'payments' created successfully at src/modules/payments/
+  index.ts
+  payments.routes.ts
+  payments.service.ts
+  payments.repository.ts
+  payments.schema.ts
+```
+
+| Option | Description |
+|---|---|
+| `--path <path>` | Sets a custom absolute or relative destination |
+| `--no-repository` | Omits the repository file |
+| `--no-schema` | Omits the schema file |
+
+### `nodulus sync-tsconfig`
+
+Because nodulus dynamically discovers modules and configures `@modules/*` ES Hooks aliases, Node.js can recognize your code immediately. However, IDEs and TypeScript demand static assertions. This command bridges the gap by injecting your dynamic nodulus module aliases safely onto `compilerOptions.paths`.
+
+```bash
+npx nodulus sync-tsconfig
+```
+
+```text
+✔ tsconfig.json updated — 3 module(s), 2 folder alias(es)
+Added paths:
+  @modules/users      → ./src/modules/users/index.ts
+  @modules/auth       → ./src/modules/auth/index.ts
+  @config/*           → ./src/config/*
+```
+
+Run this command initially, and whenever you create, rename, or drop modules in the project. It behaves idempotently and automatically purges references to modules that were deleted.
 
 ---
 
