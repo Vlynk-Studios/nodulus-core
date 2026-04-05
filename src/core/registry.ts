@@ -8,6 +8,7 @@ import type {
   ControllerEntry,
   ServiceEntry,
   RepositoryEntry,
+  SchemaEntry,
   FileEntry
 } from '../types/index.js';
 
@@ -43,6 +44,10 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   getAllRepositories(): RepositoryEntry[];
   /** Returns a single repository entry by name */
   getRepository(name: string): RepositoryEntry | undefined;
+  /** Returns all registered schema entries */
+  getAllSchemas(): SchemaEntry[];
+  /** Returns a single schema entry by name */
+  getSchema(name: string): SchemaEntry | undefined;
   /**
    * @internal for tests only
    */
@@ -59,6 +64,7 @@ export function createRegistry(): InternalRegistry {
   const controllers = new Map<string, ControllerEntry>();
   const services = new Map<string, ServiceEntry>();
   const repositories = new Map<string, RepositoryEntry>();
+  const schemas = new Map<string, SchemaEntry>();
 
   return {
     hasModule(name: string): boolean {
@@ -210,6 +216,15 @@ export function createRegistry(): InternalRegistry {
           );
         }
         repositories.set(entry.name, entry);
+      } else if (entry.type === 'schema') {
+        if (schemas.has(entry.name)) {
+          throw new NodulusError(
+            'DUPLICATE_SCHEMA',
+            `A schema named "${entry.name}" is already registered. Each Schema() name must be unique within the registry.`,
+            `Duplicate name: ${entry.name}`
+          );
+        }
+        schemas.set(entry.name, entry);
       }
     },
 
@@ -229,12 +244,21 @@ export function createRegistry(): InternalRegistry {
       return repositories.get(name);
     },
 
+    getAllSchemas(): SchemaEntry[] {
+      return Array.from(schemas.values());
+    },
+
+    getSchema(name: string): SchemaEntry | undefined {
+      return schemas.get(name);
+    },
+
     clearRegistry(): void {
       modules.clear();
       aliases.clear();
       controllers.clear();
       services.clear();
       repositories.clear();
+      schemas.clear();
     }
   };
 }

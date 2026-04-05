@@ -96,8 +96,27 @@ export interface RepositoryEntry {
   source?: string;
 }
 
+export interface SchemaOptions {
+  /** The module this schema belongs to. If omitted, inferred from the file's parent folder name. */
+  module?: string;
+  /** Description — for documentation and future tooling. */
+  description?: string;
+  /** Validation library used to define this schema. */
+  library?: 'zod' | 'joi' | 'yup' | 'ajv' | string;
+}
+
+/** Internal registry entry for a registered schema. */
+export interface SchemaEntry {
+  name: string;
+  path: string;
+  type: 'schema';
+  module: string;
+  description?: string;
+  library?: string;
+}
+
 /** Discriminated union for all file-level identifier entries. */
-export type FileEntry = ServiceEntry | RepositoryEntry;
+export type FileEntry = ServiceEntry | RepositoryEntry | SchemaEntry;
 
 export interface CreateAppOptions {
   /** Glob pointing to module folders. Default: 'src/modules/*'. */
