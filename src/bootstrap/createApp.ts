@@ -192,7 +192,8 @@ export async function createApp(
         );
       }
 
-      const resolvedFile = require('path').normalize(file); const ctrlMeta = registry.getControllerMetadata(resolvedFile) || registry.getAllControllersMetadata().find(c => require('path').normalize(c.path) === resolvedFile);
+      const resolvedFile = path.normalize(file);
+      const ctrlMeta = registry.getControllerMetadata(resolvedFile) || registry.getAllControllersMetadata().find(c => path.normalize(c.path) === resolvedFile);
       if (ctrlMeta) {
         // Evaluate router validity (must be default export & resemble an Express router)
         const isRouter = imported.default && typeof imported.default === 'function' && typeof imported.default.use === 'function';
