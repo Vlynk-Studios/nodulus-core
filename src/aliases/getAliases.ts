@@ -2,7 +2,7 @@ import path from 'node:path';
 import { getAliasCache } from './cache.js';
 import type { GetAliasesOptions } from '../types/index.js';
 
-export function getAliases(options: GetAliasesOptions = {}): Record<string, string> {
+export async function getAliases(options: GetAliasesOptions = {}): Promise<Record<string, string>> {
   const includeFolders = options.includeFolders ?? true;
   const absolute = options.absolute ?? false;
 

@@ -1,11 +1,15 @@
 // Limitation: last write wins in parallel tests.
 // Do not use getAliasCache() in concurrent tests that rely on different aliases.
-const aliasCache: Record<string, string> = {};
+let aliasCache: Record<string, string> = {};
 
 export function updateAliasCache(aliases: Record<string, string>): void {
-  Object.assign(aliasCache, aliases);
+  aliasCache = { ...aliases };
 }
 
 export function getAliasCache(): Record<string, string> {
   return aliasCache;
+}
+
+export function clearAliasCache(): void {
+  aliasCache = {};
 }
