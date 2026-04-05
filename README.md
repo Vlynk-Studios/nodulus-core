@@ -2,7 +2,7 @@
 
 A lightweight structural layer for Express. Nodulus lets you organise your Node.js application into self-contained modules — handling discovery, route mounting, import aliases, and dependency validation at bootstrap time, with zero overhead at runtime.
 
-> **Node.js ≥ 18** · **Express 4.x / 5.x** · **ESM & CJS** · **TypeScript included**
+> **Node.js ≥ 20.6** · **Express 4.x / 5.x** · **ESM & CJS** · **TypeScript included**
 
 ---
 
@@ -70,9 +70,9 @@ Nodulus expects modules in a consistent layout:
 src/
 ├── modules/
 │   └── users/
-│       ├── index.ts            ← required — declares the module
+│       ├── index.ts            ← required — calls Module('users', ...)
 │       ├── users.routes.ts     ← controller (discovered automatically)
-│       ├── users.service.ts    ← private
+│       ├── users.service.ts    ← private business logic
 │       └── users.types.ts      ← excluded from controller scan
 └── app.ts
 ```
@@ -93,11 +93,11 @@ createApp(app: Application, options?: CreateAppOptions): Promise<NodulusApp>
 |---|---|---|---|
 | `modules` | `string` | `'src/modules/*'` | Glob pointing to module folders |
 | `prefix` | `string` | `''` | Global route prefix (e.g. `'/api/v1'`) |
-| `aliases` | `Record<string, string>` | `{}` | Folder aliases beyond `@modules/*` |
-| `strict` | `boolean` | `true` in dev | Enables circular dependency detection |
+| `aliases` | `Record<string, string>` | `{}` | Folder aliases beyond the auto-generated `@modules/*` |
+| `strict` | `boolean` | `true` in dev | Enables circular-dependency detection and undeclared-import errors |
 | `resolveAliases` | `boolean` | `true` | Disable if you resolve aliases with a bundler |
-| `logger` | `LogHandler` | `defaultLogHandler` | Custom log handler (supports Pino, Winston) |
-| `logLevel` | `LogLevel` | `'info'` in dev | Minimum severity for events |
+| `logger` | `LogHandler` | `defaultLogHandler` | Custom log handler (supports Pino, Winston, etc.) |
+| `logLevel` | `LogLevel` | `'info'` | Minimum severity for log events |
 
 Returns `NodulusApp`:
 
@@ -113,7 +113,7 @@ interface NodulusApp {
 
 ### `Module(name, options?)`
 
-Declares a module and registers its metadata in the registry. Call this once at the top of a module's `index.ts`.
+Declares a module and registers its metadata in the registry. **Must** be called from the module's `index.ts` (or `index.js`), and the `name` **must match the containing folder name exactly** — Nodulus enforces this as a structural rule.
 
 ```ts
 // src/modules/orders/index.ts
@@ -125,21 +125,23 @@ Module('orders', {
   exports: ['OrderService', 'createOrderSchema'],
 })
 
-export { OrderService }    from './orders.service.js'
-export { createOrderSchema } from './orders.schema.js'
+export { OrderService }       from './orders.service.js'
+export { createOrderSchema }  from './orders.schema.js'
 ```
 
 | Option | Type | Description |
 |---|---|---|
 | `imports` | `string[]` | Modules this module depends on |
-| `exports` | `string[]` | Public API names (validated against real exports at bootstrap) |
-| `description` | `string` | Documentation / tooling |
+| `exports` | `string[]` | Public API names — validated against real exports at bootstrap |
+| `description` | `string` | Documentation / future tooling |
+
+> **Rule**: The name passed to `Module()` must equal the directory name. `Module('orders')` inside `src/modules/billing/` will throw `INVALID_MODULE_DECLARATION`.
 
 ---
 
-### `Controller(name, options?)`
+### `Controller(prefix, options?)`
 
-Declares a file as an Express controller. The file must have a `default export` of an Express `Router`.
+Declares a file as an Express controller. The controller name is derived automatically from the filename. The file **must** have a `default export` of an Express `Router`.
 
 ```ts
 // src/modules/users/users.routes.ts
@@ -148,8 +150,7 @@ import { Router } from 'express'
 import { requireAuth } from '@middleware/auth.js'
 import { UserService } from './users.service.js'
 
-Controller('UsersController', {
-  prefix: '/users',
+Controller('/users', {
   middlewares: [requireAuth],
 })
 
@@ -174,6 +175,12 @@ router.post('/', async (req, res, next) => {
 export default router
 ```
 
+| Parameter | Type | Description |
+|---|---|---|
+| `prefix` | `string` | Route prefix for this controller (e.g. `'/users'`) |
+| `options.middlewares` | `RequestHandler[]` | Middlewares applied to all routes in this controller. Default: `[]` |
+| `options.enabled` | `boolean` | If `false`, `createApp()` ignores this controller entirely. Default: `true` |
+
 Nodulus mounts each controller as:
 
 ```ts
@@ -186,7 +193,7 @@ app.use(globalPrefix + controllerPrefix, ...middlewares, router)
 
 Nodulus registers two kinds of aliases:
 
-- **Module aliases** — auto-generated for every `Module()`:
+- **Module aliases** — auto-generated for every discovered module:
   ```
   @modules/<name> → src/modules/<name>/index.ts
   ```
@@ -203,7 +210,7 @@ import { UserService } from '@modules/users'
 import { db }          from '@config/database.js'
 ```
 
-Aliases are resolved at runtime via the Node.js ESM Hooks API (Node ≥ 18). For bundler-based projects, disable the runtime hook and use `getAliases()` instead:
+Aliases are resolved at runtime via the Node.js ESM Hooks API (Node ≥ 20.6). For bundler-based projects, disable the runtime hook and use `getAliases()` instead:
 
 ```ts
 // vite.config.ts
@@ -214,11 +221,18 @@ export default {
 }
 ```
 
+`getAliases()` accepts a `GetAliasesOptions` object:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `includeFolders` | `boolean` | `true` | If `false`, only module aliases are returned |
+| `absolute` | `boolean` | `false` | If `true`, returned paths are absolute |
+
 ---
 
 ### `nodulus.config.ts`
 
-Centralise configuration in the project root. Options passed directly to `createApp()` take priority.
+Centralise configuration in the project root. Options passed directly to `createApp()` take priority over the file.
 
 ```ts
 // nodulus.config.ts
@@ -238,19 +252,28 @@ const config: NodulusConfig = {
 export default config
 ```
 
+Config file loading order (first match wins):
+
+1. `nodulus.config.ts` — development only
+2. `nodulus.config.js` — always
+
 ---
 
 ## Logging
 
-Nodulus 1.0 features a rich, color-coded logging system to help you visualize your application's bootstrap process.
+Nodulus emits structured, color-coded log events throughout the bootstrap pipeline using [picocolors](https://github.com/alexeyraspopov/picocolors).
 
 ### Default behavior
-- **Development**: Level `info` is enabled by default. You see modules loading, routes mounting, and startup duration.
-- **Production**: Level `warn` is default. Only critical warnings and errors are logged.
-- **Debug**: Enable `NODE_DEBUG=nodulus` to see detailed internal events (file scans, alias registrations).
+
+| Environment | Default level | Output |
+|---|---|---|
+| Development | `info` | Modules loading, routes mounting, startup duration |
+| Any | `warn` / `error` | Written to `stderr`; everything else to `stdout` |
+| Debug | `debug` | Set `NODE_DEBUG=nodulus` to see file scans and alias registrations |
 
 ### Using a custom logger (Pino)
-The `LogHandler` is compatible with most modern loggers:
+
+The `LogHandler` signature is compatible with most modern loggers:
 
 ```ts
 import pino from 'pino'
@@ -264,50 +287,18 @@ await createApp(app, {
 ```
 
 ### Total silence
-If you don't want any output from Nodulus:
 
 ```ts
 await createApp(app, {
-  logger: () => {} // Silences all logs regardless of level
+  logger: () => {} // Silences all output regardless of level
 })
-```
-
----
-
-## Use Cases
-
-### Microservices
-Create lightweight, maintainable Express services by isolating domains into modules. Easily share schemas and types via `@modules/shared`.
-
-### Monoliths
-Manage large-scale Express apps without the spaghetti. Nodulus enforces a clean module boundary and catches circular dependencies before they hit production.
-
-### Fast Prototyping
-Scaffold new features by just creating a folder and an `index.ts`. Nodulus handles all the boilerplate of wiring routes and middlewares to your Express instance.
-
----
-
-## Advanced Usage
-
-### `getRegistry()`
-
-Returns the read-only registry bound to the current execution context. 
-
-> [!CAUTION]
-> **@unstable API**: This property is intended for advanced framework integrations and debugging. Its structure may change without a major version bump.
-
-```ts
-import { getRegistry } from 'nodulus'
-
-const registry = getRegistry()
-const allModules = registry.getAllModules()
 ```
 
 ---
 
 ## Error handling
 
-All Nodulus errors are instances of `NodulusError`:
+All Nodulus errors are instances of `NodulusError` and carry a machine-readable `code`:
 
 ```ts
 import { NodulusError } from 'nodulus'
@@ -318,23 +309,70 @@ try {
   if (err instanceof NodulusError) {
     console.error(err.code)    // 'EXPORT_MISMATCH'
     console.error(err.message) // human-readable description
-    console.error(err.details) // additional context
+    console.error(err.details) // additional context (path, module name, etc.)
   }
   process.exit(1)
 }
 ```
 
-| Code | Cause |
+| Code | When it's thrown |
 |---|---|
-| `MODULE_NOT_FOUND` | `index.ts` does not call `Module()` |
+| `MODULE_NOT_FOUND` | Discovered folder has no `index.ts` / `index.js`, or `index.ts` does not call `Module()` |
+| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or called outside an index file |
 | `DUPLICATE_MODULE` | Two modules share the same name |
 | `MISSING_IMPORT` | Module listed in `imports` does not exist in the registry |
 | `UNDECLARED_IMPORT` | Module imports from another not listed in `imports` (strict only) |
-| `CIRCULAR_DEPENDENCY` | Circular dependency detected (strict only) |
-| `EXPORT_MISMATCH` | Name declared in `exports` is not a real export of `index.ts` |
-| `INVALID_CONTROLLER` | Controller file has no `default export` of a Router |
+| `CIRCULAR_DEPENDENCY` | A dependency cycle was detected (strict only) |
+| `EXPORT_MISMATCH` | Name declared in `exports` is not an actual export of `index.ts` |
+| `INVALID_CONTROLLER` | Controller file has no `default export` of an Express `Router` |
 | `ALIAS_NOT_FOUND` | Configured alias points to a directory that does not exist |
+| `DUPLICATE_ALIAS` | Two aliases resolve to the same name but different paths |
 | `DUPLICATE_BOOTSTRAP` | `createApp()` called more than once with the same Express instance |
+| `REGISTRY_MISSING_CONTEXT` | A Nodulus API was called outside of a `createApp()` async context |
+
+---
+
+## Advanced usage
+
+### `getRegistry()`
+
+Returns the read-only registry bound to the current async execution context. Only callable within a `createApp()` scope.
+
+> [!CAUTION]
+> **@unstable API**: Intended for advanced framework integrations and debugging. Structure may change without a major version bump.
+
+```ts
+import { getRegistry } from 'nodulus'
+
+const registry = getRegistry()
+const allModules = registry.getAllModules()  // RegisteredModule[]
+const alias      = registry.resolveAlias('@modules/users')
+```
+
+`NodulusRegistry` interface:
+
+```ts
+interface NodulusRegistry {
+  hasModule(name: string): boolean
+  getModule(name: string): RegisteredModule | undefined
+  getAllModules(): RegisteredModule[]
+  resolveAlias(alias: string): string | undefined
+  getAllAliases(): Record<string, string>
+}
+```
+
+---
+
+## Use cases
+
+### Microservices
+Isolate each domain into a module and share types through `@modules/shared`. Each service stays lean with zero cross-cutting concerns.
+
+### Monoliths
+Enforce clean module boundaries at bootstrap, not code review. Nodulus catches circular dependencies and missing imports before your server starts.
+
+### Fast prototyping
+Scaffold a new feature by creating a folder and an `index.ts`. Nodulus handles all the boilerplate of wiring routes and middlewares.
 
 ---
 
@@ -342,9 +380,11 @@ try {
 
 | | Minimum |
 |---|---|
-| Node.js | 18.0.0 |
+| Node.js | 20.6.0 |
 | Express | 4.x or 5.x |
 | TypeScript | 5.0+ (optional) |
+
+> **Why 20.6?** Nodulus uses the Node.js [ESM Hooks API](https://nodejs.org/api/module.html#customization-hooks) (`--import` / `register`) for runtime alias resolution. Native support without `--experimental-loader` requires Node 20.6+.
 
 ---
 
@@ -362,7 +402,7 @@ import { createApp, Module, Controller } from 'nodulus'
 const { createApp, Module, Controller } = require('nodulus')
 ```
 
-> **Note:** Runtime alias resolution uses the Node.js ESM Hooks API and is not available in CJS projects. Use `getAliases()` with your bundler instead.
+> **Note:** Runtime alias resolution uses the ESM Hooks API and is not available in CJS projects. Use `getAliases()` with your bundler instead.
 
 ---
 
@@ -382,6 +422,8 @@ import type {
   RegisteredModule,
   MountedRoute,
   GetAliasesOptions,
+  LogLevel,
+  LogHandler,
 } from 'nodulus'
 ```
 
