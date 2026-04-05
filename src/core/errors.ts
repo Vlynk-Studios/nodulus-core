@@ -10,7 +10,10 @@ export type NodulusErrorCode =
   | "DUPLICATE_ALIAS"
   | "DUPLICATE_BOOTSTRAP"
   | "REGISTRY_MISSING_CONTEXT"
-  | "INVALID_MODULE_DECLARATION";
+  | "INVALID_MODULE_DECLARATION"
+  | "DUPLICATE_SERVICE"
+  | "DUPLICATE_REPOSITORY"
+  | "DUPLICATE_SCHEMA";
 
 export class NodulusError extends Error {
   readonly code: NodulusErrorCode;
@@ -37,4 +40,7 @@ export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
   DUPLICATE_BOOTSTRAP:        "createApp() was called more than once with the same Express instance. Reuse the existing NodulusApp instead.",
   REGISTRY_MISSING_CONTEXT:   "No active registry found in the current async context. Ensure Nodulus API calls run within a createApp() scope.",
   INVALID_MODULE_DECLARATION: "The Module() call violates architectural rules. Ensure it's called at the top level of index.ts.",
+  DUPLICATE_SERVICE:          "A service with this name is already registered. Ensure every Service() name is unique within the same module.",
+  DUPLICATE_REPOSITORY:       "A repository with this name is already registered. Ensure every Repository() name is unique within the same module.",
+  DUPLICATE_SCHEMA:           "A schema with this name is already registered. Ensure every Schema() name is unique within the same module.",
 };

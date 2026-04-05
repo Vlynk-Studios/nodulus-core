@@ -5,7 +5,11 @@ import type {
   RegisteredModule, 
   NodulusRegistryAdvanced,
   ModuleOptions,
-  ControllerEntry
+  ControllerEntry,
+  ServiceEntry,
+  RepositoryEntry,
+  SchemaEntry,
+  FileEntry
 } from '../types/index.js';
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
@@ -30,6 +34,20 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   getControllerMetadata(filePath: string): ControllerEntry | undefined;
   /** Gets the raw module entry (with router, middlewares, etc.) */
   getRawModule(name: string): ModuleEntry | undefined;
+  /** Registers a file-level identifier (Service, Repository, etc.) in the registry */
+  registerFileMetadata(entry: FileEntry): void;
+  /** Returns all registered service entries */
+  getAllServices(): ServiceEntry[];
+  /** Returns a single service entry by name */
+  getService(name: string): ServiceEntry | undefined;
+  /** Returns all registered repository entries */
+  getAllRepositories(): RepositoryEntry[];
+  /** Returns a single repository entry by name */
+  getRepository(name: string): RepositoryEntry | undefined;
+  /** Returns all registered schema entries */
+  getAllSchemas(): SchemaEntry[];
+  /** Returns a single schema entry by name */
+  getSchema(name: string): SchemaEntry | undefined;
   /**
    * @internal for tests only
    */
@@ -44,6 +62,9 @@ export function createRegistry(): InternalRegistry {
   const modules = new Map<string, ModuleEntry>();
   const aliases = new Map<string, string>();
   const controllers = new Map<string, ControllerEntry>();
+  const services = new Map<string, ServiceEntry>();
+  const repositories = new Map<string, RepositoryEntry>();
+  const schemas = new Map<string, SchemaEntry>();
 
   return {
     hasModule(name: string): boolean {
@@ -176,10 +197,68 @@ export function createRegistry(): InternalRegistry {
       return modules.get(name);
     },
 
+    registerFileMetadata(entry: FileEntry): void {
+      if (entry.type === 'service') {
+        if (services.has(entry.name)) {
+          throw new NodulusError(
+            'DUPLICATE_SERVICE',
+            `A service named "${entry.name}" is already registered. Each Service() name must be unique within the registry.`,
+            `Duplicate name: ${entry.name}`
+          );
+        }
+        services.set(entry.name, entry);
+      } else if (entry.type === 'repository') {
+        if (repositories.has(entry.name)) {
+          throw new NodulusError(
+            'DUPLICATE_REPOSITORY',
+            `A repository named "${entry.name}" is already registered. Each Repository() name must be unique within the registry.`,
+            `Duplicate name: ${entry.name}`
+          );
+        }
+        repositories.set(entry.name, entry);
+      } else if (entry.type === 'schema') {
+        if (schemas.has(entry.name)) {
+          throw new NodulusError(
+            'DUPLICATE_SCHEMA',
+            `A schema named "${entry.name}" is already registered. Each Schema() name must be unique within the registry.`,
+            `Duplicate name: ${entry.name}`
+          );
+        }
+        schemas.set(entry.name, entry);
+      }
+    },
+
+    getAllServices(): ServiceEntry[] {
+      return Array.from(services.values());
+    },
+
+    getService(name: string): ServiceEntry | undefined {
+      return services.get(name);
+    },
+
+    getAllRepositories(): RepositoryEntry[] {
+      return Array.from(repositories.values());
+    },
+
+    getRepository(name: string): RepositoryEntry | undefined {
+      return repositories.get(name);
+    },
+
+    getAllSchemas(): SchemaEntry[] {
+      return Array.from(schemas.values());
+    },
+
+    getSchema(name: string): SchemaEntry | undefined {
+      return schemas.get(name);
+    },
+
     clearRegistry(): void {
       modules.clear();
       aliases.clear();
       controllers.clear();
+      services.clear();
+      repositories.clear();
+      schemas.clear();
     }
   };
 }
