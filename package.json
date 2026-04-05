@@ -3,14 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "module": "./dist/index.js",
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.js",
   "bin": {
     "nodulus": "./dist/cli/index.js"
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
     }
   },
   "files": [

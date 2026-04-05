@@ -34,6 +34,9 @@ const runInTmpApp = async (
     fs.writeFileSync(fullPath, finalContent);
   }
 
+  // Inject mandatory ESM package.json
+  fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ type: 'module' }));
+
   vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
 
   try {

@@ -10,10 +10,24 @@ export function createModuleCommand() {
     .option('-p, --path <path>', 'Destination folder path (default: src/modules/<name>)')
     .option('--no-repository', 'Skip generating a repository file')
     .option('--no-schema', 'Skip generating a schema file')
-    .action((name: string, options: { path?: string; repository: boolean; schema: boolean }) => {
+    .option('--js', 'Force generate JavaScript (.js) files')
+    .option('--ts', 'Force generate TypeScript (.ts) files')
+    .action((name: string, options: { path?: string; repository: boolean; schema: boolean; js?: boolean; ts?: boolean }) => {
       if (!/^[a-z0-9-]+$/.test(name)) {
         console.error(pc.red(`\nError: Invalid module name "${name}". Module names must be lowercase and contain only letters, numbers, or hyphens.\n`));
         process.exit(1);
+      }
+
+      // Detect language extension
+      let ext = 'ts';
+      if (options.js) {
+        ext = 'js';
+      } else if (options.ts) {
+        ext = 'ts';
+      } else {
+        // Auto-detect typescript project
+        const hasTsConfig = fs.existsSync(path.resolve(process.cwd(), 'tsconfig.json'));
+        ext = hasTsConfig ? 'ts' : 'js';
       }
 
       const modulePath = options.path ? path.resolve(process.cwd(), options.path) : path.resolve(process.cwd(), `src/modules/${name}`);
@@ -26,17 +40,17 @@ export function createModuleCommand() {
       fs.mkdirSync(modulePath, { recursive: true });
 
       const files: Record<string, string> = {
-        'index.ts': generateIndex(name),
-        [`${name}.routes.ts`]: generateRoutes(name),
-        [`${name}.service.ts`]: generateService(name),
+        [`index.${ext}`]: generateIndex(name),
+        [`${name}.routes.${ext}`]: generateRoutes(name),
+        [`${name}.service.${ext}`]: generateService(name),
       };
 
       if (options.repository) {
-        files[`${name}.repository.ts`] = generateRepository(name);
+        files[`${name}.repository.${ext}`] = generateRepository(name);
       }
       
       if (options.schema) {
-        files[`${name}.schema.ts`] = generateSchema(name);
+        files[`${name}.schema.${ext}`] = generateSchema(name);
       }
 
       for (const [filename, content] of Object.entries(files)) {

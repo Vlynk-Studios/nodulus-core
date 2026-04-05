@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Rebranded project from "Modular" to "Nodulus".
+- **ESM-Only Architecture**: Dropped CommonJS support; Nodulus now requires `"type": "module"` in `package.json`.
 - Updated minimum Node.js requirement to `v20.6.0+` for native ESM hook support.
 - Refined `NodulusError` structure with clearer cause/solution messages.
 

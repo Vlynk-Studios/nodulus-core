@@ -13,7 +13,8 @@ export type NodulusErrorCode =
   | "INVALID_MODULE_DECLARATION"
   | "DUPLICATE_SERVICE"
   | "DUPLICATE_REPOSITORY"
-  | "DUPLICATE_SCHEMA";
+  | "DUPLICATE_SCHEMA"
+  | "INVALID_ESM_ENV";
 
 export class NodulusError extends Error {
   readonly code: NodulusErrorCode;
@@ -43,4 +44,5 @@ export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
   DUPLICATE_SERVICE:          "A service with this name is already registered. Ensure every Service() name is unique within the same module.",
   DUPLICATE_REPOSITORY:       "A repository with this name is already registered. Ensure every Repository() name is unique within the same module.",
   DUPLICATE_SCHEMA:           "A schema with this name is already registered. Ensure every Schema() name is unique within the same module.",
+  INVALID_ESM_ENV:            "Nodulus requires an ESM environment. Please ensure '\"type\": \"module\"' is present heavily in your root package.json file.",
 };
