@@ -11,13 +11,11 @@ export function createModuleCommand() {
     .option('--no-repository', 'Skip generating a repository file')
     .option('--no-schema', 'Skip generating a schema file')
     .action((name: string, options: { path?: string; repository: boolean; schema: boolean }) => {
-      // Validate name: lowercase, no spaces or special chars
       if (!/^[a-z0-9-]+$/.test(name)) {
         console.error(pc.red(`\nError: Invalid module name "${name}". Module names must be lowercase and contain only letters, numbers, or hyphens.\n`));
         process.exit(1);
       }
 
-      // Determine destination folder
       const modulePath = options.path ? path.resolve(process.cwd(), options.path) : path.resolve(process.cwd(), `src/modules/${name}`);
 
       if (fs.existsSync(modulePath)) {
@@ -25,13 +23,11 @@ export function createModuleCommand() {
         process.exit(1);
       }
 
-      // Create directories
       fs.mkdirSync(modulePath, { recursive: true });
 
-      // Generate files
       const files: Record<string, string> = {
-        'index.ts': generateIndex(name, options.repository, options.schema),
-        [`${name}.controller.ts`]: generateController(name),
+        'index.ts': generateIndex(name),
+        [`${name}.routes.ts`]: generateRoutes(name),
         [`${name}.service.ts`]: generateService(name),
       };
 
@@ -47,101 +43,77 @@ export function createModuleCommand() {
         fs.writeFileSync(path.join(modulePath, filename), content.trim() + '\n', 'utf-8');
       }
 
-      console.log(pc.green(`\n✔ Module "${name}" created successfully at ${path.relative(process.cwd(), modulePath)}/`));
+      console.log(pc.green(`\n✔ Módulo '${name}' creado en ${path.relative(process.cwd(), modulePath)}/`));
       for (const filename of Object.keys(files)) {
-        console.log(`  └─ ${pc.cyan(filename)}`);
+        console.log(`  ${pc.cyan(filename)}`);
       }
-      console.log('');
+      console.log(`\nPróximo paso: agregá '${name}' a los imports de los módulos que lo necesiten.\n`);
     });
 }
 
-// Scaffold templates
-
-function generateIndex(name: string, includesRepo: boolean, includesSchema: boolean): string {
-  const capName = name.charAt(0).toUpperCase() + name.slice(1);
-  const imports = [`import { Module } from 'nodulus';\n`];
-  imports.push(`import router from './${name}.controller.js';`);
-  imports.push(`import { ${capName}Service } from './${name}.service.js';`);
-  
-  if (includesRepo) {
-    imports.push(`import { ${capName}Repository } from './${name}.repository.js';`);
-  }
-  
-  if (includesSchema) {
-    imports.push(`import { ${capName}Schema } from './${name}.schema.js';`);
-  }
-
-  const exports = [`${capName}Service`];
-  if (includesRepo) exports.push(`${capName}Repository`);
-  if (includesSchema) exports.push(`${capName}Schema`);
-
+function generateIndex(name: string): string {
   return `
-${imports.join('\n')}
+import { Module } from 'nodulus'
 
 Module('${name}', {
   imports: [],
-  exports: [${exports.map(e => `'${e}'`).join(', ')}]
-});
-
-export {
-  ${exports.join(',\n  ')}
-};
+  exports: [],
+})
 `;
 }
 
-function generateController(name: string): string {
-  const capName = name.charAt(0).toUpperCase() + name.slice(1);
+function generateRoutes(name: string): string {
   return `
-import { Controller } from 'nodulus';
-import { Router } from 'express';
-import { ${capName}Service } from './${name}.service.js';
+import { Controller } from 'nodulus'
+import { Router } from 'express'
 
-Controller('/${name}');
-const router = Router();
+Controller('/${name}')
 
-router.get('/', (req, res) => {
-  res.json({ message: 'Hello from ${name} module' });
-});
+const router = Router()
 
-export default router;
+// Agregá tus rutas acá
+// router.get('/', (req, res) => { ... })
+
+export default router
 `;
 }
 
 function generateService(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
-import { Service } from 'nodulus';
+import { Service } from 'nodulus'
 
-Service('${capName}Service');
+Service('${capName}Service', { module: '${name}' })
 
-export const ${capName}Service = {
-  // Add your service methods here
-};
+export class ${capName}Service {
+  // Lógica de negocio acá
+}
 `;
 }
 
 function generateRepository(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
-import { Repository } from 'nodulus';
+import { Repository } from 'nodulus'
 
-Repository('${capName}Repository', { source: 'database' });
+Repository('${capName}Repository', { module: '${name}', source: 'database' })
 
-export const ${capName}Repository = {
-  // Add your data access methods here
-};
+export class ${capName}Repository {
+  // Queries a la base de datos acá
+}
 `;
 }
 
 function generateSchema(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
-import { Schema } from 'nodulus';
+import { Schema } from 'nodulus'
+import { z } from 'zod'
 
-Schema('${capName}Schema', { library: 'zod' });
+Schema('${capName}Schema', { module: '${name}', library: 'zod' })
 
-export const ${capName}Schema = {
-  // Define your validation schema here
-};
+export const create${capName}Schema = z.object({
+  // Definí tu schema acá
+})
 `;
 }
