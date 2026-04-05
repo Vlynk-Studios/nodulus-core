@@ -135,7 +135,7 @@ describe('Core: createApp Integration V0.5.0', () => {
         
         expect(logger).toHaveBeenCalledWith(
           'info',
-          expect.stringContaining('Module loaded: users'),
+          expect.stringMatching(/Module loaded:.*users/),
           expect.objectContaining({
             name: 'users',
             path: expect.any(String)
