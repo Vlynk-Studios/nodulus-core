@@ -25,16 +25,16 @@ export class NodulusError extends Error {
 }
 
 export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
-  MODULE_NOT_FOUND:    "No index.ts found calling Module(). Add Module() to the module's index.ts.",
-  DUPLICATE_MODULE:    "A module with this name already exists. Each module must have a unique name.",
-  MISSING_IMPORT:      "A module declared in imports does not exist in the registry.",
-  UNDECLARED_IMPORT:   "A module imports from another not listed in its imports field (strict mode only).",
-  CIRCULAR_DEPENDENCY: "Circular dependency detected. Extract the shared dependency into a separate module.",
-  EXPORT_MISMATCH:     "A name declared in exports does not exist as a real export of index.ts.",
-  INVALID_CONTROLLER:  "Controller has no default export of a Router. Add export default router.",
-  ALIAS_NOT_FOUND:     "Alias is configured but the target directory does not exist.",
-  DUPLICATE_ALIAS:     "An alias with this name is already registered to a different target path.",
-  DUPLICATE_BOOTSTRAP:        "createApp() was called more than once with the same Express instance.",
-  REGISTRY_MISSING_CONTEXT:   "No active registry found in the current async context. Ensure code runs inside a createApp() execution scope.",
-  INVALID_MODULE_DECLARATION: "The Module() call violates architectural rules (naming or location).",
+  MODULE_NOT_FOUND:    "This folder was discovered but index.ts does not call Module(). Add Module('name') to the top of index.ts.",
+  DUPLICATE_MODULE:    "A module with this name or path already exists. Ensure every module name is unique across the app.",
+  MISSING_IMPORT:      "A module listed in 'imports' does not exist in the registry. Verify the module name exists and its index.ts calls Module().",
+  UNDECLARED_IMPORT:   "Attempted to import a module not listed in this module's 'imports' field. Add the missing dependency to Module() options.",
+  CIRCULAR_DEPENDENCY: "A circular dependency chain was detected. Extract shared logic into a third module to break the cycle.",
+  EXPORT_MISMATCH:     "A name declared in 'exports' is not a real export of index.ts. Ensure you 'export { ... }' the matching member.",
+  INVALID_CONTROLLER:  "Controller has no default export of an Express Router. Add 'export default router;' to the controller file.",
+  ALIAS_NOT_FOUND:     "An alias points to a target directory that does not exist. Verify the path in nodulus.config.ts or createApp() options.",
+  DUPLICATE_ALIAS:     "An alias with this name is already registered to a different path. Check for naming collisions in your config.",
+  DUPLICATE_BOOTSTRAP:        "createApp() was called more than once with the same Express instance. Reuse the existing NodulusApp instead.",
+  REGISTRY_MISSING_CONTEXT:   "No active registry found in the current async context. Ensure Nodulus API calls run within a createApp() scope.",
+  INVALID_MODULE_DECLARATION: "The Module() call violates architectural rules. Ensure it's called at the top level of index.ts.",
 };

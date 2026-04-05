@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { CreateAppOptions, ResolvedConfig, NodulusConfig } from '../types/index.js';
+import type { CreateAppOptions, ResolvedConfig, NodulusConfig, LogLevel } from '../types/index.js';
+import { defaultLogHandler, resolveLogLevel } from './logger.js';
 
 const defaultStrict = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 
@@ -11,11 +12,8 @@ export const DEFAULTS: ResolvedConfig = {
   aliases: {},
   strict: defaultStrict,
   resolveAliases: true,
-  logger: (level, msg) => {
-    if (level === 'warn' || level === 'error') {
-      console[level](`[nodulus] ${msg}`);
-    }
-  },
+  logger: defaultLogHandler,
+  logLevel: resolveLogLevel(),
 };
 
 export const loadConfig = async (options: CreateAppOptions = {}): Promise<ResolvedConfig> => {
@@ -67,5 +65,6 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
     strict: options.strict ?? fileConfig.strict ?? DEFAULTS.strict,
     resolveAliases: options.resolveAliases ?? fileConfig.resolveAliases ?? DEFAULTS.resolveAliases,
     logger: options.logger ?? fileConfig.logger ?? DEFAULTS.logger,
+    logLevel: resolveLogLevel(options.logLevel ?? fileConfig.logLevel),
   };
 };

@@ -22,6 +22,21 @@ export interface ModuleEntry {
   controllers: ControllerEntry[];
 }
 
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * Function that receives a log event from Nodulus.
+ * 
+ * @param level   - Severity level.
+ * @param message - Human-readable message.
+ * @param meta    - Optional structured data for machine consumption.
+ */
+export type LogHandler = (
+  level: LogLevel,
+  message: string,
+  meta?: Record<string, unknown>
+) => void;
+
 // ─── Public API types ─────────────────────────────────────────────────────────
 // Exported as part of the public surface. Stable between minor versions unless
 // documented otherwise.
@@ -63,8 +78,18 @@ export interface CreateAppOptions {
    * Useful when the project resolves aliases via a bundler. Default: true.
    */
   resolveAliases?: boolean;
-  /** Custom log handler. Default: console.warn for warnings, silent otherwise. */
-  logger?: (level: 'info' | 'warn' | 'error', message: string) => void;
+  /**
+   * Custom log handler. Receives all Nodulus log events.
+   * 
+   * Default: prints [Nodulus] prefixed messages to stderr (warn/error)
+   * and stdout (info). debug is suppressed unless NODE_DEBUG includes 'nodulus'.
+   */
+  logger?: LogHandler;
+  /**
+   * Minimum log level. Events below this level are not passed to the handler.
+   * Default: 'info' (debug is off unless explicitly set).
+   */
+  logLevel?: LogLevel;
 }
 
 /** Resolved configuration used internally (defaults applied). */
@@ -74,7 +99,8 @@ export interface ResolvedConfig {
   aliases: Record<string, string>;
   strict: boolean;
   resolveAliases: boolean;
-  logger: (level: 'info' | 'warn' | 'error', message: string) => void;
+  logger: LogHandler;
+  logLevel: LogLevel;
 }
 
 /** A module as it appears in the NodularApp result after bootstrap. */

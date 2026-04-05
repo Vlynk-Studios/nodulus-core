@@ -95,4 +95,53 @@ describe('Core: createApp Integration V0.5.0', () => {
       expect(app.use).not.toHaveBeenCalled();
     });
   });
+
+  describe('Logging', () => {
+    it('should emit bootstrap:complete with durationMs > 0', async () => {
+      const logger = vi.fn();
+      await runInTmpApp(validAppStructure, async (_, app) => {
+        await createApp(app as any, { logger });
+        
+        expect(logger).toHaveBeenCalledWith(
+          'info',
+          expect.stringContaining('Bootstrap complete'),
+          expect.objectContaining({ 
+            durationMs: expect.any(Number),
+            moduleCount: 1,
+            routeCount: 1
+          })
+        );
+        
+        const lastCall = logger.mock.calls.find(call => call[1].includes('Bootstrap complete'))!;
+        expect(lastCall[2].durationMs).toBeGreaterThan(0);
+      });
+    });
+
+    it('should respect logLevel and suppress info messages when set to warn', async () => {
+      const logger = vi.fn();
+      await runInTmpApp(validAppStructure, async (_, app) => {
+        await createApp(app as any, { logger, logLevel: 'warn' });
+        
+        // Modules, routes, and bootstrap completion are 'info' level
+        const infoCalls = logger.mock.calls.filter(call => call[0] === 'info');
+        expect(infoCalls).toHaveLength(0);
+      });
+    });
+
+    it('should pass structured metadata for module loading', async () => {
+      const logger = vi.fn();
+      await runInTmpApp(validAppStructure, async (_, app) => {
+        await createApp(app as any, { logger });
+        
+        expect(logger).toHaveBeenCalledWith(
+          'info',
+          expect.stringMatching(/Module loaded:.*users/),
+          expect.objectContaining({
+            name: 'users',
+            path: expect.any(String)
+          })
+        );
+      });
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { register } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import type { Logger } from '../core/logger.js';
 
 // Node.js Customization Hooks types
 export type ResolveHookContext = {
@@ -30,10 +31,17 @@ export function clearAliasResolverOptions(): void {
  * It will not function effectively in pure CJS pipelines without a transpiler or loader.
  * For CJS and bundlers (Vite, esbuild), use getAliases() to configure their specific resolvers.
  */
-export function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>): void {
+export function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): void {
   if (isHookRegistered) return;
   
   const combinedAliases = { ...folderAliases, ...moduleAliases };
+
+  for (const [alias, target] of Object.entries(folderAliases)) {
+    log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
+  }
+  for (const [alias, target] of Object.entries(moduleAliases)) {
+    log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'module' });
+  }
 
   // Aliases are serialised directly into the hook source so they are available
   // in the hook's closure regardless of whether Node.js propagates context.data
@@ -65,10 +73,17 @@ export async function resolve(specifier, context, nextResolve) {
     if (typeof register === 'function') {
       register(dataUrl, { parentURL: parentUrl });
       isHookRegistered = true;
+      log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
+        aliasCount: Object.keys(combinedAliases).length
+      });
     } else {
-      console.warn('[Nodulus] Warning: node:module register() is not available. ESM aliases might not function properly in runtime. Please upgrade to Node.js >= 20.6.0');
+      log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
+        nodeVersion: process.version
+      });
     }
   } catch (err) {
-    console.warn('[Nodulus] Warning: Failed to register ESM hook:', err);
+    log.warn('ESM alias hook registration threw an unexpected error — aliases may not resolve at runtime', {
+      error: (err as any)?.message ?? String(err)
+    });
   }
 }
