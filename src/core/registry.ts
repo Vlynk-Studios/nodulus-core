@@ -5,7 +5,8 @@ import type {
   RegisteredModule, 
   NodulusRegistryAdvanced,
   ModuleOptions,
-  ControllerEntry
+  ControllerEntry,
+  ServiceEntry
 } from '../types/index.js';
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
@@ -30,6 +31,12 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   getControllerMetadata(filePath: string): ControllerEntry | undefined;
   /** Gets the raw module entry (with router, middlewares, etc.) */
   getRawModule(name: string): ModuleEntry | undefined;
+  /** Registers a file-level identifier (e.g. Service) in the registry */
+  registerFileMetadata(entry: ServiceEntry): void;
+  /** Returns all registered service entries */
+  getAllServices(): ServiceEntry[];
+  /** Returns a single service entry by name */
+  getService(name: string): ServiceEntry | undefined;
   /**
    * @internal for tests only
    */
@@ -44,6 +51,7 @@ export function createRegistry(): InternalRegistry {
   const modules = new Map<string, ModuleEntry>();
   const aliases = new Map<string, string>();
   const controllers = new Map<string, ControllerEntry>();
+  const services = new Map<string, ServiceEntry>();
 
   return {
     hasModule(name: string): boolean {
@@ -176,10 +184,30 @@ export function createRegistry(): InternalRegistry {
       return modules.get(name);
     },
 
+    registerFileMetadata(entry: ServiceEntry): void {
+      if (services.has(entry.name)) {
+        throw new NodulusError(
+          'DUPLICATE_SERVICE',
+          `A service named "${entry.name}" is already registered. Each Service() name must be unique within the registry.`,
+          `Duplicate name: ${entry.name}`
+        );
+      }
+      services.set(entry.name, entry);
+    },
+
+    getAllServices(): ServiceEntry[] {
+      return Array.from(services.values());
+    },
+
+    getService(name: string): ServiceEntry | undefined {
+      return services.get(name);
+    },
+
     clearRegistry(): void {
       modules.clear();
       aliases.clear();
       controllers.clear();
+      services.clear();
     }
   };
 }

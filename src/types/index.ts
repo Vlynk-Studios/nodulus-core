@@ -61,6 +61,22 @@ export interface ControllerOptions {
   enabled?: boolean;
 }
 
+export interface ServiceOptions {
+  /** The module this service belongs to. If omitted, inferred from the file's parent folder name. */
+  module?: string;
+  /** Description — for documentation and future tooling. */
+  description?: string;
+}
+
+/** Internal registry entry for a registered service. */
+export interface ServiceEntry {
+  name: string;
+  path: string;
+  type: 'service';
+  module: string;
+  description?: string;
+}
+
 export interface CreateAppOptions {
   /** Glob pointing to module folders. Default: 'src/modules/*'. */
   modules?: string;
