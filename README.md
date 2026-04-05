@@ -486,6 +486,18 @@ import { createApp, Module, Controller } from 'nodulus'
 
 ---
 
+## Aliases in CJS projects
+
+Runtime alias resolution strictly requires an ESM environment (Node 20.6+). 
+In projects using CommonJS or legacy transpilation pipelines, you must configure aliases directly in your bundler (Vite, esbuild, webpack) using the `getAliases()` utility:
+
+```ts
+import { getAliases } from 'nodulus'
+// Use the result in your tool's alias configuration
+```
+
+---
+
 ## TypeScript
 
 Types are bundled — no `@types/nodulus` needed.
