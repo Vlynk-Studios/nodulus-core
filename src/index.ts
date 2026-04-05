@@ -6,6 +6,7 @@ export * from './core/config.js';
 export * from './identifiers/module.js';
 export * from './identifiers/controller.js';
 export * from './identifiers/service.js';
+export * from './identifiers/repository.js';
 
 export * from './bootstrap/createApp.js';
 export * from './aliases/getAliases.js';

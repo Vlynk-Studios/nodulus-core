@@ -68,6 +68,15 @@ export interface ServiceOptions {
   description?: string;
 }
 
+export interface RepositoryOptions {
+  /** The module this repository belongs to. If omitted, inferred from the file's parent folder name. */
+  module?: string;
+  /** Description — for documentation and future tooling. */
+  description?: string;
+  /** Data source type this repository talks to. */
+  source?: 'database' | 'api' | 'cache' | 'file' | string;
+}
+
 /** Internal registry entry for a registered service. */
 export interface ServiceEntry {
   name: string;
@@ -76,6 +85,19 @@ export interface ServiceEntry {
   module: string;
   description?: string;
 }
+
+/** Internal registry entry for a registered repository. */
+export interface RepositoryEntry {
+  name: string;
+  path: string;
+  type: 'repository';
+  module: string;
+  description?: string;
+  source?: string;
+}
+
+/** Discriminated union for all file-level identifier entries. */
+export type FileEntry = ServiceEntry | RepositoryEntry;
 
 export interface CreateAppOptions {
   /** Glob pointing to module folders. Default: 'src/modules/*'. */

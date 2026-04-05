@@ -6,7 +6,9 @@ import type {
   NodulusRegistryAdvanced,
   ModuleOptions,
   ControllerEntry,
-  ServiceEntry
+  ServiceEntry,
+  RepositoryEntry,
+  FileEntry
 } from '../types/index.js';
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
@@ -31,12 +33,16 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   getControllerMetadata(filePath: string): ControllerEntry | undefined;
   /** Gets the raw module entry (with router, middlewares, etc.) */
   getRawModule(name: string): ModuleEntry | undefined;
-  /** Registers a file-level identifier (e.g. Service) in the registry */
-  registerFileMetadata(entry: ServiceEntry): void;
+  /** Registers a file-level identifier (Service, Repository, etc.) in the registry */
+  registerFileMetadata(entry: FileEntry): void;
   /** Returns all registered service entries */
   getAllServices(): ServiceEntry[];
   /** Returns a single service entry by name */
   getService(name: string): ServiceEntry | undefined;
+  /** Returns all registered repository entries */
+  getAllRepositories(): RepositoryEntry[];
+  /** Returns a single repository entry by name */
+  getRepository(name: string): RepositoryEntry | undefined;
   /**
    * @internal for tests only
    */
@@ -52,6 +58,7 @@ export function createRegistry(): InternalRegistry {
   const aliases = new Map<string, string>();
   const controllers = new Map<string, ControllerEntry>();
   const services = new Map<string, ServiceEntry>();
+  const repositories = new Map<string, RepositoryEntry>();
 
   return {
     hasModule(name: string): boolean {
@@ -184,15 +191,26 @@ export function createRegistry(): InternalRegistry {
       return modules.get(name);
     },
 
-    registerFileMetadata(entry: ServiceEntry): void {
-      if (services.has(entry.name)) {
-        throw new NodulusError(
-          'DUPLICATE_SERVICE',
-          `A service named "${entry.name}" is already registered. Each Service() name must be unique within the registry.`,
-          `Duplicate name: ${entry.name}`
-        );
+    registerFileMetadata(entry: FileEntry): void {
+      if (entry.type === 'service') {
+        if (services.has(entry.name)) {
+          throw new NodulusError(
+            'DUPLICATE_SERVICE',
+            `A service named "${entry.name}" is already registered. Each Service() name must be unique within the registry.`,
+            `Duplicate name: ${entry.name}`
+          );
+        }
+        services.set(entry.name, entry);
+      } else if (entry.type === 'repository') {
+        if (repositories.has(entry.name)) {
+          throw new NodulusError(
+            'DUPLICATE_REPOSITORY',
+            `A repository named "${entry.name}" is already registered. Each Repository() name must be unique within the registry.`,
+            `Duplicate name: ${entry.name}`
+          );
+        }
+        repositories.set(entry.name, entry);
       }
-      services.set(entry.name, entry);
     },
 
     getAllServices(): ServiceEntry[] {
@@ -203,11 +221,20 @@ export function createRegistry(): InternalRegistry {
       return services.get(name);
     },
 
+    getAllRepositories(): RepositoryEntry[] {
+      return Array.from(repositories.values());
+    },
+
+    getRepository(name: string): RepositoryEntry | undefined {
+      return repositories.get(name);
+    },
+
     clearRegistry(): void {
       modules.clear();
       aliases.clear();
       controllers.clear();
       services.clear();
+      repositories.clear();
     }
   };
 }
