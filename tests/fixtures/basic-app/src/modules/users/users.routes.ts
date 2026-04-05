@@ -3,7 +3,7 @@ import { Controller } from '../../../../../../src/index.js';
 import { UsersService } from './users.service.js';
 import { validate } from '@middleware/validate.js';
 
-Controller('UsersController', { prefix: '/users', middlewares: [validate] });
+Controller('/users', { middlewares: [validate] });
 
 const router = express.Router();
 router.get('/', (req, res) => {

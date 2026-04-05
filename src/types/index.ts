@@ -40,8 +40,6 @@ export interface ModuleOptions {
 }
 
 export interface ControllerOptions {
-  /** Route prefix for all routes in this controller. Default: '/'. */
-  prefix?: string;
   /** Middlewares applied to all routes. Mounted before the router. Default: []. */
   middlewares?: RequestHandler[];
   /** If false, createApp() ignores this controller entirely. Default: true. */

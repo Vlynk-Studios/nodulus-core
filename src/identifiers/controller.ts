@@ -38,13 +38,18 @@ function getCallerInfo(): { filePath: string } {
   return { filePath: callerFile };
 }
 
-export function Controller(name: string, options: ControllerOptions = {}): void {
+export function Controller(prefix: string, options: ControllerOptions = {}): void {
+  if (typeof prefix !== 'string') {
+    throw new TypeError(`Controller prefix must be a string, received ${typeof prefix}`);
+  }
+
   const { filePath } = getCallerInfo();
+  const name = path.parse(filePath).name;
 
   getActiveRegistry().registerControllerMetadata({
     name,
     path: filePath,
-    prefix: options.prefix ?? '/',
+    prefix: prefix,
     middlewares: options.middlewares ?? [],
     enabled: options.enabled ?? true
   });

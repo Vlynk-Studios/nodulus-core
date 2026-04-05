@@ -154,6 +154,13 @@ export function createRegistry(): InternalRegistry {
     },
 
     registerControllerMetadata(entry: ControllerEntry): void {
+      if (controllers.has(entry.path)) {
+        throw new NodulusError(
+          'INVALID_CONTROLLER',
+          `Controller() was called more than once in the same file.`,
+          `File: ${entry.path}`
+        );
+      }
       controllers.set(entry.path, entry);
     },
 

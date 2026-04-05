@@ -48,7 +48,7 @@ describe('Core: createApp Integration V0.5.0', () => {
     `,
     'src/modules/users/controller.ts': `
       import { Controller } from '{{SOURCE}}';
-      Controller('UsersController', { prefix: '/users' });
+      Controller('/users');
       const fakeRouter = function() {};
       fakeRouter.use = function() {};
       fakeRouter.stack = [
@@ -73,7 +73,7 @@ describe('Core: createApp Integration V0.5.0', () => {
         method: 'GET',
         path: '/api/users/me',
         module: 'users',
-        controller: 'UsersController'
+        controller: 'controller'
       });
       expect(nodulusApp.registry).toBeDefined();
     });
