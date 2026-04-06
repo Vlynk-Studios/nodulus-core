@@ -2,7 +2,7 @@
 
 A lightweight structural layer for Express. Nodulus lets you organise your Node.js application into self-contained modules — handling discovery, route mounting, import aliases, and dependency validation at bootstrap time, with zero overhead at runtime.
 
-> **Node.js ≥ 20.6** · **Express 4.x / 5.x** · **ESM & CJS** · **TypeScript included**
+> **Node.js ≥ 20.6** · **Express 4.x / 5.x** · **ESM Only** · **TypeScript included**
 
 ---
 
@@ -189,6 +189,23 @@ app.use(globalPrefix + controllerPrefix, ...middlewares, router)
 
 ---
 
+### Domain Identifiers
+
+To guarantee accurate error-tracing, structured logs, and framework-level validation, label your business logic with domain identifiers. They capture stack metadata to bind exports effectively to their parent module without any extra configuration.
+
+```ts
+import { Service, Repository, Schema } from 'nodulus'
+import { z } from 'zod'
+
+Service('UserService')
+Repository('UserRepository', { source: 'database' })
+Schema('UserSchema', { library: 'zod' })
+```
+
+Unlike `Controller` or `Module`, these identifiers do not alter runtime execution traces or wrap payloads—they simply announce presence and ownership into the `NodulusRegistry`.
+
+---
+
 ### Import aliases
 
 Nodulus registers two kinds of aliases:
@@ -210,7 +227,11 @@ import { UserService } from '@modules/users'
 import { db }          from '@config/database.js'
 ```
 
-Aliases are resolved at runtime via the Node.js ESM Hooks API (Node ≥ 20.6). For bundler-based projects, disable the runtime hook and use `getAliases()` instead:
+> [!IMPORTANT]
+> Nodulus is an **ESM-only** framework. It requires `"type": "module"` in your `package.json`. 
+> Dynamic runtime alias resolution relies on the Node.js ESM Hooks API (`--import` or `register`).
+
+For bundler-based projects (Vite, Esbuild, etc.), you can disable the runtime hook and inject `getAliases()` directly into your config:
 
 ```ts
 // vite.config.ts
@@ -273,6 +294,53 @@ Config file loading order (first match wins):
 
 1. `nodulus.config.ts` — development only
 2. `nodulus.config.js` — always
+
+---
+
+## CLI Tools
+
+Nodulus provides a built-in CLI to enforce conventions effortlessly and improve developer experience without memorizing boilerplate.
+
+### `nodulus create-module <name>`
+
+Scaffolds a perfectly structured module conforming to the framework constraints instantaneously.
+
+```bash
+npx nodulus create-module payments
+```
+
+```text
+✔ Module 'payments' created successfully at src/modules/payments/
+  index.ts
+  payments.routes.ts
+  payments.service.ts
+  payments.repository.ts
+  payments.schema.ts
+```
+
+| Option | Description |
+|---|---|
+| `--path <path>` | Sets a custom absolute or relative destination |
+| `--no-repository` | Omits the repository file |
+| `--no-schema` | Omits the schema file |
+
+### `nodulus sync-tsconfig`
+
+Because nodulus dynamically discovers modules and configures `@modules/*` ES Hooks aliases, Node.js can recognize your code immediately. However, IDEs and TypeScript demand static assertions. This command bridges the gap by injecting your dynamic nodulus module aliases safely onto `compilerOptions.paths`.
+
+```bash
+npx nodulus sync-tsconfig
+```
+
+```text
+✔ tsconfig.json updated — 3 module(s), 2 folder alias(es)
+Added paths:
+  @modules/users      → ./src/modules/users/index.ts
+  @modules/auth       → ./src/modules/auth/index.ts
+  @config/*           → ./src/config/*
+```
+
+Run this command initially, and whenever you create, rename, or drop modules in the project. It behaves idempotently and automatically purges references to modules that were deleted.
 
 ---
 
@@ -346,6 +414,7 @@ try {
 | `DUPLICATE_ALIAS` | Two aliases resolve to the same name but different paths |
 | `DUPLICATE_BOOTSTRAP` | `createApp()` called more than once with the same Express instance |
 | `REGISTRY_MISSING_CONTEXT` | A Nodulus API was called outside of a `createApp()` async context |
+| `INVALID_ESM_ENV` | `createApp()` called in a non-ESM environment (missing `"type": "module"` in `package.json`) |
 
 ---
 
@@ -405,21 +474,27 @@ Scaffold a new feature by creating a folder and an `index.ts`. Nodulus handles a
 
 ---
 
-## ESM & CJS
+## ESM Only
 
-Nodulus ships both ESM and CJS bundles.
+Nodulus is built as a pure ESM package. It does not support CommonJS (`require()`).
 
 ```ts
-// ESM (recommended)
 import { createApp, Module, Controller } from 'nodulus'
 ```
 
-```js
-// CommonJS
-const { createApp, Module, Controller } = require('nodulus')
-```
+> **Note:** Runtime alias resolution uses the ESM Hooks API. Ensure your `package.json` contains `"type": "module"`.
 
-> **Note:** Runtime alias resolution uses the ESM Hooks API and is not available in CJS projects. Use `getAliases()` with your bundler instead.
+---
+
+## Aliases in CJS projects
+
+Runtime alias resolution strictly requires an ESM environment (Node 20.6+). 
+In projects using CommonJS or legacy transpilation pipelines, you must configure aliases directly in your bundler (Vite, esbuild, webpack) using the `getAliases()` utility:
+
+```ts
+import { getAliases } from 'nodulus'
+// Use the result in your tool's alias configuration
+```
 
 ---
 

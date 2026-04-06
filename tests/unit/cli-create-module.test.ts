@@ -112,6 +112,22 @@ describe("CLI: create-module", () => {
     expect(fs.existsSync(testModuleDir)).toBe(false);
   });
 
+  it("forces generation of .js files when --js is passed", async () => {
+    await runCommand(["testmodule", "--path", testModuleDir, "--js"]);
+
+    expect(fs.existsSync(path.join(testModuleDir, "index.js"))).toBe(true);
+    expect(fs.existsSync(path.join(testModuleDir, "testmodule.routes.js"))).toBe(true);
+    expect(fs.existsSync(path.join(testModuleDir, "index.ts"))).toBe(false);
+  });
+
+  it("forces generation of .ts files when --ts is passed", async () => {
+    await runCommand(["testmodule", "--path", testModuleDir, "--ts"]);
+
+    expect(fs.existsSync(path.join(testModuleDir, "index.ts"))).toBe(true);
+    expect(fs.existsSync(path.join(testModuleDir, "testmodule.routes.ts"))).toBe(true);
+    expect(fs.existsSync(path.join(testModuleDir, "index.js"))).toBe(false);
+  });
+
   it("throws a descriptive error when the target directory already exists", async () => {
     // Pre-create the directory to trigger the clash
     fs.mkdirSync(testModuleDir, { recursive: true });

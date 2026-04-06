@@ -18,6 +18,9 @@ const runInTmpApp = async (files: Record<string, string>, tests: (tmpDir: string
     const finalContent = content.replace(/\{\{SOURCE\}\}/g, sourceUrl);
     fs.writeFileSync(fullPath, finalContent);
   }
+
+  // Inject mandatory ESM package.json
+  fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ type: 'module' }));
   
   const mockApp = {
     use: vi.fn(),

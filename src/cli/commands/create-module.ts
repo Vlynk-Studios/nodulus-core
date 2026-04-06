@@ -10,10 +10,24 @@ export function createModuleCommand() {
     .option('-p, --path <path>', 'Destination folder path (default: src/modules/<name>)')
     .option('--no-repository', 'Skip generating a repository file')
     .option('--no-schema', 'Skip generating a schema file')
-    .action((name: string, options: { path?: string; repository: boolean; schema: boolean }) => {
+    .option('--js', 'Force generate JavaScript (.js) files')
+    .option('--ts', 'Force generate TypeScript (.ts) files')
+    .action((name: string, options: { path?: string; repository: boolean; schema: boolean; js?: boolean; ts?: boolean }) => {
       if (!/^[a-z0-9-]+$/.test(name)) {
         console.error(pc.red(`\nError: Invalid module name "${name}". Module names must be lowercase and contain only letters, numbers, or hyphens.\n`));
         process.exit(1);
+      }
+
+      // Detect language extension
+      let ext = 'ts';
+      if (options.js) {
+        ext = 'js';
+      } else if (options.ts) {
+        ext = 'ts';
+      } else {
+        // Auto-detect typescript project
+        const hasTsConfig = fs.existsSync(path.resolve(process.cwd(), 'tsconfig.json'));
+        ext = hasTsConfig ? 'ts' : 'js';
       }
 
       const modulePath = options.path ? path.resolve(process.cwd(), options.path) : path.resolve(process.cwd(), `src/modules/${name}`);
@@ -26,28 +40,28 @@ export function createModuleCommand() {
       fs.mkdirSync(modulePath, { recursive: true });
 
       const files: Record<string, string> = {
-        'index.ts': generateIndex(name),
-        [`${name}.routes.ts`]: generateRoutes(name),
-        [`${name}.service.ts`]: generateService(name),
+        [`index.${ext}`]: generateIndex(name),
+        [`${name}.routes.${ext}`]: generateRoutes(name),
+        [`${name}.service.${ext}`]: generateService(name),
       };
 
       if (options.repository) {
-        files[`${name}.repository.ts`] = generateRepository(name);
+        files[`${name}.repository.${ext}`] = generateRepository(name);
       }
       
       if (options.schema) {
-        files[`${name}.schema.ts`] = generateSchema(name);
+        files[`${name}.schema.${ext}`] = generateSchema(name);
       }
 
       for (const [filename, content] of Object.entries(files)) {
         fs.writeFileSync(path.join(modulePath, filename), content.trim() + '\n', 'utf-8');
       }
 
-      console.log(pc.green(`\n✔ Módulo '${name}' creado en ${path.relative(process.cwd(), modulePath)}/`));
+      console.log(pc.green(`\n✔ Module '${name}' created successfully at ${path.relative(process.cwd(), modulePath)}/`));
       for (const filename of Object.keys(files)) {
         console.log(`  ${pc.cyan(filename)}`);
       }
-      console.log(`\nPróximo paso: agregá '${name}' a los imports de los módulos que lo necesiten.\n`);
+      console.log(`\nNext step: add '${name}' to the imports array of modules that require it.\n`);
     });
 }
 
@@ -71,7 +85,7 @@ Controller('/${name}')
 
 const router = Router()
 
-// Agregá tus rutas acá
+// Add your routes here
 // router.get('/', (req, res) => { ... })
 
 export default router
@@ -86,7 +100,7 @@ import { Service } from 'nodulus'
 Service('${capName}Service', { module: '${name}' })
 
 export class ${capName}Service {
-  // Lógica de negocio acá
+  // Business logic here
 }
 `;
 }
@@ -99,7 +113,7 @@ import { Repository } from 'nodulus'
 Repository('${capName}Repository', { module: '${name}', source: 'database' })
 
 export class ${capName}Repository {
-  // Queries a la base de datos acá
+  // Database queries here
 }
 `;
 }
@@ -113,7 +127,7 @@ import { z } from 'zod'
 Schema('${capName}Schema', { module: '${name}', library: 'zod' })
 
 export const create${capName}Schema = z.object({
-  // Definí tu schema acá
+  // Define your schema here
 })
 `;
 }

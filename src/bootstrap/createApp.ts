@@ -25,6 +25,27 @@ export async function createApp(
     );
   }
 
+  // Step 0.5 — ESM Environment Validation
+  let isEsm = false;
+  try {
+    const pkgPath = path.resolve(process.cwd(), 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      if (pkg.type === 'module') {
+        isEsm = true;
+      }
+    }
+  } catch (e) {
+    // Failsafe, could not parse package.json, assume non-ESM to fail securely
+  }
+
+  if (!isEsm) {
+    throw new NodulusError(
+      'INVALID_ESM_ENV',
+      'Nodulus requires an ESM environment. Please ensure "type": "module" is present in your root package.json file.'
+    );
+  }
+
   const registry = createRegistry();
 
   return registryContext.run(registry, async () => {
