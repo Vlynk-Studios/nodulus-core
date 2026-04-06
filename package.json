@@ -1,5 +1,5 @@
 {
-  "name": "nodulus",
+  "name": "nodulus-core",
   "version": "1.0.0",
   "type": "module",
   "module": "./dist/index.js",
