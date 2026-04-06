@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Isolation**: Per-execution registry isolation using `AsyncLocalStorage` to prevent state contamination.
 - **ESM Aliases**: Seamless `@modules/*` and custom folder aliases via Node.js Hooks API.
 - **Strict Mode**: Validation for circular dependencies and undeclared cross-module imports.
-- **Dual-Package**: Ships both ESM and CJS bundles with bundled TypeScript declarations.
 
 ### Changed
 - Rebranded project from "Modular" to "Nodulus".
