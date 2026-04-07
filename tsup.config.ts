@@ -7,7 +7,7 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
-    target: 'node18',
+    target: 'node20',
   },
   {
     entry: ['src/cli/index.ts'],
@@ -15,6 +15,6 @@ export default defineConfig([
     dts: true,
     outDir: 'dist/cli',
     sourcemap: true,
-    target: 'node18',
+    target: 'node20',
   }
 ]);

@@ -4,11 +4,13 @@
   "type": "module",
   "module": "./dist/index.js",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "nodulus": "./dist/cli/index.js"
   },
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },

@@ -24,12 +24,19 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
   const tsPath = path.join(cwd, 'nodulus.config.ts');
   const jsPath = path.join(cwd, 'nodulus.config.js');
   
-  // In production only .js is safe to import (no ts-node/tsx available).
-  // In development, .ts is tried first so authors don't need a separate compile step.
-  const candidates: string[] =
-    process.env.NODE_ENV !== 'production'
-      ? [tsPath, jsPath]
-      : [jsPath];
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasTsLoader = 
+    process.execArgv.some(arg => arg.includes('ts-node') || arg.includes('tsx')) ||
+    (process as any)._preload_modules?.some((m: string) => m.includes('ts-node') || m.includes('tsx'));
+
+  // In production, only .js is tried by default.
+  // In development (or when a TS loader is detected), .ts is tried first.
+  const candidates: string[] = [];
+  
+  if (!isProduction || hasTsLoader) {
+    candidates.push(tsPath);
+  }
+  candidates.push(jsPath);
 
   let configPathToLoad: string | null = null;
 
@@ -42,13 +49,17 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
 
   if (configPathToLoad) {
     try {
-      // Dynamic import needs proper file URL on Windows
       const importUrl = pathToFileURL(configPathToLoad).href;
       const mod = await import(importUrl);
-      
-      // Handle both ES modules (default export) and CJS/bare exports
       fileConfig = mod.default || mod.config || mod;
     } catch (error: any) {
+      if (configPathToLoad.endsWith('.ts') && error.code === 'ERR_UNKNOWN_FILE_EXTENSION') {
+        throw new Error(
+          `[Nodulus] Found "nodulus.config.ts" but your environment cannot load raw TypeScript files.\n` +
+          `  - In production: Run "npm run build" to generate a .js config OR use nodulus.config.js.\n` +
+          `  - In development: Ensure you are running with a loader like "tsx" or "ts-node".`
+        );
+      }
       throw new Error(`[Nodulus] Failed to parse or evaluate config file at ${configPathToLoad}: ${error.message}`);
     }
   }
