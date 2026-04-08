@@ -277,19 +277,18 @@ export async function createApp(
     if (!rawMod) continue;
 
     for (const ctrl of rawMod.controllers) {
-      if (!ctrl.enabled) continue;
+      if (!ctrl.enabled) {
+        log.info(`Controller "${ctrl.name}" is disabled — skipping mount`, {
+          name: ctrl.name,
+          module: mod.name,
+          prefix: ctrl.prefix,
+        });
+        continue;
+      }
 
       const fullPath = (config.prefix + ctrl.prefix).replace(/\/+/g, '/').replace(/\/$/, '') || '/';
 
       if (ctrl.router) {
-        if (!ctrl.enabled) {
-          log.info(`Controller "${ctrl.name}" is disabled — skipping mount`, {
-            name: ctrl.name,
-            module: mod.name,
-            prefix: ctrl.prefix,
-          });
-          continue;
-        }
 
         if (ctrl.middlewares && ctrl.middlewares.length > 0) {
            app.use(fullPath, ...ctrl.middlewares, ctrl.router);
