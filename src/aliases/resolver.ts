@@ -34,7 +34,7 @@ export function clearAliasResolverOptions(): void {
 export function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): void {
   if (isHookRegistered) return;
   
-  const combinedAliases = { ...folderAliases, ...moduleAliases };
+  const combinedAliases = { ...moduleAliases, ...folderAliases };
 
   for (const [alias, target] of Object.entries(folderAliases)) {
     log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
