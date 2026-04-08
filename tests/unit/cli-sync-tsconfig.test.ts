@@ -141,14 +141,16 @@ describe("CLI: sync-tsconfig", () => {
     fs.rmSync(path.resolve(process.cwd(), "src/modules"), { recursive: true, force: true });
   });
 
-  it("automatically removes nested module paths of globally deleted auto-discovered modules", async () => {
-    // Seed config with a @modules/stale matching Nodulus prefix signature
+  it("automatically removes nested module paths and stale config aliases, but respects manual user paths", async () => {
+    // Seed config with paths simulating a stale module, a stale config alias (satisfies heuristic), and untouchable manual paths
     const initialConfig = { 
       compilerOptions: { 
         paths: {
           "@modules/stale": ["./src/modules/stale/index.ts"],
           "@config/*": ["./src/config/*"],
-          "custom-alias": ["./dist"]
+          "custom-alias": ["./dist"],
+          "@manual/*": ["C:/absolute/manual/*"], // Starts with absolute path, fails heuristic
+          "@manual-two/*": ["./src/manual", "./src/manual2"] // Array length > 1, fails heuristic
         }
       } 
     };
@@ -156,7 +158,7 @@ describe("CLI: sync-tsconfig", () => {
 
     vi.mocked(loadConfig).mockResolvedValue({
       modules: "src/modules/*",
-      aliases: { "@config": "./src/config" },
+      aliases: {}, // @config exists no more!
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
     });
     // Returning NO active modules -> Should trigger garbage collection of @modules/stale
@@ -168,7 +170,9 @@ describe("CLI: sync-tsconfig", () => {
     const paths = result.compilerOptions.paths;
     
     expect(paths["@modules/stale"]).toBeUndefined(); // Effectively cleaned
-    expect(paths["@config/*"]).toBeDefined(); // Config retains non-deleted folders
-    expect(paths["custom-alias"]).toBeDefined(); // Manual user paths untampered
+    expect(paths["@config/*"]).toBeUndefined(); // Stale config alias also cleaned by heuristic
+    expect(paths["custom-alias"]).toBeDefined(); // Manual user paths untampered (doesn't end with /*)
+    expect(paths["@manual/*"]).toBeDefined(); // Untouched (does not start with ./)
+    expect(paths["@manual-two/*"]).toBeDefined(); // Untouched (array length !== 1)
   });
 });

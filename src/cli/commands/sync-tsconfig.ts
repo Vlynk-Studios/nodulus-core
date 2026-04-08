@@ -86,7 +86,21 @@ export function syncTsconfigCommand() {
 
         // 4a. Clean up stale Nodulus managed modules that were deleted
         for (const key of Object.keys(tsconfig.compilerOptions.paths)) {
+          const val = tsconfig.compilerOptions.paths[key];
+          
           if (key.startsWith('@modules/') && !pathsObj[key]) {
+            delete tsconfig.compilerOptions.paths[key];
+          } 
+          // Check for stale config aliases using the Nodulus signature format
+          else if (
+            !pathsObj[key] &&
+            key.endsWith('/*') &&
+            Array.isArray(val) &&
+            val.length === 1 &&
+            typeof val[0] === 'string' &&
+            (val[0].startsWith('./') || val[0].startsWith('../')) &&
+            val[0].endsWith('/*')
+          ) {
             delete tsconfig.compilerOptions.paths[key];
           }
         }
