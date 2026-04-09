@@ -1,1 +1,1 @@
-// Implementación de check.ts
+// Implementation of check.ts

@@ -1,1 +1,1 @@
-// Implementación de violations.ts
+// Implementation of violations.ts

@@ -1,1 +1,1 @@
-// Implementación de graph-builder.ts
+// Implementation of graph-builder.ts

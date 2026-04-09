@@ -1,1 +1,1 @@
-// Implementación de cli-check.test.ts
+// Implementation of cli-check.test.ts
