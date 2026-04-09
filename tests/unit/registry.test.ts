@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRegistry, registryContext, getActiveRegistry, getRegistry } from '../../src/core/registry.js';
 import { NodulusError } from '../../src/core/errors.js';
 
-describe('Registry V0.3.0', () => {
+describe('Registry', () => {
   it('registers and retrieves a module', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {

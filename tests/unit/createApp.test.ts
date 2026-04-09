@@ -36,7 +36,7 @@ const runInTmpApp = async (files: Record<string, string>, tests: (tmpDir: string
   }
 };
 
-describe('Core: createApp Integration V0.5.0', () => {
+describe('createApp', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

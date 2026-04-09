@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { loadConfig, DEFAULTS } from '../../src/core/config.js';
 
-describe('Core: loadConfig V0.3.0', () => {
+describe('loadConfig', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

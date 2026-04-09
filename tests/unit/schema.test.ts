@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Schema } from '../../src/identifiers/schema.js';
 import { createRegistry, registryContext, getActiveRegistry } from '../../src/core/registry.js';
 
-describe('Identifier: Schema() V1.0.0', () => {
+describe('Schema()', () => {
   it('registers with type: schema when module is explicitly provided', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
