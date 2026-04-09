@@ -263,7 +263,7 @@ await esbuild.build({
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `includeFolders` | `boolean` | `true` | If `false`, only module aliases are returned |
+| `includeFolders` | `boolean` | `true` | If `false`, config-defined folder aliases are excluded (returns only auto-generated `@modules/*` aliases) |
 | `absolute` | `boolean` | `false` | If `true`, returned paths are absolute |
 
 ---
@@ -403,7 +403,7 @@ try {
 | Code | When it's thrown |
 |---|---|
 | `MODULE_NOT_FOUND` | Discovered folder has no `index.ts` / `index.js`, or `index.ts` does not call `Module()` |
-| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or called outside an index file |
+| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or an Identifier (Service, Schema, etc) is declared incorrectly or fails to detect caller bounds |
 | `DUPLICATE_MODULE` | Two modules share the same name |
 | `MISSING_IMPORT` | Module listed in `imports` does not exist in the registry |
 | `UNDECLARED_IMPORT` | Module imports from another not listed in `imports` (strict only) |
