@@ -1,0 +1,1 @@
+// Implementación de check.ts
