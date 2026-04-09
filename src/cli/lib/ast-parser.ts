@@ -12,6 +12,11 @@ export interface ImportFound {
   file: string;
 }
 
+export interface IdentifierCall {
+  name: string;
+  options: Record<string, unknown>;
+}
+
 export interface ModuleDeclaration {
   name: string;
   imports: string[];
@@ -50,13 +55,14 @@ export function extractModuleImports(filePath: string): ImportFound[] {
   return imports;
 }
 
-export function extractModuleDeclaration(
-  indexPath: string,
-): ModuleDeclaration | null {
-  let found: ModuleDeclaration | null = null;
+export function extractIdentifierCall(
+  filePath: string,
+  calleeName: 'Module' | 'Domain' | 'SubModule' | 'DomainShared'
+): IdentifierCall | null {
+  let found: IdentifierCall | null = null;
 
   try {
-    const code = fs.readFileSync(indexPath, "utf-8");
+    const code = fs.readFileSync(filePath, "utf-8");
     const ast = acorn.parse(code, {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -65,39 +71,56 @@ export function extractModuleDeclaration(
 
     walk.simple(ast, {
       CallExpression(node: any) {
-        if (node.callee && node.callee.name === "Module") {
+        if (node.callee && node.callee.name === calleeName) {
           const nameArg = node.arguments[0];
           if (nameArg && nameArg.type === "Literal") {
             const name = nameArg.value;
-            const imports: string[] = [];
+            const options: Record<string, unknown> = {};
 
             const optionsArg = node.arguments[1];
             if (optionsArg && optionsArg.type === "ObjectExpression") {
               for (const prop of optionsArg.properties) {
-                const isImportsKey =
-                  (prop.key.type === "Identifier" &&
-                    prop.key.name === "imports") ||
-                  (prop.key.type === "Literal" && prop.key.value === "imports");
+                let keyName = '';
+                if (prop.key.type === "Identifier") {
+                  keyName = prop.key.name;
+                } else if (prop.key.type === "Literal") {
+                  keyName = String(prop.key.value);
+                }
 
-                if (isImportsKey && prop.value.type === "ArrayExpression") {
+                if (keyName && prop.value.type === "ArrayExpression") {
+                  const arr: string[] = [];
                   for (const elem of prop.value.elements) {
                     if (elem && elem.type === "Literal") {
-                      imports.push(elem.value);
+                      arr.push(String(elem.value));
                     }
                   }
+                  options[keyName] = arr;
+                } else if (keyName && prop.value.type === "Literal") {
+                  options[keyName] = prop.value.value;
                 }
               }
             }
 
-            found = { name, imports };
+            found = { name, options };
           }
         }
       },
     });
   } catch (_error) {
-    // If the parser fails, return null or skip
     return null;
   }
 
   return found;
+}
+
+export function extractModuleDeclaration(
+  indexPath: string,
+): ModuleDeclaration | null {
+  const result = extractIdentifierCall(indexPath, 'Module');
+  if (!result) return null;
+
+  return {
+    name: result.name,
+    imports: Array.isArray(result.options.imports) ? (result.options.imports as string[]) : [],
+  };
 }
