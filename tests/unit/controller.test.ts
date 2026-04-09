@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Controller } from '../../src/identifiers/controller.js';
 import { createRegistry, registryContext, getActiveRegistry } from '../../src/core/registry.js';
 
-describe('Identifier: Controller() V1.0.0', () => {
+describe('Controller()', () => {
   it('registers the controller in the registry with derived name from filename', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {

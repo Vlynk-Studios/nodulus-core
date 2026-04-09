@@ -36,7 +36,7 @@ const runInTmpApp = async (files: Record<string, string>, tests: (tmpDir: string
   }
 };
 
-describe('Core: createApp Integration V0.5.0', () => {
+describe('createApp', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -142,6 +142,31 @@ describe('Core: createApp Integration V0.5.0', () => {
           expect.objectContaining({
             name: 'users',
             path: expect.any(String)
+          })
+        );
+      });
+    });
+    it('should log when skipping a disabled controller', async () => {
+      const logger = vi.fn();
+      const mockStructure = { ...validAppStructure };
+      mockStructure['src/modules/users/controller.ts'] = `
+        import { Controller } from '{{SOURCE}}';
+        Controller('/users', { enabled: false });
+        const fakeRouter = function() {};
+        fakeRouter.use = function() {};
+        fakeRouter.stack = [];
+        export default fakeRouter;
+      `;
+      
+      await runInTmpApp(mockStructure, async (_, app) => {
+        await createApp(app as any, { logger });
+        
+        expect(logger).toHaveBeenCalledWith(
+          'info',
+          expect.stringContaining('is disabled — skipping mount'),
+          expect.objectContaining({ 
+            name: 'controller', 
+            module: 'users' 
           })
         );
       });

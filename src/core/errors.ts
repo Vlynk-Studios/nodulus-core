@@ -28,6 +28,7 @@ export class NodulusError extends Error {
   }
 }
 
+/** @deprecated — not used internally. Messages are defined at each throw site. */
 export const ERROR_MESSAGES: Record<NodulusErrorCode, string> = {
   MODULE_NOT_FOUND:    "This folder was discovered but index.ts does not call Module(). Add Module('name') to the top of index.ts.",
   DUPLICATE_MODULE:    "A module with this name or path already exists. Ensure every module name is unique across the app.",

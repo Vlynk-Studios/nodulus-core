@@ -35,7 +35,7 @@ export async function createApp(
         isEsm = true;
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // Failsafe, could not parse package.json, assume non-ESM to fail securely
   }
 
@@ -120,13 +120,7 @@ export async function createApp(
 
   // Step 4 — Import modules
   for (const mod of resolvedModules) {
-    let imported: any;
-    try {
-      imported = await import(pathToFileURL(mod.indexPath).href);
-    } catch (importErr: any) {
-      // DUPLICATE_MODULE will be explicitly thrown from inside Module() upon conflict.
-      throw importErr; 
-    }
+    const imported = await import(pathToFileURL(mod.indexPath).href);
 
     // Correlate the imported module with the one added to the registry based on dirPath
     const allRegistered = registry.getAllModules();
@@ -277,19 +271,18 @@ export async function createApp(
     if (!rawMod) continue;
 
     for (const ctrl of rawMod.controllers) {
-      if (!ctrl.enabled) continue;
+      if (!ctrl.enabled) {
+        log.info(`Controller "${ctrl.name}" is disabled — skipping mount`, {
+          name: ctrl.name,
+          module: mod.name,
+          prefix: ctrl.prefix,
+        });
+        continue;
+      }
 
       const fullPath = (config.prefix + ctrl.prefix).replace(/\/+/g, '/').replace(/\/$/, '') || '/';
 
       if (ctrl.router) {
-        if (!ctrl.enabled) {
-          log.info(`Controller "${ctrl.name}" is disabled — skipping mount`, {
-            name: ctrl.name,
-            module: mod.name,
-            prefix: ctrl.prefix,
-          });
-          continue;
-        }
 
         if (ctrl.middlewares && ctrl.middlewares.length > 0) {
            app.use(fullPath, ...ctrl.middlewares, ctrl.router);

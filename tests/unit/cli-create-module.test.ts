@@ -4,9 +4,9 @@ import path from "node:path";
 import { createModuleCommand } from "../../src/cli/commands/create-module.js";
 
 describe("CLI: create-module", () => {
-  let mockExit: any;
+  let _mockExit: any;
   let mockConsoleError: any;
-  let mockConsoleLog: any;
+  let _mockConsoleLog: any;
   let exitError: Error;
   const testModuleDir = path.resolve(
     process.cwd(),
@@ -19,13 +19,13 @@ describe("CLI: create-module", () => {
     // Mock process.exit to prevent the process from actually dying during tests.
     // Throw an error to stop execution flow, similar to what process.exit would do.
     exitError = new Error("PROCESS_EXIT");
-    mockExit = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number,
+    _mockExit = vi.spyOn(process, "exit").mockImplementation(((
+      _code?: number,
     ) => {
       throw exitError;
     }) as any);
     mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockConsoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    _mockConsoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Clean up tmp dir if exists
     if (fs.existsSync(testModuleDir)) {
@@ -139,5 +139,21 @@ describe("CLI: create-module", () => {
     expect(mockConsoleError).toHaveBeenCalled();
     const errorMsg = mockConsoleError.mock.calls[0][0];
     expect(errorMsg).toMatch(/already exists/i);
+  });
+
+  it("generates a schema without hardcoding zod dependency", async () => {
+    await runCommand(["testmodule", "--path", testModuleDir]);
+    
+    const schemaFile = path.join(testModuleDir, "testmodule.schema.ts");
+    expect(fs.existsSync(schemaFile)).toBe(true);
+
+    const schemaContent = fs.readFileSync(schemaFile, 'utf8');
+
+    // Test: el schema generado NO contiene import { z } from 'zod' (activado)
+    expect(schemaContent).not.toMatch(/^import\s+\{\s*z\s*\}\s+from\s+['"]zod['"]/m);
+    // Test: el schema generado SÍ contiene Schema(' call
+    expect(schemaContent).toMatch(/Schema\('TestmoduleSchema'/);
+    // Ensure the zod import is commented out safely behind a suggestion
+    expect(schemaContent).toMatch(/\/\/\s*import\s+\{\s*z\s*\}\s+from\s+['"]zod['"]/);
   });
 });

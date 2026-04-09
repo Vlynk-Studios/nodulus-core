@@ -9,7 +9,7 @@ vi.mock('node:module', () => ({
   register: vi.fn()
 }));
 
-describe('Aliases API V1.0.0', () => {
+describe('Aliases API', () => {
   const mockLogger = {
     debug: vi.fn(),
     info: vi.fn(),
@@ -101,5 +101,18 @@ describe('Aliases API V1.0.0', () => {
     // Both alias keys must appear in the serialised closure
     expect(decoded).toContain('@modules/auth');
     expect(decoded).toContain('@shared');
+  });
+
+  it('user configured aliases take precedence over auto-generated module aliases', () => {
+    const moduleAliases = { '@modules/auth': '/path/auto' };
+    const folderAliases = { '@modules/auth': '/path/configured' };
+    resolver.activateAliasResolver(moduleAliases, folderAliases, mockLogger as any);
+
+    const [dataUrl] = (register as any).mock.calls[0];
+    const decoded = decodeURIComponent(dataUrl.replace('data:text/javascript,', ''));
+    
+    // The literal object string should contain the configured target, not the auto one
+    const expectedAliasEntry = '"@modules/auth":"/path/configured"';
+    expect(decoded).toContain(expectedAliasEntry);
   });
 });

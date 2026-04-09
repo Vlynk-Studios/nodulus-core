@@ -51,7 +51,7 @@ function makeMockApp() {
   return { use: vi.fn() };
 }
 
-describe('Integration Tests V0.9.0', () => {
+describe('Integration Tests', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

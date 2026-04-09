@@ -21,7 +21,7 @@ Express is minimal by design. Nodulus keeps it that way while adding just enough
 ## Installation
 
 ```bash
-npm install nodulus
+npm install @vlynk-studios/nodulus-core
 ```
 
 Express is a peer dependency:
@@ -37,7 +37,7 @@ npm install express
 ```ts
 // src/app.ts
 import express from 'express'
-import { createApp } from 'nodulus'
+import { createApp } from '@vlynk-studios/nodulus-core'
 
 const app = express()
 app.use(express.json())
@@ -117,7 +117,7 @@ Declares a module and registers its metadata in the registry. **Must** be called
 
 ```ts
 // src/modules/orders/index.ts
-import { Module } from 'nodulus'
+import { Module } from '@vlynk-studios/nodulus-core'
 
 Module('orders', {
   description: 'Purchase order management',
@@ -145,7 +145,7 @@ Declares a file as an Express controller. The controller name is derived automat
 
 ```ts
 // src/modules/users/users.routes.ts
-import { Controller } from 'nodulus'
+import { Controller } from '@vlynk-studios/nodulus-core'
 import { Router } from 'express'
 import { requireAuth } from '@middleware/auth.js'
 import { UserService } from './users.service.js'
@@ -194,7 +194,7 @@ app.use(globalPrefix + controllerPrefix, ...middlewares, router)
 To guarantee accurate error-tracing, structured logs, and framework-level validation, label your business logic with domain identifiers. They capture stack metadata to bind exports effectively to their parent module without any extra configuration.
 
 ```ts
-import { Service, Repository, Schema } from 'nodulus'
+import { Service, Repository, Schema } from '@vlynk-studios/nodulus-core'
 import { z } from 'zod'
 
 Service('UserService')
@@ -235,7 +235,7 @@ For bundler-based projects (Vite, Esbuild, etc.), you can disable the runtime ho
 
 ```ts
 // vite.config.ts
-import { getAliases } from 'nodulus'
+import { getAliases } from '@vlynk-studios/nodulus-core'
 
 const aliases = await getAliases()
 
@@ -246,7 +246,7 @@ export default {
 
 ```ts
 // esbuild.config.ts
-import { getAliases } from 'nodulus'
+import { getAliases } from '@vlynk-studios/nodulus-core'
 import * as esbuild from 'esbuild'
 
 const aliases = await getAliases()
@@ -263,7 +263,7 @@ await esbuild.build({
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `includeFolders` | `boolean` | `true` | If `false`, only module aliases are returned |
+| `includeFolders` | `boolean` | `true` | If `false`, config-defined folder aliases are excluded (returns only auto-generated `@modules/*` aliases) |
 | `absolute` | `boolean` | `false` | If `true`, returned paths are absolute |
 
 ---
@@ -274,7 +274,7 @@ Centralise configuration in the project root. Options passed directly to `create
 
 ```ts
 // nodulus.config.ts
-import type { NodulusConfig } from 'nodulus'
+import type { NodulusConfig } from '@vlynk-studios/nodulus-core'
 
 const config: NodulusConfig = {
   modules: 'src/modules/*',
@@ -386,7 +386,7 @@ await createApp(app, {
 All Nodulus errors are instances of `NodulusError` and carry a machine-readable `code`:
 
 ```ts
-import { NodulusError } from 'nodulus'
+import { NodulusError } from '@vlynk-studios/nodulus-core'
 
 try {
   await createApp(app, { modules: 'src/modules/*' })
@@ -403,7 +403,7 @@ try {
 | Code | When it's thrown |
 |---|---|
 | `MODULE_NOT_FOUND` | Discovered folder has no `index.ts` / `index.js`, or `index.ts` does not call `Module()` |
-| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or called outside an index file |
+| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or an Identifier (Service, Schema, etc) is declared incorrectly or fails to detect caller bounds |
 | `DUPLICATE_MODULE` | Two modules share the same name |
 | `MISSING_IMPORT` | Module listed in `imports` does not exist in the registry |
 | `UNDECLARED_IMPORT` | Module imports from another not listed in `imports` (strict only) |
@@ -428,7 +428,7 @@ Returns the read-only registry bound to the current async execution context. Onl
 > **@unstable API**: Intended for advanced framework integrations and debugging. Structure may change without a major version bump.
 
 ```ts
-import { getRegistry } from 'nodulus'
+import { getRegistry } from '@vlynk-studios/nodulus-core'
 
 const registry = getRegistry()
 const allModules = registry.getAllModules()  // RegisteredModule[]
@@ -479,7 +479,7 @@ Scaffold a new feature by creating a folder and an `index.ts`. Nodulus handles a
 Nodulus is built as a pure ESM package. It does not support CommonJS (`require()`).
 
 ```ts
-import { createApp, Module, Controller } from 'nodulus'
+import { createApp, Module, Controller } from '@vlynk-studios/nodulus-core'
 ```
 
 > **Note:** Runtime alias resolution uses the ESM Hooks API. Ensure your `package.json` contains `"type": "module"`.

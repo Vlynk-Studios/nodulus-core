@@ -19,7 +19,7 @@ export function createModuleCommand() {
       }
 
       // Detect language extension
-      let ext = 'ts';
+      let ext: string;
       if (options.js) {
         ext = 'js';
       } else if (options.ts) {
@@ -67,7 +67,7 @@ export function createModuleCommand() {
 
 function generateIndex(name: string): string {
   return `
-import { Module } from 'nodulus'
+import { Module } from '@vlynk-studios/nodulus-core'
 
 Module('${name}', {
   imports: [],
@@ -78,7 +78,7 @@ Module('${name}', {
 
 function generateRoutes(name: string): string {
   return `
-import { Controller } from 'nodulus'
+import { Controller } from '@vlynk-studios/nodulus-core'
 import { Router } from 'express'
 
 Controller('/${name}')
@@ -95,7 +95,7 @@ export default router
 function generateService(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
-import { Service } from 'nodulus'
+import { Service } from '@vlynk-studios/nodulus-core'
 
 Service('${capName}Service', { module: '${name}' })
 
@@ -108,7 +108,7 @@ export class ${capName}Service {
 function generateRepository(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
-import { Repository } from 'nodulus'
+import { Repository } from '@vlynk-studios/nodulus-core'
 
 Repository('${capName}Repository', { module: '${name}', source: 'database' })
 
@@ -121,13 +121,13 @@ export class ${capName}Repository {
 function generateSchema(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
-import { Schema } from 'nodulus'
-import { z } from 'zod'
+import { Schema } from '@vlynk-studios/nodulus-core'
 
-Schema('${capName}Schema', { module: '${name}', library: 'zod' })
+// import { z } from 'zod' // Uncomment and install your preferred validation library
+Schema('${capName}Schema', { module: '${name}' })
 
-export const create${capName}Schema = z.object({
-  // Define your schema here
-})
+// export const create${capName}Schema = z.object({
+//   // Define your schema here
+// })
 `;
 }
