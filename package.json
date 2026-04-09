@@ -1,6 +1,9 @@
 {
-  "name": "nodulus-core",
+  "name": "@vlynk-studios/nodulus-core",
   "version": "1.1.0",
+  "description": "A lightweight structural layer for Express with native ESM hooks support.",
+  "author": "Vlynk Studios & Keiver-dev",
+  "license": "MIT",
   "type": "module",
   "module": "./dist/index.js",
   "main": "./dist/index.js",
@@ -20,6 +23,26 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlynk-studios/nodulus-core.git"
+  },
+  "keywords": [
+    "express",
+    "esm",
+    "modular",
+    "architecture",
+    "typescript",
+    "nodulus"
+  ],
+  "bugs": {
+    "url": "https://github.com/vlynk-studios/nodulus-core/issues"
+  },
+  "homepage": "https://github.com/vlynk-studios/nodulus-core#readme",
   "peerDependencies": {
     "express": ">=4.0.0"
   },
