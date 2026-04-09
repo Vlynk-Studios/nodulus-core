@@ -35,7 +35,7 @@ export async function createApp(
         isEsm = true;
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // Failsafe, could not parse package.json, assume non-ESM to fail securely
   }
 
@@ -120,13 +120,7 @@ export async function createApp(
 
   // Step 4 — Import modules
   for (const mod of resolvedModules) {
-    let imported: any;
-    try {
-      imported = await import(pathToFileURL(mod.indexPath).href);
-    } catch (importErr: any) {
-      // DUPLICATE_MODULE will be explicitly thrown from inside Module() upon conflict.
-      throw importErr; 
-    }
+    const imported = await import(pathToFileURL(mod.indexPath).href);
 
     // Correlate the imported module with the one added to the registry based on dirPath
     const allRegistered = registry.getAllModules();

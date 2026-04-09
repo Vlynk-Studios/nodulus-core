@@ -19,7 +19,7 @@ export function createModuleCommand() {
       }
 
       // Detect language extension
-      let ext = 'ts';
+      let ext: string;
       if (options.js) {
         ext = 'js';
       } else if (options.ts) {

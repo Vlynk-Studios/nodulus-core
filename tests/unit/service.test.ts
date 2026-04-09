@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import path from 'node:path';
 import { Service } from '../../src/identifiers/service.js';
 import { createRegistry, registryContext, getActiveRegistry } from '../../src/core/registry.js';
 

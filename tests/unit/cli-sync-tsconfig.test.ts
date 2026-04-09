@@ -9,9 +9,9 @@ vi.mock("fast-glob", () => ({ default: vi.fn() }));
 vi.mock("../../src/core/config.js", () => ({ loadConfig: vi.fn() }));
 
 describe("CLI: sync-tsconfig", () => {
-  let mockExit: any;
+  let _mockExit: any;
   let mockConsoleError: any;
-  let mockConsoleLog: any;
+  let _mockConsoleLog: any;
   let exitError: Error;
   
   const testDir = path.resolve(process.cwd(), "tests", ".tmp", "sync-tsconfig");
@@ -19,11 +19,11 @@ describe("CLI: sync-tsconfig", () => {
 
   beforeEach(() => {
     exitError = new Error("PROCESS_EXIT");
-    mockExit = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    _mockExit = vi.spyOn(process, "exit").mockImplementation(((_code?: number) => {
       throw exitError;
     }) as any);
     mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockConsoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    _mockConsoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Create a fresh test directory
     if (!fs.existsSync(testDir)) {

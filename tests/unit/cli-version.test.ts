@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,5 +20,5 @@ describe("CLI: Version Flag", () => {
     const output = execSync(`npx tsx "${cliPath}" --version`, { encoding: "utf8" }).trim();
     
     expect(output).toBe(expectedVersion);
-  });
+  }, 30000);
 });

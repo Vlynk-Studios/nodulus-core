@@ -25,7 +25,7 @@ export function Module(name: string, options: ModuleOptions = {}): void {
 
   // Rule 2: Must be called from index file
   const fileName = path.basename(indexPath);
-  const isIndexFile = /index\.(ts|js|mts|mjs|cjs|cts)$/.test(fileName);
+  const isIndexFile = /index\.(ts|js|mts|mjs)$/.test(fileName);
   if (!isIndexFile) {
     throw new NodulusError(
       'INVALID_MODULE_DECLARATION',

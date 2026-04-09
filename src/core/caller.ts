@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NodulusError } from '../core/errors.js';
-import type { NodulusErrorCode } from '../core/errors.js';
 
 /**
  * Internal utility — NOT part of the public Nodulus API.

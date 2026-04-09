@@ -204,7 +204,7 @@ export interface NodulusApp {
 }
 
 /** Shape of nodulus.config.ts. Options passed directly to createApp() take priority. */
-export interface NodulusConfig extends CreateAppOptions {}
+export type NodulusConfig = CreateAppOptions;
 
 export interface GetAliasesOptions {
   /**

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createRegistry, registryContext, getActiveRegistry } from '../../src/core/registry.js';
+import { createRegistry, registryContext } from '../../src/core/registry.js';
 import { NodulusError } from '../../src/core/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,12 +30,8 @@ describe('Module()', () => {
 
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      try {
         await import(pathToFileURL(filePath).href + `?t=${Date.now()}`);
         await testFn(r);
-      } catch (e) {
-        throw e;
-      }
     });
   };
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { CreateAppOptions, ResolvedConfig, NodulusConfig, LogLevel } from '../types/index.js';
+import type { CreateAppOptions, ResolvedConfig, NodulusConfig } from '../types/index.js';
 import { defaultLogHandler, resolveLogLevel } from './logger.js';
 
 const defaultStrict = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
@@ -57,10 +57,11 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
         throw new Error(
           `[Nodulus] Found "nodulus.config.ts" but your environment cannot load raw TypeScript files.\n` +
           `  - In production: Run "npm run build" to generate a .js config OR use nodulus.config.js.\n` +
-          `  - In development: Ensure you are running with a loader like "tsx" or "ts-node".`
+          `  - In development: Ensure you are running with a loader like "tsx" or "ts-node".`,
+          { cause: error }
         );
       }
-      throw new Error(`[Nodulus] Failed to parse or evaluate config file at ${configPathToLoad}: ${error.message}`);
+      throw new Error(`[Nodulus] Failed to parse or evaluate config file at ${configPathToLoad}: ${error.message}`, { cause: error });
     }
   }
 

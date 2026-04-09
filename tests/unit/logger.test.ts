@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLogger, resolveLogLevel, defaultLogHandler } from '../../src/core/logger.js';
-import type { LogLevel, LogHandler } from '../../src/types/index.js';
+import type { LogHandler } from '../../src/types/index.js';
 
 describe('Logger Utility', () => {
   describe('createLogger', () => {
