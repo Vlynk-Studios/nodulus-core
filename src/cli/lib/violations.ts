@@ -20,7 +20,7 @@ export function detectViolations(nodes: ModuleNode[]): Violation[] {
   for (const node of nodes) {
     try {
       registry.registerModule(node.name, { imports: node.declaredImports }, node.dirPath, node.indexPath);
-    } catch (err) {
+    } catch (_err) {
       // Ignore duplicate registration errors silently for validation purposes
     }
   }

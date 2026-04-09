@@ -42,7 +42,7 @@ export function extractModuleImports(filePath: string): ImportFound[] {
         }
       },
     });
-  } catch (error) {
+  } catch (_error) {
     // If the parser fails (e.g. complex TS unsupported by acorn), skip the analysis
     return [];
   }
@@ -94,7 +94,7 @@ export function extractModuleDeclaration(
         }
       },
     });
-  } catch (error) {
+  } catch (_error) {
     // If the parser fails, return null or skip
     return null;
   }
