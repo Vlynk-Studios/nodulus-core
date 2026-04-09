@@ -1,6 +1,6 @@
 {
   "name": "@vlynk-studios/nodulus-core",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A lightweight structural layer for Express with native ESM hooks support.",
   "author": "Vlynk Studios & Keiver-dev",
   "license": "MIT",
@@ -59,9 +59,13 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/acorn": "4.0.6",
+    "@types/estree": "1.0.8",
     "@types/express": "5.0.6",
     "@types/node": "25.5.0",
     "@types/supertest": "7.2.0",
+    "acorn": "8.16.0",
+    "acorn-walk": "8.3.5",
     "eslint": "10.2.0",
     "express": "5.2.1",
     "supertest": "7.2.2",
