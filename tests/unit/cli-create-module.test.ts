@@ -140,4 +140,20 @@ describe("CLI: create-module", () => {
     const errorMsg = mockConsoleError.mock.calls[0][0];
     expect(errorMsg).toMatch(/already exists/i);
   });
+
+  it("generates a schema without hardcoding zod dependency", async () => {
+    await runCommand(["testmodule", "--path", testModuleDir]);
+    
+    const schemaFile = path.join(testModuleDir, "testmodule.schema.ts");
+    expect(fs.existsSync(schemaFile)).toBe(true);
+
+    const schemaContent = fs.readFileSync(schemaFile, 'utf8');
+
+    // Test: el schema generado NO contiene import { z } from 'zod' (activado)
+    expect(schemaContent).not.toMatch(/^import\s+\{\s*z\s*\}\s+from\s+['"]zod['"]/m);
+    // Test: el schema generado SÍ contiene Schema(' call
+    expect(schemaContent).toMatch(/Schema\('TestmoduleSchema'/);
+    // Ensure the zod import is commented out safely behind a suggestion
+    expect(schemaContent).toMatch(/\/\/\s*import\s+\{\s*z\s*\}\s+from\s+['"]zod['"]/);
+  });
 });

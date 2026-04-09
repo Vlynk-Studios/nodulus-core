@@ -122,12 +122,12 @@ function generateSchema(name: string): string {
   const capName = name.charAt(0).toUpperCase() + name.slice(1);
   return `
 import { Schema } from 'nodulus'
-import { z } from 'zod'
 
-Schema('${capName}Schema', { module: '${name}', library: 'zod' })
+// import { z } from 'zod' // Uncomment and install your preferred validation library
+Schema('${capName}Schema', { module: '${name}' })
 
-export const create${capName}Schema = z.object({
-  // Define your schema here
-})
+// export const create${capName}Schema = z.object({
+//   // Define your schema here
+// })
 `;
 }
