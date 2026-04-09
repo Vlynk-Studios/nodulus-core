@@ -8,6 +8,8 @@ const defaultStrict = typeof process !== 'undefined' && process.env?.NODE_ENV !=
 
 export const DEFAULTS: ResolvedConfig = {
   modules: 'src/modules/*',
+  domains: undefined,
+  shared: undefined,
   prefix: '',
   aliases: {},
   strict: defaultStrict,
@@ -68,6 +70,8 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
   // Merge strategy: options > fileConfig > defaults
   return {
     modules: options.modules ?? fileConfig.modules ?? DEFAULTS.modules,
+    domains: options.domains ?? fileConfig.domains ?? DEFAULTS.domains,
+    shared: options.shared ?? fileConfig.shared ?? DEFAULTS.shared,
     prefix: options.prefix ?? fileConfig.prefix ?? DEFAULTS.prefix,
     aliases: {
       ...DEFAULTS.aliases,

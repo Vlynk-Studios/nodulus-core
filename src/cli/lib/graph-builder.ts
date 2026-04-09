@@ -2,8 +2,9 @@ import fg from 'fast-glob';
 import path from 'node:path';
 import fs from 'node:fs';
 import { extractModuleDeclaration, extractModuleImports, ImportFound } from './ast-parser.js';
+import type { NodulusConfig } from '../../types/index.js';
 
-export interface ModuleNode {
+export interface BaseNode {
   name: string;
   dirPath: string;
   indexPath: string;
@@ -11,7 +12,30 @@ export interface ModuleNode {
   actualImports: ImportFound[];
 }
 
-export async function buildModuleGraph(modulesGlob: string | string[], cwd: string): Promise<ModuleNode[]> {
+export interface ModuleNode extends BaseNode {
+  domain?: string;
+  submodules?: string[];
+}
+
+export interface SubModuleNode extends BaseNode {
+  parentModule: string;
+  domain?: string;
+}
+
+export interface DomainNode {
+  name: string;
+  dirPath: string;
+  indexPath: string;
+  modules: ModuleNode[];
+}
+
+export interface ModuleGraph {
+  domains: DomainNode[];
+  modules: ModuleNode[];
+}
+
+export async function buildModuleGraph(config: NodulusConfig, cwd: string): Promise<ModuleGraph> {
+  const modulesGlob = config.modules || 'src/modules/*';
   const dirs = await fg(modulesGlob, { cwd, onlyDirectories: true, absolute: true });
   const nodes: ModuleNode[] = [];
 
@@ -51,5 +75,8 @@ export async function buildModuleGraph(modulesGlob: string | string[], cwd: stri
     });
   }
 
-  return nodes;
+  return {
+    domains: [],
+    modules: nodes
+  };
 }

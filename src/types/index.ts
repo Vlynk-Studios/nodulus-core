@@ -121,6 +121,10 @@ export type FileEntry = ServiceEntry | RepositoryEntry | SchemaEntry;
 export interface CreateAppOptions {
   /** Glob pointing to module folders. Default: 'src/modules/*'. */
   modules?: string;
+  /** Glob pointing to domain folders (v2.0.0+). Default: undefined. */
+  domains?: string;
+  /** Glob pointing to shared global folders (v2.0.0+). Default: undefined. */
+  shared?: string;
   /** Global route prefix. Example: '/api/v1'. Default: ''. */
   prefix?: string;
   /** Folder aliases beyond the auto-generated @modules/* entries. Default: {}. */
@@ -152,6 +156,8 @@ export interface CreateAppOptions {
 /** Resolved configuration used internally (defaults applied). */
 export interface ResolvedConfig {
   modules: string;
+  domains?: string;
+  shared?: string;
   prefix: string;
   aliases: Record<string, string>;
   strict: boolean;

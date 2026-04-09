@@ -14,8 +14,8 @@ describe('nodulus check', () => {
 
   describe('detectViolations() with Fixture', () => {
     it('detects private import in fixture (payments module)', async () => {
-      const nodes = await buildModuleGraph('src/modules/*', fixturePath);
-      const violations = detectViolations(nodes);
+      const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
+      const violations = detectViolations(graph.modules);
       
       const privateImp = violations.find(v => v.type === 'private-import');
       expect(privateImp).toBeDefined();
@@ -24,8 +24,8 @@ describe('nodulus check', () => {
     });
 
     it('detects undeclared import in fixture (payments module)', async () => {
-      const nodes = await buildModuleGraph('src/modules/*', fixturePath);
-      const violations = detectViolations(nodes);
+      const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
+      const violations = detectViolations(graph.modules);
       
       const undeclaredImp = violations.find(v => v.type === 'undeclared-import');
       expect(undeclaredImp).toBeDefined();
@@ -94,6 +94,7 @@ describe('nodulus check', () => {
       
       const jsonOutput = JSON.parse(logCall[0]);
       expect(jsonOutput.modules).toBeDefined();
+      expect(jsonOutput.domains).toBeDefined();
       expect(jsonOutput.violations).toBeDefined();
       expect(Array.isArray(jsonOutput.violations)).toBe(true);
     });

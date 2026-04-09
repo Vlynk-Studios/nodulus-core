@@ -31,6 +31,8 @@ describe('loadConfig', () => {
       const config = await loadConfig();
 
       expect(config.modules).toBe(DEFAULTS.modules);
+      expect(config.domains).toBeUndefined();
+      expect(config.shared).toBeUndefined();
       expect(config.prefix).toBe(DEFAULTS.prefix);
       expect(config.aliases).toEqual(DEFAULTS.aliases);
       expect(config.strict).toBe(DEFAULTS.strict);
@@ -47,7 +49,19 @@ describe('loadConfig', () => {
       const config = await loadConfig();
       expect(config.prefix).toBe('/file-prefix');
       expect(config.strict).toBe(false);
+      expect(config.domains).toBeUndefined();
       // Fallback
+      expect(config.modules).toBe(DEFAULTS.modules);
+    });
+  });
+
+  it('should successfully read domains and shared layout keys strictly for v2.0.0 upgrades', async () => {
+    await runInTmpDir({
+      'nodulus.config.js': 'export default { domains: "src/domains/*", shared: "src/shared/*" };'
+    }, async () => {
+      const config = await loadConfig();
+      expect(config.domains).toBe("src/domains/*");
+      expect(config.shared).toBe("src/shared/*");
       expect(config.modules).toBe(DEFAULTS.modules);
     });
   });

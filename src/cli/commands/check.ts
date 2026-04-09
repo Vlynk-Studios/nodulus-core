@@ -18,7 +18,8 @@ export function checkCommand(): Command {
         const cwd = process.cwd();
         const config = await loadConfig();
         
-        let nodes = await buildModuleGraph(config.modules, cwd);
+        const graph = await buildModuleGraph(config, cwd);
+        let nodes = graph.modules;
 
         if (options.module) {
           nodes = nodes.filter(n => n.name === options.module);
@@ -35,7 +36,7 @@ export function checkCommand(): Command {
         }
 
         if (options.format === 'json') {
-          console.log(JSON.stringify({ modules: nodes, violations }, null, 2));
+          console.log(JSON.stringify({ domains: graph.domains, modules: nodes, violations }, null, 2));
           if (options.strict && violations.length > 0) {
             process.exit(1);
           }
