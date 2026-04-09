@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
-import { detectViolations } from '../lib/violations.js';
+import { detectViolations, ViolationType } from '../lib/violations.js';
 
 export function checkCommand(): Command {
   const check = new Command('check');
@@ -18,7 +18,7 @@ export function checkCommand(): Command {
         const cwd = process.cwd();
         const config = await loadConfig();
         
-        let graph = await buildModuleGraph(config, cwd);
+        const graph = await buildModuleGraph(config, cwd);
         let nodes = graph.modules;
 
         if (options.module) {
@@ -33,7 +33,7 @@ export function checkCommand(): Command {
         let violations = detectViolations(graph);
 
         if (options.circular === false) { 
-          violations = violations.filter(v => v.type !== 'circular-dependency');
+          violations = violations.filter(v => v.type !== ViolationType.CIRCULAR_DEPENDENCY);
         }
 
         if (options.format === 'json') {
@@ -55,7 +55,7 @@ export function checkCommand(): Command {
             for (const v of moduleViolations) {
               const prefix = pc.yellow('  WARN ');
               
-              if (v.type === 'circular-dependency' && v.cycle) {
+              if (v.type === ViolationType.CIRCULAR_DEPENDENCY && v.cycle) {
                 console.log(`${prefix} ${v.message}`);
                 console.log(pc.gray(`       Suggestion: ${v.suggestion}`));
               } else {

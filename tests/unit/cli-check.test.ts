@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { detectViolations } from '../../src/cli/lib/violations.js';
+import { detectViolations, ViolationType } from '../../src/cli/lib/violations.js';
 import { buildModuleGraph, ModuleNode } from '../../src/cli/lib/graph-builder.js';
 import { checkCommand } from '../../src/cli/commands/check.js';
 import * as configModule from '../../src/core/config.js';
@@ -17,7 +17,7 @@ describe('nodulus check', () => {
       const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
       const violations = detectViolations(graph);
       
-      const privateImp = violations.find(v => v.type === 'private-import');
+      const privateImp = violations.find(v => v.type === ViolationType.PRIVATE_IMPORT);
       expect(privateImp).toBeDefined();
       expect(privateImp?.module).toBe('payments');
       expect(privateImp?.message).toContain('users.repository.js');
@@ -27,7 +27,7 @@ describe('nodulus check', () => {
       const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
       const violations = detectViolations(graph);
       
-      const undeclaredImp = violations.find(v => v.type === 'undeclared-import');
+      const undeclaredImp = violations.find(v => v.type === ViolationType.UNDECLARED_IMPORT);
       expect(undeclaredImp).toBeDefined();
       expect(undeclaredImp?.module).toBe('payments');
       expect(undeclaredImp?.suggestion).toContain('Add "orders" to the imports array');
@@ -43,7 +43,7 @@ describe('nodulus check', () => {
       const mockGraph = { domains: [], modules: mockNodes };
 
       const violations = detectViolations(mockGraph);
-      const circular = violations.find(v => v.type === 'circular-dependency');
+      const circular = violations.find(v => v.type === ViolationType.CIRCULAR_DEPENDENCY);
       
       expect(circular).toBeDefined();
       expect(circular?.cycle).toEqual(['A', 'B', 'A']);
