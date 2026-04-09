@@ -356,6 +356,33 @@ Added paths:
 
 Run this command initially, and whenever you create, rename, or drop modules in the project. It behaves idempotently and automatically purges references to modules that were deleted.
 
+### `nodulus check`
+
+Performs static code architecture analysis by inspecting raw Abstract Syntax Trees (AST) across your module structures without mutating or evaluating your application code.
+
+```bash
+npx nodulus check
+```
+
+```text
+Nodulus Architecture Analysis
+
+✔ orders — OK
+✗ payments — 2 problem(s)
+  WARN  Private import detected: module "payments" directly imports internal path from "@modules/users/users.repository.js". (payments.service.ts:3)
+       Suggestion: Import only the public index: "@modules/users".
+✔ users — OK
+
+2 problem(s) found.
+```
+
+| Option                 | Description                                                                              |
+|------------------------|------------------------------------------------------------------------------------------|
+| `--strict`             | Gracefully halts pipelines (`exit 1`) if architectural violations are mapped. Ideal for CI/CD gates. |
+| `--module <name>` | Narrow the analysis exclusively to a specific module scope within your system.           |
+| `--format <json,text>` | Exposes structural violations as digestible JSON payloads for external pipelines.        |
+| `--no-circular`        | Disables heavy Depth-First Search cycle logic detections (`A → B → A`).             |
+
 ---
 
 ## Logging
