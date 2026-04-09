@@ -12,6 +12,9 @@ import type {
   FileEntry
 } from '../types/index.js';
 
+export type ModuleRegistration = RegisteredModule;
+export type FeatureRegistration = FileEntry;
+
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
   name: entry.name,
   path: entry.path,

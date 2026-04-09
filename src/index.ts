@@ -1,4 +1,5 @@
 export { getRegistry } from './core/registry.js';
+export * from './core/registry.js';
 export * from './core/errors.js';
 
 export * from './identifiers/module.js';
