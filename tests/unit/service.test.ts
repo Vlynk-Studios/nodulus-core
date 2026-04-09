@@ -3,7 +3,7 @@ import path from 'node:path';
 import { Service } from '../../src/identifiers/service.js';
 import { createRegistry, registryContext, getActiveRegistry } from '../../src/core/registry.js';
 
-describe('Identifier: Service() V1.0.0', () => {
+describe('Service()', () => {
   it('registers with type: service when module is explicitly provided', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {

@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const moduleUrl = pathToFileURL(path.resolve(__dirname, '../../src/index.ts')).href;
 
-describe('Identifier: Module() V1.0.0', () => {
+describe('Module()', () => {
   let tmpDir: string;
 
   beforeEach(() => {

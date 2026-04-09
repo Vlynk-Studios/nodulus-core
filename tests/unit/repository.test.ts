@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Repository } from '../../src/identifiers/repository.js';
 import { createRegistry, registryContext, getActiveRegistry } from '../../src/core/registry.js';
 
-describe('Identifier: Repository() V1.0.0', () => {
+describe('Repository()', () => {
   it('registers with type: repository when module is explicitly provided', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {

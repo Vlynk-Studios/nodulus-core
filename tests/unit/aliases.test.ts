@@ -9,7 +9,7 @@ vi.mock('node:module', () => ({
   register: vi.fn()
 }));
 
-describe('Aliases API V1.0.0', () => {
+describe('Aliases API', () => {
   const mockLogger = {
     debug: vi.fn(),
     info: vi.fn(),

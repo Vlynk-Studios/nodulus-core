@@ -3,7 +3,7 @@ import request from 'supertest';
 import path from 'node:path';
 import type { NodulusApp } from '../../src/types/index.js';
 
-describe('E2E Integration V0.9.0 - basic-app', () => {
+describe('E2E Integration', () => {
   let appServer: any;
   let nodulusInfo: NodulusApp;
 
