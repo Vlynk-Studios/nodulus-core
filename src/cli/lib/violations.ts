@@ -1,4 +1,4 @@
-import { ModuleNode } from './graph-builder.js';
+import { ModuleGraph, ModuleNode } from './graph-builder.js';
 import { createRegistry } from '../../core/registry.js';
 
 export type ViolationType = 'private-import' | 'undeclared-import' | 'circular-dependency';
@@ -12,8 +12,9 @@ export interface Violation {
   cycle?: string[];
 }
 
-export function detectViolations(nodes: ModuleNode[]): Violation[] {
+export function detectViolations(graph: ModuleGraph): Violation[] {
   const violations: Violation[] = [];
+  const nodes = graph.modules;
   const moduleNames = new Set(nodes.map(n => n.name));
   const registry = createRegistry();
 

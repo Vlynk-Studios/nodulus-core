@@ -18,18 +18,19 @@ export function checkCommand(): Command {
         const cwd = process.cwd();
         const config = await loadConfig();
         
-        const graph = await buildModuleGraph(config, cwd);
+        let graph = await buildModuleGraph(config, cwd);
         let nodes = graph.modules;
 
         if (options.module) {
-          nodes = nodes.filter(n => n.name === options.module);
+          graph.modules = graph.modules.filter(n => n.name === options.module);
+          nodes = graph.modules;
           if (nodes.length === 0) {
             console.error(pc.red(`✗ Error: Module "${options.module}" does not exist.`));
             process.exit(1);
           }
         }
 
-        let violations = detectViolations(nodes);
+        let violations = detectViolations(graph);
 
         if (options.circular === false) { 
           violations = violations.filter(v => v.type !== 'circular-dependency');

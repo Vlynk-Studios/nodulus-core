@@ -15,7 +15,7 @@ describe('nodulus check', () => {
   describe('detectViolations() with Fixture', () => {
     it('detects private import in fixture (payments module)', async () => {
       const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
-      const violations = detectViolations(graph.modules);
+      const violations = detectViolations(graph);
       
       const privateImp = violations.find(v => v.type === 'private-import');
       expect(privateImp).toBeDefined();
@@ -25,7 +25,7 @@ describe('nodulus check', () => {
 
     it('detects undeclared import in fixture (payments module)', async () => {
       const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
-      const violations = detectViolations(graph.modules);
+      const violations = detectViolations(graph);
       
       const undeclaredImp = violations.find(v => v.type === 'undeclared-import');
       expect(undeclaredImp).toBeDefined();
@@ -40,8 +40,9 @@ describe('nodulus check', () => {
         { name: 'A', dirPath: '/A', indexPath: '/A/index.ts', declaredImports: ['B'], actualImports: [] },
         { name: 'B', dirPath: '/B', indexPath: '/B/index.ts', declaredImports: ['A'], actualImports: [] }
       ];
+      const mockGraph = { domains: [], modules: mockNodes };
 
-      const violations = detectViolations(mockNodes);
+      const violations = detectViolations(mockGraph);
       const circular = violations.find(v => v.type === 'circular-dependency');
       
       expect(circular).toBeDefined();
