@@ -2,9 +2,9 @@ import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
-import fg from 'fast-glob';
 import { parse, stringify } from 'comment-json';
 import { loadConfig } from '../../core/config.js';
+import { generatePathAliases } from '../lib/tsconfig-generator.js';
 
 export function syncTsconfigCommand() {
   return new Command('sync-tsconfig')
@@ -23,54 +23,8 @@ export function syncTsconfigCommand() {
         // 1. Load Nodulus config
         const config = await loadConfig();
 
-        // 2. Scan module glob to find discovered modules
-        const globPattern = config.modules.replace(/\\/g, '/');
-        const moduleDirs = await fg(globPattern, {
-          onlyDirectories: true,
-          absolute: true,
-          cwd
-        });
-
-        moduleDirs.sort();
-
-        // 3. Build paths mapping object
-        const pathsObj: Record<string, string[]> = {};
-
-        // 3a. Register built-in module aliases
-        for (const dirPath of moduleDirs) {
-          const modName = path.basename(dirPath);
-          const aliasKey = `@modules/${modName}`;
-          
-          let indexPath = path.join(dirPath, 'index.ts');
-          if (!fs.existsSync(indexPath)) {
-            indexPath = path.join(dirPath, 'index.js');
-          }
-
-          // Use posix separated paths
-          let relativePosixPath = path.relative(cwd, indexPath).replace(/\\/g, '/');
-          if (!relativePosixPath.startsWith('./') && !relativePosixPath.startsWith('../')) {
-            relativePosixPath = './' + relativePosixPath;
-          }
-          
-          pathsObj[aliasKey] = [relativePosixPath];
-        }
-
-        // 3b. Register folder/project aliases explicitly set in config
-        if (config.aliases) {
-          for (const [alias, target] of Object.entries(config.aliases)) {
-            let relativePosixPath = path.isAbsolute(target) ? path.relative(cwd, target) : target;
-            relativePosixPath = relativePosixPath.replace(/\\/g, '/');
-            if (!relativePosixPath.startsWith('./') && !relativePosixPath.startsWith('../')) {
-              relativePosixPath = './' + relativePosixPath;
-            }
-
-            // Append /* for standard TypeScript folder completion mapping
-            const key = alias.endsWith('/*') ? alias : `${alias}/*`;
-            const val = relativePosixPath.endsWith('/*') ? relativePosixPath : `${relativePosixPath}/*`;
-            
-            pathsObj[key] = [val];
-          }
-        }
+        // 2. Generate paths mapping object via pure functional generator
+        const pathsObj = await generatePathAliases(config, cwd);
 
         // 4. Update TS Config
         const rawContent = fs.readFileSync(configPath, 'utf8');

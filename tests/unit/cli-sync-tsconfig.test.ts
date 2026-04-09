@@ -175,4 +175,45 @@ describe("CLI: sync-tsconfig", () => {
     expect(paths["@manual/*"]).toBeDefined(); // Untouched (does not start with ./)
     expect(paths["@manual-two/*"]).toBeDefined(); // Untouched (array length !== 1)
   });
+
+  it("handles strictly module configurations but gracefully generates domains structure when domains configuration exists", async () => {
+    const initialConfig = { compilerOptions: { target: "es2022", paths: {} } };
+    fs.writeFileSync(tsconfigPath, JSON.stringify(initialConfig, null, 2), "utf8");
+
+    vi.mocked(loadConfig).mockResolvedValue({
+      modules: "src/modules/*",
+      domains: "src/domains/*",
+      aliases: {},
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
+    });
+
+    vi.mocked(fg).mockImplementation((glob) => {
+      if (typeof glob === 'string') {
+        if (glob.includes('modules')) return Promise.resolve([path.resolve(process.cwd(), "src/modules/users")]);
+        if (glob.includes('domains')) return Promise.resolve([path.resolve(process.cwd(), "src/domains/billing")]);
+      }
+      return Promise.resolve([]);
+    });
+
+    fs.mkdirSync(path.resolve(process.cwd(), "src/modules/users"), { recursive: true });
+    fs.writeFileSync(path.resolve(process.cwd(), "src/modules/users/index.ts"), "");
+    
+    fs.mkdirSync(path.resolve(process.cwd(), "src/domains/billing"), { recursive: true });
+    fs.writeFileSync(path.resolve(process.cwd(), "src/domains/billing/index.ts"), "");
+
+    await runCommand(["--tsconfig", tsconfigPath]);
+
+    const result = JSON.parse(fs.readFileSync(tsconfigPath, "utf8"));
+    const paths = result.compilerOptions.paths;
+
+    // Checks modules exist
+    expect(paths["@modules/users"]).toEqual(["./src/modules/users/index.ts"]);
+
+    // Checks domain structural layout generated accurately pointing to internal files/folders
+    expect(paths["@billing"]).toEqual(["./src/domains/billing/index.ts"]);
+    expect(paths["@billing/*"]).toEqual(["./src/domains/billing/*"]);
+
+    fs.rmSync(path.resolve(process.cwd(), "src/modules"), { recursive: true, force: true });
+    fs.rmSync(path.resolve(process.cwd(), "src/domains"), { recursive: true, force: true });
+  });
 });
