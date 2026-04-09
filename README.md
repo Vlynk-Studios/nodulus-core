@@ -1,5 +1,9 @@
 # Nodulus
 
+[![npm version](https://img.shields.io/npm/v/@vlynk-studios/nodulus-core.svg)](https://www.npmjs.com/package/@vlynk-studios/nodulus-core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.6-brightgreen)](https://nodejs.org/)
+
 A lightweight structural layer for Express. Nodulus lets you organise your Node.js application into self-contained modules — handling discovery, route mounting, import aliases, and dependency validation at bootstrap time, with zero overhead at runtime.
 
 > **Node.js ≥ 20.6** · **Express 4.x / 5.x** · **ESM Only** · **TypeScript included**
@@ -59,6 +63,14 @@ app.use(errorHandler) // error middleware always last
 console.log(`Mounted routes: ${routes.length}`)
 export default app
 ```
+
+Then run your app with the `--import` flag so that aliases work at runtime:
+
+```bash
+node --import @vlynk-studios/nodulus-core/register src/app.ts
+```
+
+> This registers the ESM Hook that enables runtime alias resolution. Without this flag, `@modules/*` and folder aliases will not resolve at runtime.
 
 ---
 
@@ -204,6 +216,8 @@ Schema('UserSchema', { library: 'zod' })
 
 Unlike `Controller` or `Module`, these identifiers do not alter runtime execution traces or wrap payloads—they simply announce presence and ownership into the `NodulusRegistry`.
 
+> **Note:** Nodulus is validation-agnostic. While examples use Zod, you can use Joi, TypeBox, or any other library.
+
 ---
 
 ### Import aliases
@@ -212,7 +226,7 @@ Nodulus registers two kinds of aliases:
 
 - **Module aliases** — auto-generated for every discovered module:
   ```
-  @modules/<name> → src/modules/<name>/index.ts
+  @modules/<n> → src/modules/<n>/index.ts
   ```
 - **Folder aliases** — configured in `createApp()` or `nodulus.config.ts`:
   ```
@@ -301,7 +315,7 @@ Config file loading order (first match wins):
 
 Nodulus provides a built-in CLI to enforce conventions effortlessly and improve developer experience without memorizing boilerplate.
 
-### `nodulus create-module <name>`
+### `nodulus create-module <n>`
 
 Scaffolds a perfectly structured module conforming to the framework constraints instantaneously.
 
@@ -504,7 +518,7 @@ import type {
   GetAliasesOptions,
   LogLevel,
   LogHandler,
-} from 'nodulus'
+} from '@vlynk-studios/nodulus-core'
 ```
 
 ---
@@ -512,3 +526,7 @@ import type {
 ## License
 
 MIT
+
+---
+
+Developed and maintained by **Vlynk Studios**.
