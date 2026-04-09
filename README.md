@@ -104,6 +104,8 @@ createApp(app: Application, options?: CreateAppOptions): Promise<NodulusApp>
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `modules` | `string` | `'src/modules/*'` | Glob pointing to module folders |
+| `domains` | `string` | `undefined` | Glob pointing to domain folders (v2.0.0+) |
+| `shared` | `string` | `undefined` | Glob pointing to shared global folders (v2.0.0+) |
 | `prefix` | `string` | `''` | Global route prefix (e.g. `'/api/v1'`) |
 | `aliases` | `Record<string, string>` | `{}` | Folder aliases beyond the auto-generated `@modules/*` |
 | `strict` | `boolean` | `true` in dev | Enables circular-dependency detection and undeclared-import errors |
@@ -543,6 +545,8 @@ import type {
   RegisteredModule,
   MountedRoute,
   GetAliasesOptions,
+  ModuleRegistration,
+  FeatureRegistration,
   LogLevel,
   LogHandler,
 } from '@vlynk-studios/nodulus-core'

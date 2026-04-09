@@ -1,4 +1,4 @@
-import { ModuleGraph, ModuleNode } from './graph-builder.js';
+import type { ModuleGraph } from './graph-builder.js';
 import { createRegistry } from '../../core/registry.js';
 
 export const ViolationType = {

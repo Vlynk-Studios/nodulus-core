@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2026-04-09
+
+### Added
+- **Internal Compatibility Layer**: Prepared core structures for upcoming v1.3.0 and v2.0.0 features (Domains, Shared Layouts, and Submodules).
+- **Public Registration Types**: Exported `ModuleRegistration` and `FeatureRegistration` types for enhanced framework integrations and tooling.
+- **Generic AST Extraction**: Refactored internal parser to support upcoming topological identifiers (`Domain`, `SubModule`, `DomainShared`).
+
+### Changed
+- **Violation API Stability**: Migrated `ViolationType` from a fixed string union to an extensible constant object, preventing breaking changes in future architectural rule additions.
+- **Module Graph Structure**: `buildModuleGraph` and `detectViolations` now operate on a hierarchical `ModuleGraph` instead of flat arrays.
+- **Config Support**: Base `loadConfig` now recognizes `domains` and `shared` configuration keys.
+- **Isolated Alias Logic**: Extracted tsconfig path generation into a pure utility function.
+
 ## [1.2.0] - 2026-04-09
 
 ### Added
