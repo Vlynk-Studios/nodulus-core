@@ -6,7 +6,7 @@ import type { Logger } from '../core/logger.js';
 export type ResolveHookContext = {
   conditions: string[];
   parentURL?: string;
-  data?: any;
+  data?: unknown;
 };
 
 export type NextResolve = (specifier: string, context?: ResolveHookContext) => Promise<{ shortCircuit?: boolean; url: string }>;
@@ -75,7 +75,7 @@ export async function resolve(specifier, context, nextResolve) {
       const parentUrl = typeof __filename === 'undefined' ? import.meta.url : pathToFileURL(__filename).href;
       
       if (typeof register === 'function') {
-        await (register as any)(dataUrl, { parentURL: parentUrl });
+        register(dataUrl, { parentURL: parentUrl });
         isHookRegistered = true;
         log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
           aliasCount: Object.keys(combinedAliases).length

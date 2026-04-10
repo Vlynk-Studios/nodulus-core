@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as acorn from "acorn";
 import * as walk from "acorn-walk";
-import type { ImportDeclaration, CallExpression, Literal, ObjectExpression } from 'estree';
+import type { ImportDeclaration, CallExpression, Literal, ObjectExpression, ArrayExpression } from 'estree';
 
 // Note about TypeScript and acorn parsing:
 // Acorn does not support TS syntax natively — if parsing fails, the file is silently skipped;
@@ -35,14 +35,14 @@ export function extractModuleImports(filePath: string): ImportFound[] {
     });
 
     walk.simple(ast, {
-      ImportDeclaration(node: any) {
-        const imp = node as ImportDeclaration;
+      ImportDeclaration(node) {
+        const imp = node as unknown as ImportDeclaration;
         if (imp.source && typeof imp.source.value === "string") {
           const specifier = imp.source.value;
           if (specifier.startsWith("@modules/")) {
             imports.push({
               specifier,
-              line: (imp as any).loc?.start.line || 0,
+              line: imp.loc?.start.line || 0,
               file: filePath,
             });
           }
@@ -77,8 +77,8 @@ export function extractIdentifierCall(
     });
 
     walk.simple(ast, {
-      CallExpression(node: any) {
-        const call = node as CallExpression;
+      CallExpression(node) {
+        const call = node as unknown as CallExpression;
         if (call.callee.type === 'Identifier' && call.callee.name === calleeName) {
           const nameArg = call.arguments[0] as Literal;
           if (nameArg && nameArg.type === "Literal") {
@@ -99,7 +99,8 @@ export function extractIdentifierCall(
 
                 if (keyName && prop.value.type === "ArrayExpression") {
                   const arr: string[] = [];
-                  for (const elem of (prop.value as any).elements) {
+                  const arrayVal = prop.value as ArrayExpression;
+                  for (const elem of arrayVal.elements) {
                     if (elem && elem.type === "Literal") {
                       arr.push(String(elem.value));
                     }
@@ -155,8 +156,8 @@ export function extractInternalIdentifiers(filePath: string): string[] {
     });
 
     walk.simple(ast, {
-      CallExpression(node: any) {
-        const call = node as CallExpression;
+      CallExpression(node) {
+        const call = node as unknown as CallExpression;
         if (call.callee.type === 'Identifier' && targetCallees.includes(call.callee.name)) {
           const nameArg = call.arguments[0] as Literal;
           if (nameArg && nameArg.type === "Literal" && typeof nameArg.value === 'string') {
