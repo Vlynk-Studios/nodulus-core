@@ -18,10 +18,12 @@ export type ResolveHook = (
 ) => Promise<{ shortCircuit?: boolean; url: string }>;
 
 let isHookRegistered = false;
+let registrationPromise: Promise<void> | null = null;
 
 /** @internal exclusively for tests */
 export function clearAliasResolverOptions(): void {
   isHookRegistered = false;
+  registrationPromise = null;
 }
 
 /**
@@ -33,22 +35,25 @@ export function clearAliasResolverOptions(): void {
  */
 export async function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): Promise<void> {
   if (isHookRegistered) return;
-  
-  const combinedAliases = { ...moduleAliases, ...folderAliases };
+  if (registrationPromise) return registrationPromise;
 
-  for (const [alias, target] of Object.entries(folderAliases)) {
-    log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
-  }
-  for (const [alias, target] of Object.entries(moduleAliases)) {
-    log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'module' });
-  }
+  registrationPromise = (async () => {
+    try {
+      const combinedAliases = { ...moduleAliases, ...folderAliases };
 
-  // Aliases are serialised directly into the hook source so they are available
-  // in the hook's closure regardless of whether Node.js propagates context.data
-  // across all resolution chains (not guaranteed in every Node 20.6+ build).
-  const serialisedAliases = JSON.stringify(combinedAliases);
+      for (const [alias, target] of Object.entries(folderAliases)) {
+        log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
+      }
+      for (const [alias, target] of Object.entries(moduleAliases)) {
+        log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'module' });
+      }
 
-  const loaderCode = `
+      // Aliases are serialised directly into the hook source so they are available
+      // in the hook's closure regardless of whether Node.js propagates context.data
+      // across all resolution chains (not guaranteed in every Node 20.6+ build).
+      const serialisedAliases = JSON.stringify(combinedAliases);
+
+      const loaderCode = `
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
@@ -66,24 +71,28 @@ export async function resolve(specifier, context, nextResolve) {
 }
 `;
 
-  try {
-    const dataUrl = `data:text/javascript,${encodeURIComponent(loaderCode)}`;
-    const parentUrl = typeof __filename === 'undefined' ? import.meta.url : pathToFileURL(__filename).href;
-    
-    if (typeof register === 'function') {
-      await (register as any)(dataUrl, { parentURL: parentUrl });
-      isHookRegistered = true;
-      log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
-        aliasCount: Object.keys(combinedAliases).length
+      const dataUrl = `data:text/javascript,${encodeURIComponent(loaderCode)}`;
+      const parentUrl = typeof __filename === 'undefined' ? import.meta.url : pathToFileURL(__filename).href;
+      
+      if (typeof register === 'function') {
+        await (register as any)(dataUrl, { parentURL: parentUrl });
+        isHookRegistered = true;
+        log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
+          aliasCount: Object.keys(combinedAliases).length
+        });
+      } else {
+        log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
+          nodeVersion: process.version
+        });
+      }
+    } catch (err) {
+      log.warn('ESM alias hook registration threw an unexpected error — aliases may not resolve at runtime', {
+        error: (err as any)?.message ?? String(err)
       });
-    } else {
-      log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
-        nodeVersion: process.version
-      });
+    } finally {
+      registrationPromise = null;
     }
-  } catch (err) {
-    log.warn('ESM alias hook registration threw an unexpected error — aliases may not resolve at runtime', {
-      error: (err as any)?.message ?? String(err)
-    });
-  }
+  })();
+
+  return registrationPromise;
 }
