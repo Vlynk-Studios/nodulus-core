@@ -32,6 +32,16 @@ describe('nodulus check', () => {
       expect(undeclaredImp?.module).toBe('payments');
       expect(undeclaredImp?.suggestion).toContain('Add "orders" to the imports array');
     });
+
+    it('detects real circular dependency in fixture (users <-> orders)', async () => {
+      const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
+      const violations = detectViolations(graph);
+      
+      const circular = violations.find(v => v.type === ViolationType.CIRCULAR_DEPENDENCY);
+      expect(circular).toBeDefined();
+      expect(circular?.cycle).toContain('users');
+      expect(circular?.cycle).toContain('orders');
+    });
   });
 
   describe('detectViolations() with mock nodes', () => {
