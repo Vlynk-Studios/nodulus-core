@@ -118,6 +118,16 @@ export interface SchemaEntry {
 /** Discriminated union for all file-level identifier entries. */
 export type FileEntry = ServiceEntry | RepositoryEntry | SchemaEntry;
 
+export interface NitsConfig {
+  /** 
+   * Custom similarity threshold (0.0 to 1.0). 
+   * If omitted, a dynamic threshold based on module size is used.
+   */
+  similarityThreshold?: number;
+  /** Whether to enable NITS identity tracking. Default: true. */
+  enabled?: boolean;
+}
+
 export interface CreateAppOptions {
   /** Glob pointing to module folders. Default: 'src/modules/*'. */
   modules?: string;
@@ -151,6 +161,8 @@ export interface CreateAppOptions {
    * Default: 'info' (debug is off unless explicitly set).
    */
   logLevel?: LogLevel;
+  /** NITS (Nodulus Integrated Tracking System) configuration. */
+  nits?: NitsConfig;
 }
 
 /** Resolved configuration used internally (defaults applied). */
@@ -164,6 +176,10 @@ export interface ResolvedConfig {
   resolveAliases: boolean;
   logger: LogHandler;
   logLevel: LogLevel;
+  nits: {
+    enabled: boolean;
+    similarityThreshold?: number;
+  };
 }
 
 /** A module as it appears in the NodularApp result after bootstrap. */

@@ -16,6 +16,10 @@ export const DEFAULTS: ResolvedConfig = {
   resolveAliases: true,
   logger: defaultLogHandler,
   logLevel: resolveLogLevel(),
+  nits: {
+    enabled: true,
+    similarityThreshold: undefined // Use dynamic by default
+  }
 };
 
 export const loadConfig = async (options: CreateAppOptions = {}): Promise<ResolvedConfig> => {
@@ -82,5 +86,9 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
     resolveAliases: options.resolveAliases ?? fileConfig.resolveAliases ?? DEFAULTS.resolveAliases,
     logger: options.logger ?? fileConfig.logger ?? DEFAULTS.logger,
     logLevel: resolveLogLevel(options.logLevel ?? fileConfig.logLevel),
+    nits: {
+      enabled: options.nits?.enabled ?? fileConfig.nits?.enabled ?? DEFAULTS.nits.enabled,
+      similarityThreshold: options.nits?.similarityThreshold ?? fileConfig.nits?.similarityThreshold ?? DEFAULTS.nits.similarityThreshold
+    }
   };
 };
