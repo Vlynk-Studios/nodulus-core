@@ -18,7 +18,8 @@ export const DEFAULTS: ResolvedConfig = {
   logLevel: resolveLogLevel(),
   nits: {
     enabled: true,
-    similarityThreshold: undefined // Use dynamic by default
+    similarityThreshold: undefined, // Use dynamic by default
+    registryPath: '.nodulus/registry.json'
   }
 };
 
@@ -76,7 +77,8 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
     logLevel: resolveLogLevel(options.logLevel ?? fileConfig.logLevel),
     nits: {
       enabled: options.nits?.enabled ?? fileConfig.nits?.enabled ?? DEFAULTS.nits.enabled,
-      similarityThreshold: options.nits?.similarityThreshold ?? fileConfig.nits?.similarityThreshold ?? DEFAULTS.nits.similarityThreshold
+      similarityThreshold: options.nits?.similarityThreshold ?? fileConfig.nits?.similarityThreshold ?? DEFAULTS.nits.similarityThreshold,
+      registryPath: options.nits?.registryPath ?? fileConfig.nits?.registryPath ?? DEFAULTS.nits.registryPath
     }
   };
 };

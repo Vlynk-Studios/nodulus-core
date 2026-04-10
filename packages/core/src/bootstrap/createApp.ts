@@ -114,7 +114,7 @@ export async function createApp(
       registry.registerAlias(aliasKey, mod.dirPath);
     }
 
-    activateAliasResolver(pureModuleAliases, config.aliases, log);
+    await activateAliasResolver(pureModuleAliases, config.aliases, log);
     updateAliasCache(registry.getAllAliases());
   }
 

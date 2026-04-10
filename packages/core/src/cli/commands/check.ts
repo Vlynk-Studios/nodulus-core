@@ -16,7 +16,6 @@ export function checkCommand(): Command {
     .option('--format <format>', 'Output format: text or json', 'text')
     .option('--no-circular', 'Skip circular dependency detection')
     .action(async (options) => {
-      try {
         const cwd = process.cwd();
         const config = await loadConfig();
         
@@ -24,7 +23,7 @@ export function checkCommand(): Command {
         
         // NITS Reconciliation (Identity Tracking)
         if (config.nits.enabled) {
-          const oldRegistry = loadNitsRegistry(cwd);
+          const oldRegistry = loadNitsRegistry(cwd, config.nits.registryPath);
           const { registry: updatedRegistry, summary } = reconcile(
             graph, 
             oldRegistry, 
@@ -32,7 +31,7 @@ export function checkCommand(): Command {
             config.nits.similarityThreshold
           );
           
-          saveNitsRegistry(cwd, updatedRegistry);
+          saveNitsRegistry(cwd, updatedRegistry, config.nits.registryPath);
 
           // Map IDs back to the graph nodes for reporting
           for (const node of graph.modules) {
@@ -50,8 +49,7 @@ export function checkCommand(): Command {
           graph.modules = graph.modules.filter(n => n.name === options.module);
           nodes = graph.modules;
           if (nodes.length === 0) {
-            console.error(pc.red(`✗ Error: Module "${options.module}" does not exist.`));
-            process.exit(1);
+            throw new Error(pc.red(`✗ Error: Module "${options.module}" does not exist.`));
           }
         }
 
@@ -64,7 +62,7 @@ export function checkCommand(): Command {
         if (options.format === 'json') {
           console.log(JSON.stringify({ domains: graph.domains, modules: nodes, violations }, null, 2));
           if (options.strict && violations.length > 0) {
-            process.exit(1);
+            throw new Error('Structural integrity violations found (JSON format)');
           }
           return;
         }
@@ -97,13 +95,8 @@ export function checkCommand(): Command {
         console.log(`\n${violations.length} problem(s) found.`);
 
         if (options.strict && violations.length > 0) {
-          process.exit(1);
+          throw new Error('Structural integrity violations found.');
         }
-
-      } catch (error: any) {
-        console.error(pc.red(`\nAn error occurred during check: ${error.message}`));
-        process.exit(1);
-      }
     });
 
   return check;

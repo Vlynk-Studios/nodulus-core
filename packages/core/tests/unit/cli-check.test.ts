@@ -61,12 +61,10 @@ describe('nodulus check', () => {
   });
 
   describe('checkCommand action', () => {
-    let exitSpy: any;
     let logSpy: any;
     let _errorSpy: any;
 
     beforeEach(() => {
-      exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as any);
       logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       _errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       vi.spyOn(process, 'cwd').mockReturnValue(fixturePath);
@@ -83,18 +81,14 @@ describe('nodulus check', () => {
       vi.restoreAllMocks();
     });
 
-    it('does not call process.exit(1) if there are no violations', async () => {
+    it('does not throw if there are no violations', async () => {
       const cmd = checkCommand();
-      await cmd.parseAsync(['node', 'test', '--module', 'orders']);
-      
-      expect(exitSpy).not.toHaveBeenCalled();
+      await expect(cmd.parseAsync(['node', 'test', '--module', 'orders'])).resolves.not.toThrow();
     });
 
-    it('--strict calls process.exit(1) when there are violations', async () => {
+    it('--strict throws error when there are violations', async () => {
       const cmd = checkCommand();
-      await cmd.parseAsync(['node', 'test', '--strict']);
-      
-      expect(exitSpy).toHaveBeenCalledWith(1);
+      await expect(cmd.parseAsync(['node', 'test', '--strict'])).rejects.toThrow(/violations found/i);
     });
 
     it('--format json produces standard JSON structure', async () => {

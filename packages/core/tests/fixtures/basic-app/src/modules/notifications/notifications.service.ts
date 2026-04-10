@@ -1,3 +1,3 @@
-export function notify(msg: string) {
-  console.log('Notification:', msg);
+export function notify(_msg: string) {
+  // No-op for testing
 }

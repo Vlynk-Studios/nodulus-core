@@ -1,15 +1,21 @@
-// Limitation: last write wins in parallel tests.
-// Do not use getAliasCache() in concurrent tests that rely on different aliases.
-let aliasCache: Record<string, string> = {};
+import { registryContext } from '../core/registry.js';
+
+// Limitation: last write wins in parallel tests if not running within a registry context.
+// When running within createApp(), the registry is the source of truth.
+let globalAliasCache: Record<string, string> = {};
 
 export function updateAliasCache(aliases: Record<string, string>): void {
-  aliasCache = { ...aliases };
+  globalAliasCache = { ...aliases };
 }
 
 export function getAliasCache(): Record<string, string> {
-  return aliasCache;
+  const activeRegistry = registryContext.getStore();
+  if (activeRegistry) {
+    return activeRegistry.getAllAliases();
+  }
+  return globalAliasCache;
 }
 
 export function clearAliasCache(): void {
-  aliasCache = {};
+  globalAliasCache = {};
 }

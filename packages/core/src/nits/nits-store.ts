@@ -12,14 +12,12 @@ export interface NitsRegistry {
   modules: Record<string, NitsModuleEntry>; // Key is module name (logical name)
 }
 
-const REGISTRY_PATH = '.nodulus/registry.json';
-
 /**
- * Loads the NITS registry from .nodulus/registry.json.
+ * Loads the NITS registry.
  * Returns a fresh registry if the file is missing or corrupted.
  */
-export function loadNitsRegistry(cwd: string): NitsRegistry {
-  const fullPath = path.join(cwd, REGISTRY_PATH);
+export function loadNitsRegistry(cwd: string, registryPath: string): NitsRegistry {
+  const fullPath = path.isAbsolute(registryPath) ? registryPath : path.join(cwd, registryPath);
   
   if (!fs.existsSync(fullPath)) {
     return { version: '1.0.0', modules: {} };
@@ -42,10 +40,10 @@ export function loadNitsRegistry(cwd: string): NitsRegistry {
 }
 
 /**
- * Saves the NITS registry to .nodulus/registry.json.
+ * Saves the NITS registry.
  */
-export function saveNitsRegistry(cwd: string, registry: NitsRegistry): void {
-  const fullPath = path.join(cwd, REGISTRY_PATH);
+export function saveNitsRegistry(cwd: string, registry: NitsRegistry, registryPath: string): void {
+  const fullPath = path.isAbsolute(registryPath) ? registryPath : path.join(cwd, registryPath);
   const dir = path.dirname(fullPath);
   
   if (!fs.existsSync(dir)) {

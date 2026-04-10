@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
+import { NodulusError } from '../../core/errors.js';
 
 export function createModuleCommand() {
   return new Command('create-module')
@@ -14,8 +15,7 @@ export function createModuleCommand() {
     .option('--ts', 'Force generate TypeScript (.ts) files')
     .action((name: string, options: { path?: string; repository: boolean; schema: boolean; js?: boolean; ts?: boolean }) => {
       if (!/^[a-z0-9-]+$/.test(name)) {
-        console.error(pc.red(`\nError: Invalid module name "${name}". Module names must be lowercase and contain only letters, numbers, or hyphens.\n`));
-        process.exit(1);
+        throw new NodulusError('CLI_ERROR', pc.red(`\nError: Invalid module name "${name}". Module names must be lowercase and contain only letters, numbers, or hyphens.\n`));
       }
 
       // Detect language extension
@@ -33,8 +33,7 @@ export function createModuleCommand() {
       const modulePath = options.path ? path.resolve(process.cwd(), options.path) : path.resolve(process.cwd(), `src/modules/${name}`);
 
       if (fs.existsSync(modulePath)) {
-        console.error(pc.red(`\nError: The directory "${modulePath}" already exists. Cannot scaffold module here.\n`));
-        process.exit(1);
+        throw new NodulusError('CLI_ERROR', pc.red(`\nError: The directory "${modulePath}" already exists. Cannot scaffold module here.\n`));
       }
 
       fs.mkdirSync(modulePath, { recursive: true });

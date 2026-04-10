@@ -126,6 +126,8 @@ export interface NitsConfig {
   similarityThreshold?: number;
   /** Whether to enable NITS identity tracking. Default: true. */
   enabled?: boolean;
+  /** Custom path to the NITS registry file. Default: '.nodulus/registry.json'. */
+  registryPath?: string;
 }
 
 export interface CreateAppOptions {
@@ -179,6 +181,7 @@ export interface ResolvedConfig {
   nits: {
     enabled: boolean;
     similarityThreshold?: number;
+    registryPath: string;
   };
 }
 

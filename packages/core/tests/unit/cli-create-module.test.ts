@@ -4,10 +4,8 @@ import path from "node:path";
 import { createModuleCommand } from "../../src/cli/commands/create-module.js";
 
 describe("CLI: create-module", () => {
-  let _mockExit: any;
-  let mockConsoleError: any;
+  let _mockConsoleError: any;
   let _mockConsoleLog: any;
-  let exitError: Error;
   const testModuleDir = path.resolve(
     process.cwd(),
     "tests",
@@ -16,15 +14,7 @@ describe("CLI: create-module", () => {
   );
 
   beforeEach(() => {
-    // Mock process.exit to prevent the process from actually dying during tests.
-    // Throw an error to stop execution flow, similar to what process.exit would do.
-    exitError = new Error("PROCESS_EXIT");
-    _mockExit = vi.spyOn(process, "exit").mockImplementation(((
-      _code?: number,
-    ) => {
-      throw exitError;
-    }) as any);
-    mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    _mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     _mockConsoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Clean up tmp dir if exists
@@ -103,11 +93,7 @@ describe("CLI: create-module", () => {
   it("throws a descriptive error when name contains uppercase letters or spaces", async () => {
     await expect(
       runCommand(["Invalid Name", "--path", testModuleDir]),
-    ).rejects.toThrowError(exitError);
-
-    expect(mockConsoleError).toHaveBeenCalled();
-    const errorMsg = mockConsoleError.mock.calls[0][0];
-    expect(errorMsg).toMatch(/Invalid module name/i);
+    ).rejects.toThrow(/Invalid module name/i);
 
     expect(fs.existsSync(testModuleDir)).toBe(false);
   });
@@ -134,11 +120,7 @@ describe("CLI: create-module", () => {
 
     await expect(
       runCommand(["testmodule", "--path", testModuleDir]),
-    ).rejects.toThrowError(exitError);
-
-    expect(mockConsoleError).toHaveBeenCalled();
-    const errorMsg = mockConsoleError.mock.calls[0][0];
-    expect(errorMsg).toMatch(/already exists/i);
+    ).rejects.toThrow(/already exists/i);
   });
 
   it("generates a schema without hardcoding zod dependency", async () => {

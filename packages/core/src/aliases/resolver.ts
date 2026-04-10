@@ -31,7 +31,7 @@ export function clearAliasResolverOptions(): void {
  * It will not function effectively in pure CJS pipelines without a transpiler or loader.
  * For CJS and bundlers (Vite, esbuild), use getAliases() to configure their specific resolvers.
  */
-export function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): void {
+export async function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): Promise<void> {
   if (isHookRegistered) return;
   
   const combinedAliases = { ...moduleAliases, ...folderAliases };
@@ -71,7 +71,7 @@ export async function resolve(specifier, context, nextResolve) {
     const parentUrl = typeof __filename === 'undefined' ? import.meta.url : pathToFileURL(__filename).href;
     
     if (typeof register === 'function') {
-      register(dataUrl, { parentURL: parentUrl });
+      await (register as any)(dataUrl, { parentURL: parentUrl });
       isHookRegistered = true;
       log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
         aliasCount: Object.keys(combinedAliases).length

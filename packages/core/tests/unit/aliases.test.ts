@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { updateAliasCache, clearAliasCache } from '../../src/aliases/cache.js';
+import { resetGlobalState } from '../../src/core/state.js';
+import { updateAliasCache } from '../../src/aliases/cache.js';
 import { getAliases } from '../../src/aliases/getAliases.js';
 import * as resolver from '../../src/aliases/resolver.js';
 import { register } from 'node:module';
@@ -19,8 +20,7 @@ describe('Aliases API', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    resolver.clearAliasResolverOptions();
-    clearAliasCache();
+    resetGlobalState();
   });
 
   // Helper: seed the cache as createApp would after Phase 3
@@ -33,8 +33,8 @@ describe('Aliases API', () => {
   }
 
   it('getAliases() returns {} without throwing when called before createApp()', async () => {
-    // clearAliasCache ensures we are working with an empty cache
-    clearAliasCache();
+    // resetGlobalState ensures we are working with an empty cache
+    resetGlobalState();
     const result = await getAliases();
     expect(result).toEqual({});
   });
@@ -72,9 +72,9 @@ describe('Aliases API', () => {
     }
   });
 
-  it('activateAliasResolver registers the hook exactly once on repeated calls', () => {
-    resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' }, mockLogger as any);
-    resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' }, mockLogger as any);
+  it('activateAliasResolver registers the hook exactly once on repeated calls', async () => {
+    await resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' }, mockLogger as any);
+    await resolver.activateAliasResolver({ '@modules/users': '/absolute' }, { '@configs': '/configs' }, mockLogger as any);
 
     expect(register).toHaveBeenCalledTimes(1);
 
@@ -91,10 +91,10 @@ describe('Aliases API', () => {
     expect(opts.data).toBeUndefined();
   });
 
-  it('activateAliasResolver embeds all combined aliases into the hook source', () => {
+  it('activateAliasResolver embeds all combined aliases into the hook source', async () => {
     const moduleAliases = { '@modules/auth': '/path/auth' };
     const folderAliases = { '@shared': '/path/shared' };
-    resolver.activateAliasResolver(moduleAliases, folderAliases, mockLogger as any);
+    await resolver.activateAliasResolver(moduleAliases, folderAliases, mockLogger as any);
 
     const [dataUrl] = (register as any).mock.calls[0];
     const decoded = decodeURIComponent(dataUrl.replace('data:text/javascript,', ''));
@@ -103,10 +103,10 @@ describe('Aliases API', () => {
     expect(decoded).toContain('@shared');
   });
 
-  it('user configured aliases take precedence over auto-generated module aliases', () => {
+  it('user configured aliases take precedence over auto-generated module aliases', async () => {
     const moduleAliases = { '@modules/auth': '/path/auto' };
     const folderAliases = { '@modules/auth': '/path/configured' };
-    resolver.activateAliasResolver(moduleAliases, folderAliases, mockLogger as any);
+    await resolver.activateAliasResolver(moduleAliases, folderAliases, mockLogger as any);
 
     const [dataUrl] = (register as any).mock.calls[0];
     const decoded = decodeURIComponent(dataUrl.replace('data:text/javascript,', ''));

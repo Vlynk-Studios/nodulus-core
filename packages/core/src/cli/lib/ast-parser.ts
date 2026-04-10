@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as acorn from "acorn";
 import * as walk from "acorn-walk";
+import type { ImportDeclaration, CallExpression, Literal, ObjectExpression } from 'estree';
 
 // Note about TypeScript and acorn parsing:
 // Acorn does not support TS syntax natively — if parsing fails, the file is silently skipped;
@@ -35,20 +36,26 @@ export function extractModuleImports(filePath: string): ImportFound[] {
 
     walk.simple(ast, {
       ImportDeclaration(node: any) {
-        if (node.source && typeof node.source.value === "string") {
-          const specifier = node.source.value;
+        const imp = node as ImportDeclaration;
+        if (imp.source && typeof imp.source.value === "string") {
+          const specifier = imp.source.value;
           if (specifier.startsWith("@modules/")) {
             imports.push({
               specifier,
-              line: node.loc?.start.line || 0,
+              line: (imp as any).loc?.start.line || 0,
               file: filePath,
             });
           }
         }
       },
     });
-  } catch (_error) {
-    // If the parser fails (e.g. complex TS unsupported by acorn), skip the analysis
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+       // Silently skip if file doesn't exist (can happen with dynamic paths)
+       return [];
+    }
+    console.warn(`[Nodulus] [Parser] Warning: Failed to parse imports in "${filePath}".`);
+    console.debug(`  Detail: ${error.message}`);
     return [];
   }
 
@@ -71,15 +78,18 @@ export function extractIdentifierCall(
 
     walk.simple(ast, {
       CallExpression(node: any) {
-        if (node.callee && node.callee.name === calleeName) {
-          const nameArg = node.arguments[0];
+        const call = node as CallExpression;
+        if (call.callee.type === 'Identifier' && call.callee.name === calleeName) {
+          const nameArg = call.arguments[0] as Literal;
           if (nameArg && nameArg.type === "Literal") {
-            const name = nameArg.value;
+            const name = nameArg.value as string;
             const options: Record<string, unknown> = {};
 
-            const optionsArg = node.arguments[1];
+            const optionsArg = call.arguments[1] as ObjectExpression;
             if (optionsArg && optionsArg.type === "ObjectExpression") {
               for (const prop of optionsArg.properties) {
+                if (prop.type !== 'Property') continue;
+                
                 let keyName = '';
                 if (prop.key.type === "Identifier") {
                   keyName = prop.key.name;
@@ -89,7 +99,7 @@ export function extractIdentifierCall(
 
                 if (keyName && prop.value.type === "ArrayExpression") {
                   const arr: string[] = [];
-                  for (const elem of prop.value.elements) {
+                  for (const elem of (prop.value as any).elements) {
                     if (elem && elem.type === "Literal") {
                       arr.push(String(elem.value));
                     }
@@ -106,7 +116,11 @@ export function extractIdentifierCall(
         }
       },
     });
-  } catch (_error) {
+  } catch (error: any) {
+    if (error.code !== 'ENOENT') {
+      console.warn(`[Nodulus] [Parser] Warning: Failed to parse identifier call in "${filePath}".`);
+      console.debug(`  Detail: ${error.message}`);
+    }
     return null;
   }
 
@@ -142,16 +156,20 @@ export function extractInternalIdentifiers(filePath: string): string[] {
 
     walk.simple(ast, {
       CallExpression(node: any) {
-        if (node.callee && targetCallees.includes(node.callee.name)) {
-          const nameArg = node.arguments[0];
+        const call = node as CallExpression;
+        if (call.callee.type === 'Identifier' && targetCallees.includes(call.callee.name)) {
+          const nameArg = call.arguments[0] as Literal;
           if (nameArg && nameArg.type === "Literal" && typeof nameArg.value === 'string') {
             names.push(nameArg.value);
           }
         }
       },
     });
-  } catch (_error) {
-    // Skip unparseable files
+  } catch (error: any) {
+    if (error.code !== 'ENOENT') {
+      console.warn(`[Nodulus] [Parser] Warning: Failed to parse internal identifiers in "${filePath}".`);
+      console.debug(`  Detail: ${error.message}`);
+    }
   }
 
   return names;

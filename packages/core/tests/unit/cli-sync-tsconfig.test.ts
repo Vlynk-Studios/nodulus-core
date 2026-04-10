@@ -9,20 +9,14 @@ vi.mock("fast-glob", () => ({ default: vi.fn() }));
 vi.mock("../../src/core/config.js", () => ({ loadConfig: vi.fn() }));
 
 describe("CLI: sync-tsconfig", () => {
-  let _mockExit: any;
-  let mockConsoleError: any;
+  let _mockConsoleError: any;
   let _mockConsoleLog: any;
-  let exitError: Error;
   
   const testDir = path.resolve(process.cwd(), "tests", ".tmp", "sync-tsconfig");
   const tsconfigPath = path.join(testDir, "tsconfig.test.json");
 
   beforeEach(() => {
-    exitError = new Error("PROCESS_EXIT");
-    _mockExit = vi.spyOn(process, "exit").mockImplementation(((_code?: number) => {
-      throw exitError;
-    }) as any);
-    mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    _mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     _mockConsoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Create a fresh test directory
@@ -44,10 +38,7 @@ describe("CLI: sync-tsconfig", () => {
   };
 
   it("throws a descriptive error if tsconfig.json does not exist", async () => {
-    await expect(runCommand(["--tsconfig", "nonexistent.json"])).rejects.toThrowError(exitError);
-    expect(mockConsoleError).toHaveBeenCalled();
-    const errorMsg = mockConsoleError.mock.calls[0][0];
-    expect(errorMsg).toMatch(/Could not find nonexistent.json/i);
+    await expect(runCommand(["--tsconfig", "nonexistent.json"])).rejects.toThrow(/Could not find nonexistent.json/i);
   });
 
   it("adds paths correctly to a tsconfig without previous paths", async () => {
@@ -59,7 +50,8 @@ describe("CLI: sync-tsconfig", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       modules: "src/modules/*",
       aliases: { "@config": "./src/config" },
-      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
     });
     vi.mocked(fg).mockResolvedValue([
       path.resolve(process.cwd(), "src/modules/auth"),
@@ -100,7 +92,8 @@ describe("CLI: sync-tsconfig", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       modules: "src/modules/*",
       aliases: {},
-      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
     });
     vi.mocked(fg).mockResolvedValue([path.resolve(process.cwd(), "src/modules/new")]);
     fs.mkdirSync(path.resolve(process.cwd(), "src/modules/new"), { recursive: true });
@@ -124,7 +117,8 @@ describe("CLI: sync-tsconfig", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       modules: "src/modules/*",
       aliases: {},
-      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
     });
     vi.mocked(fg).mockResolvedValue([path.resolve(process.cwd(), "src/modules/auth")]);
     fs.mkdirSync(path.resolve(process.cwd(), "src/modules/auth"), { recursive: true });
@@ -159,7 +153,8 @@ describe("CLI: sync-tsconfig", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       modules: "src/modules/*",
       aliases: {}, // @config exists no more!
-      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
     });
     // Returning NO active modules -> Should trigger garbage collection of @modules/stale
     vi.mocked(fg).mockResolvedValue([]);
@@ -184,7 +179,8 @@ describe("CLI: sync-tsconfig", () => {
       modules: "src/modules/*",
       domains: "src/domains/*",
       aliases: {},
-      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info"
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
     });
 
     vi.mocked(fg).mockImplementation((glob) => {
