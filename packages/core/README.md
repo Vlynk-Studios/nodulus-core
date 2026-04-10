@@ -301,6 +301,9 @@ const config: NodulusConfig = {
     '@middleware': './src/middleware',
     '@shared':     './src/shared',
   },
+  nits: {
+    registryPath: './.nodulus/registry.json'
+  }
 }
 
 export default config
@@ -389,7 +392,8 @@ Nodulus Architecture Analysis
 
 ### NITS Identity Tracking
 
-Nodulus 1.4.0+ includes the **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique ID to every module. This allows the framework to track modules even when they are renamed or moved across the filesystem, preventing identity loss during refactors.
+Nodulus 1.2.5+ includes the **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique ID to every module.
+ This allows the framework to track modules even when they are renamed or moved across the filesystem, preventing identity loss during refactors.
 
 NITS maintains a state file at `.nodulus/registry.json` in your project root. **This file should be committed to version control.**
 

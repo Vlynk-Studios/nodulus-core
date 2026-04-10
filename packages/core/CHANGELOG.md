@@ -5,12 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.5] - 2026-04-09
+## [1.2.5] - 2026-04-10
 
 ### Added
+- **Configurable NITS Registry**: The NITS registry path is now configurable via `nits.registryPath` in `nodulus.config.ts` (defaults to `.nodulus/registry.json`).
 - **Internal Compatibility Layer**: Prepared core structures for upcoming v1.3.0 and v2.0.0 features (Domains, Shared Layouts, and Submodules).
 - **Public Registration Types**: Exported `ModuleRegistration` and `FeatureRegistration` types for enhanced framework integrations and tooling.
-- **Generic AST Extraction**: Refactored internal parser to support upcoming topological identifiers (`Domain`, `SubModule`, `DomainShared`).
+- **NITS Identity Tracking**: Nodulus 1.2.5+ includes the **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique ID to every module.
+
+### Changed
+- **CLI Robustness**: Centralized CLI error handling in `cli/index.ts`, removing direct `process.exit()` calls to improve testability and reliability.
+- **Type Safety**: Eliminated `any` types in `ast-parser.ts` and `resolver.ts`, transitioning to strict `estree` and `node` types.
+- **Async I/O Migration**: Refactored `sync-tsconfig` and identifier parsers to use asynchronous file operations for non-blocking execution.
+- **ESM Hook Stability**: Implemented a singleton promise pattern in the ESM alias resolver to prevent race conditions during concurrent activations.
+- **Violation API Stability**: Migrated `ViolationType` from a fixed string union to an extensible constant object.
+
+### Fixed
+- **CLI Precision**: Fixed a bug in the global error handler where exit code `0` was shadowed by `1`.
+- **Parsing Resilience**: Resolved a syntax error in the `check` command that caused failures during bulk analysis.
 
 ### Changed
 - **Violation API Stability**: Migrated `ViolationType` from a fixed string union to an extensible constant object, preventing breaking changes in future architectural rule additions.
