@@ -30,19 +30,7 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
   const tsPath = path.join(cwd, 'nodulus.config.ts');
   const jsPath = path.join(cwd, 'nodulus.config.js');
   
-  const isProduction = process.env.NODE_ENV === 'production';
-  const hasTsLoader = 
-    process.execArgv.some(arg => arg.includes('ts-node') || arg.includes('tsx')) ||
-    (process as any)._preload_modules?.some((m: string) => m.includes('ts-node') || m.includes('tsx'));
-
-  // In production, only .js is tried by default.
-  // In development (or when a TS loader is detected), .ts is tried first.
-  const candidates: string[] = [];
-  
-  if (!isProduction || hasTsLoader) {
-    candidates.push(tsPath);
-  }
-  candidates.push(jsPath);
+  const candidates: string[] = [tsPath, jsPath];
 
   let configPathToLoad: string | null = null;
 
