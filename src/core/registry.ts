@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { NodulusError } from './errors.js';
+import { findCircularDependencies } from './utils/cycle-detector.js';
 import type { 
   ModuleEntry, 
   RegisteredModule, 
@@ -99,40 +100,13 @@ export function createRegistry(): InternalRegistry {
     return graph;
   },
 
-  findCircularDependencies(): string[][] {
-    const cycles: string[][] = [];
-    const visited = new Set<string>();
-    const recStack = new Set<string>();
-    const path: string[] = [];
-
-    const dfs = (node: string) => {
-      visited.add(node);
-      recStack.add(node);
-      path.push(node);
-
-      const deps = modules.get(node)?.imports || [];
-      for (const neighbor of deps) {
-        if (!visited.has(neighbor)) {
-          dfs(neighbor);
-        } else if (recStack.has(neighbor)) {
-          // We hit a node currently in the stack (cycle detected)
-          const cycleStart = path.indexOf(neighbor);
-          cycles.push([...path.slice(cycleStart), neighbor]);
-        }
+    findCircularDependencies(): string[][] {
+      const dependencyMap = new Map<string, string[]>();
+      for (const [name, entry] of modules.entries()) {
+        dependencyMap.set(name, entry.imports);
       }
-
-      recStack.delete(node);
-      path.pop();
-    };
-
-    for (const node of modules.keys()) {
-      if (!visited.has(node)) {
-        dfs(node);
-      }
-    }
-
-    return cycles;
-  },
+      return findCircularDependencies(dependencyMap);
+    },
 
   registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void {
     if (modules.has(name)) {
