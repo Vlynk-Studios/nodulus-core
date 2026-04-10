@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "modules": {
+    "orders": {
+      "id": "mod_c88bf1e3",
+      "path": "src/modules/orders",
+      "identifiers": [
+        "OrderService"
+      ]
+    },
+    "payments": {
+      "id": "mod_7f0d8095",
+      "path": "src/modules/payments",
+      "identifiers": [
+        "PaymentsService"
+      ]
+    },
+    "users": {
+      "id": "mod_321640f2",
+      "path": "src/modules/users",
+      "identifiers": [
+        "UserRepository",
+        "UserService"
+      ]
+    }
+  }
+}
