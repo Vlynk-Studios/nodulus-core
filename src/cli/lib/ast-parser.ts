@@ -124,3 +124,35 @@ export function extractModuleDeclaration(
     imports: Array.isArray(result.options.imports) ? (result.options.imports as string[]) : [],
   };
 }
+
+/**
+ * Extracts all Nodulus identifier names (Service, Controller, Repository, Schema) 
+ * called in a source file. Used for NITS identity similarity tracking.
+ */
+export function extractInternalIdentifiers(filePath: string): string[] {
+  const names: string[] = [];
+  const targetCallees = ['Service', 'Controller', 'Repository', 'Schema'];
+
+  try {
+    const code = fs.readFileSync(filePath, "utf-8");
+    const ast = acorn.parse(code, {
+      ecmaVersion: "latest",
+      sourceType: "module",
+    });
+
+    walk.simple(ast, {
+      CallExpression(node: any) {
+        if (node.callee && targetCallees.includes(node.callee.name)) {
+          const nameArg = node.arguments[0];
+          if (nameArg && nameArg.type === "Literal" && typeof nameArg.value === 'string') {
+            names.push(nameArg.value);
+          }
+        }
+      },
+    });
+  } catch (_error) {
+    // Skip unparseable files
+  }
+
+  return names;
+}

@@ -1,7 +1,12 @@
 import fg from 'fast-glob';
 import path from 'node:path';
 import fs from 'node:fs';
-import { extractModuleDeclaration, extractModuleImports, ImportFound } from './ast-parser.js';
+import { 
+  extractModuleDeclaration, 
+  extractModuleImports, 
+  extractInternalIdentifiers,
+  ImportFound 
+} from './ast-parser.js';
 import type { NodulusConfig } from '../../types/index.js';
 
 export interface BaseNode {
@@ -10,9 +15,11 @@ export interface BaseNode {
   indexPath: string;
   declaredImports: string[];
   actualImports: ImportFound[];
+  internalIdentifiers: string[];
 }
 
 export interface ModuleNode extends BaseNode {
+  id?: string;
   domain?: string;
   submodules?: string[];
 }
@@ -54,6 +61,10 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
     }
 
     const actualImports: ImportFound[] = [];
+    const internalIdentifiers: string[] = [];
+
+    // Also check index file for identifiers
+    internalIdentifiers.push(...extractInternalIdentifiers(indexPath));
 
     const moduleFiles = await fg('**/*.{ts,js,mts,mjs}', {
       cwd: dirPath,
@@ -64,6 +75,9 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
     for (const file of moduleFiles) {
       const fileImports = extractModuleImports(file);
       actualImports.push(...fileImports);
+      
+      const fileIdentifiers = extractInternalIdentifiers(file);
+      internalIdentifiers.push(...fileIdentifiers);
     }
 
     nodes.push({
@@ -71,7 +85,8 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
       dirPath,
       indexPath,
       declaredImports: declaration.imports,
-      actualImports
+      actualImports,
+      internalIdentifiers
     });
   }
 

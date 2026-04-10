@@ -387,6 +387,23 @@ Nodulus Architecture Analysis
 
 ---
 
+### NITS Identity Tracking
+
+Nodulus 1.4.0+ includes the **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique ID to every module. This allows the framework to track modules even when they are renamed or moved across the filesystem, preventing identity loss during refactors.
+
+NITS maintains a state file at `.nodulus/registry.json` in your project root. **This file should be committed to version control.**
+
+#### Resolving Merge Conflicts
+
+Because `registry.json` tracks project-level state, parallel branches might occasionally result in Git merge conflicts. To resolve them:
+
+1.  **Accept either side** (or both) of the conflict to make the JSON valid again.
+2.  Run `npx nodulus check`.
+3.  The NITS reconciler will automatically detect duplicate IDs or path shifts, "heal" the registry, and save the corrected state.
+4.  Commit the updated `.nodulus/registry.json`.
+
+---
+
 ## Logging
 
 Nodulus emits structured, color-coded log events throughout the bootstrap pipeline using [picocolors](https://github.com/alexeyraspopov/picocolors).

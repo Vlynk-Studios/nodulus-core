@@ -3,6 +3,8 @@ import pc from 'picocolors';
 import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
+import { loadNitsRegistry, saveNitsRegistry } from '../../nits/nits-store.js';
+import { reconcile } from '../../nits/nits-reconciler.js';
 
 export function checkCommand(): Command {
   const check = new Command('check');
@@ -19,6 +21,29 @@ export function checkCommand(): Command {
         const config = await loadConfig();
         
         const graph = await buildModuleGraph(config, cwd);
+        
+        // NITS Reconciliation (Identity Tracking)
+        if (config.nits.enabled) {
+          const oldRegistry = loadNitsRegistry(cwd);
+          const { registry: updatedRegistry, summary } = reconcile(
+            graph, 
+            oldRegistry, 
+            cwd, 
+            config.nits.similarityThreshold
+          );
+          
+          saveNitsRegistry(cwd, updatedRegistry);
+
+          // Map IDs back to the graph nodes for reporting
+          for (const node of graph.modules) {
+            node.id = updatedRegistry.modules[node.name]?.id;
+          }
+
+          if (summary.healedConflicts > 0 && options.format !== 'json') {
+            console.log(pc.yellow(`⚠ NITS: Healed ${summary.healedConflicts} ID conflict(s) in registry.`));
+          }
+        }
+
         let nodes = graph.modules;
 
         if (options.module) {
@@ -48,8 +73,10 @@ export function checkCommand(): Command {
 
         for (const node of nodes) {
           const moduleViolations = violations.filter(v => v.module === node.name);
+          const idStr = node.id ? pc.gray(` [${node.id}]`) : '';
+          
           if (moduleViolations.length === 0) {
-            console.log(pc.green(`✔ ${node.name} — OK`));
+            console.log(pc.green(`✔ ${node.name}${idStr} — OK`));
           } else {
             console.log(pc.red(`✗ ${node.name} — ${moduleViolations.length} problem(s)`));
             for (const v of moduleViolations) {

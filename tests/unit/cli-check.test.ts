@@ -37,8 +37,8 @@ describe('nodulus check', () => {
   describe('detectViolations() with mock nodes', () => {
     it('detects circular dependency A -> B -> A', () => {
       const mockNodes: ModuleNode[] = [
-        { name: 'A', dirPath: '/A', indexPath: '/A/index.ts', declaredImports: ['B'], actualImports: [] },
-        { name: 'B', dirPath: '/B', indexPath: '/B/index.ts', declaredImports: ['A'], actualImports: [] }
+        { name: 'A', dirPath: '/A', indexPath: '/A/index.ts', declaredImports: ['B'], actualImports: [], internalIdentifiers: [] },
+        { name: 'B', dirPath: '/B', indexPath: '/B/index.ts', declaredImports: ['A'], actualImports: [], internalIdentifiers: [] }
       ];
       const mockGraph = { domains: [], modules: mockNodes };
 
@@ -64,7 +64,8 @@ describe('nodulus check', () => {
         modules: 'src/modules/*',
         prefix: '',
         aliases: {},
-        strict: false
+        strict: false,
+        nits: { enabled: false }
       } as any);
     });
 
