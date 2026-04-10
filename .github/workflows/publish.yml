@@ -33,6 +33,6 @@ jobs:
         run: npm test
 
       - name: Publish to NPM
-        run: npm publish --workspaces --provenance --access public
+        run: npm publish -w packages/core --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
