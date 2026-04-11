@@ -92,9 +92,9 @@ export function syncTsconfigCommand() {
         // Find longest key for padding alignment
         const maxKeyLength = Math.max(...Object.keys(pathsObj).map(k => k.length));
         
-        for (const [key, paths] of Object.entries(pathsObj)) {
+        for (const [key, aliasPaths] of Object.entries(pathsObj)) {
           const paddedKey = key.padEnd(maxKeyLength);
-          console.log(`  ${pc.cyan(paddedKey)}  → ${paths[0]}`);
+          console.log(`  ${pc.cyan(paddedKey)}  → ${aliasPaths[0]}`);
         }
         console.log('');
       } catch (err: any) {
