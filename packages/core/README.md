@@ -22,19 +22,6 @@ Express is minimal by design. Nodulus keeps it that way while adding just enough
 
 ---
 
-## Packages
-
-Nodulus ships as two focused packages from the same repository:
-
-| Package | Description | npm |
-|---|---|---|
-| `@vlynk-studios/nodulus-core` | Core framework — module discovery, routing, aliases, validation | [![npm](https://img.shields.io/npm/v/@vlynk-studios/nodulus-core.svg)](https://www.npmjs.com/package/@vlynk-studios/nodulus-core) |
-| `eslint-plugin-nodulus` | ESLint rules — static enforcement of Nodulus module conventions | [![npm](https://img.shields.io/npm/v/eslint-plugin-nodulus.svg)](https://www.npmjs.com/package/eslint-plugin-nodulus) |
-
-Both packages are independent installs — use one or both depending on your setup. The ESLint plugin is a companion, not a dependency of the core.
-
----
-
 ## Installation
 
 ```bash
@@ -117,6 +104,8 @@ createApp(app: Application, options?: CreateAppOptions): Promise<NodulusApp>
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `modules` | `string` | `'src/modules/*'` | Glob pointing to module folders |
+| `domains` | `string` | `undefined` | Glob pointing to domain folders (v2.0.0+) |
+| `shared` | `string` | `undefined` | Glob pointing to shared global folders (v2.0.0+) |
 | `prefix` | `string` | `''` | Global route prefix (e.g. `'/api/v1'`) |
 | `aliases` | `Record<string, string>` | `{}` | Folder aliases beyond the auto-generated `@modules/*` |
 | `strict` | `boolean` | `true` in dev | Enables circular-dependency detection and undeclared-import errors |
@@ -312,6 +301,9 @@ const config: NodulusConfig = {
     '@middleware': './src/middleware',
     '@shared':     './src/shared',
   },
+  nits: {
+    registryPath: './.nodulus/registry.json'
+  }
 }
 
 export default config
@@ -398,82 +390,21 @@ Nodulus Architecture Analysis
 
 ---
 
-## ESLint Plugin
+### NITS Identity Tracking
 
-> **Available from v1.3.0** · Package: `eslint-plugin-nodulus`
+Nodulus 1.2.5+ includes the **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique ID to every module.
+ This allows the framework to track modules even when they are renamed or moved across the filesystem, preventing identity loss during refactors.
 
-`nodulus check` validates your architecture at the command line. `eslint-plugin-nodulus` brings the same rules into your editor and CI pipeline as ESLint violations — so you catch problems the moment you write the import, not when you run a separate command.
+NITS maintains a state file at `.nodulus/registry.json` in your project root. **This file should be committed to version control.**
 
-```bash
-npm install --save-dev eslint-plugin-nodulus
-```
+#### Resolving Merge Conflicts
 
-### Setup
+Because `registry.json` tracks project-level state, parallel branches might occasionally result in Git merge conflicts. To resolve them:
 
-```js
-// eslint.config.js
-import nodulus from 'eslint-plugin-nodulus'
-
-export default [nodulus.configs.recommended]
-```
-
-That's all. The `recommended` config activates both rules with their default severities.
-
-### Rules
-
-| Rule | Severity (recommended) | Description |
-|---|---|---|
-| `nodulus/no-private-imports` | `error` | Prevents importing internal files from another module directly. Only the public index (`@modules/<name>`) is a valid cross-module import target. |
-| `nodulus/no-undeclared-imports` | `warn` | Flags cross-module imports from modules not listed in the consuming module's `imports` array inside `Module()`. |
-
-#### `nodulus/no-private-imports`
-
-Enforces encapsulation at the import level. A module's internal files are an implementation detail — only its `index.ts` is part of its public contract.
-
-```ts
-// ✗ error — accessing a private file directly
-import { UserRepository } from '@modules/users/users.repository.js'
-
-// ✓ correct — importing through the public index
-import { UserService } from '@modules/users'
-```
-
-#### `nodulus/no-undeclared-imports`
-
-Keeps the dependency graph declared in `Module()` in sync with what the code actually imports. When a cross-module import is used but the target isn't listed in `imports`, the rule warns.
-
-```ts
-// src/modules/orders/index.ts
-Module('orders', {
-  imports: ['users'],   // 'payments' is not declared
-})
-
-// src/modules/orders/orders.service.ts
-import { PaymentService } from '@modules/payments'  // ✗ warn — undeclared import
-import { UserService }    from '@modules/users'      // ✓ correct
-```
-
-To fix, add the missing module to the `imports` array:
-
-```ts
-Module('orders', {
-  imports: ['users', 'payments'],
-})
-```
-
-### Relationship to `nodulus check`
-
-Both tools catch the same class of violations, but they operate differently and complement each other:
-
-| | `nodulus check` | `eslint-plugin-nodulus` |
-|---|---|---|
-| When it runs | On demand / CI step | On save / pre-commit / CI lint step |
-| How it works | Full AST analysis across the whole project | Per-file ESLint rule evaluation |
-| Circular dependency detection | ✓ | — |
-| Editor integration | — | ✓ |
-| CI gate (`--strict` / `--max-warnings`) | ✓ | ✓ |
-
-Use `nodulus check --strict` as an architecture gate and `eslint-plugin-nodulus` as the fast feedback loop while writing code.
+1.  **Accept either side** (or both) of the conflict to make the JSON valid again.
+2.  Run `npx nodulus check`.
+3.  The NITS reconciler will automatically detect duplicate IDs or path shifts, "heal" the registry, and save the corrected state.
+4.  Commit the updated `.nodulus/registry.json`.
 
 ---
 
@@ -602,7 +533,6 @@ Scaffold a new feature by creating a folder and an `index.ts`. Nodulus handles a
 | Node.js | 20.6.0 |
 | Express | 4.x or 5.x |
 | TypeScript | 5.0+ (optional) |
-| ESLint | 8.0+ (optional, for `eslint-plugin-nodulus`) |
 
 > **Why 20.6?** Nodulus uses the Node.js [ESM Hooks API](https://nodejs.org/api/module.html#customization-hooks) (`--import` / `register`) for runtime alias resolution. Native support without `--experimental-loader` requires Node 20.6+.
 
@@ -636,6 +566,8 @@ import type {
   RegisteredModule,
   MountedRoute,
   GetAliasesOptions,
+  ModuleRegistration,
+  FeatureRegistration,
   LogLevel,
   LogHandler,
 } from '@vlynk-studios/nodulus-core'
