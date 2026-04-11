@@ -24,7 +24,10 @@ const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
   controllers: entry.controllers.map(c => c.name)
 });
 
-// Extended interface for internal use (includes mutators)
+/** 
+ * Extended interface for internal use (includes mutators)
+ * @internal
+ */
 export interface InternalRegistry extends NodulusRegistryAdvanced {
   /** Registers an internal module and throws DUPLICATE_MODULE if it already exists */
   registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void;
@@ -61,6 +64,7 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
 /**
  * Creates a new independent registry instance.
  * Mainly used to build the singleton, but can be instantiated separately if needed.
+ * @internal
  */
 export function createRegistry(): InternalRegistry {
   const modules = new Map<string, ModuleEntry>();
@@ -244,6 +248,7 @@ export function createRegistry(): InternalRegistry {
  * AsyncLocalStorage context that holds the active registry for the current execution scope.
  * Populated by createApp() — all code running within that scope can retrieve
  * the registry via getActiveRegistry().
+ * @internal
  */
 export const registryContext = new AsyncLocalStorage<InternalRegistry>();
 
