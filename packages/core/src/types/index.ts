@@ -1,6 +1,6 @@
 import type { RequestHandler, Router } from 'express';
 
-// ─── Internal registry entries ────────────────────────────────────────────────
+// ─── Internal registry entries ───────────────────────────────────────────────
 // These types are NOT part of the public API. They represent the shape of data
 // stored in the registry during bootstrap.
 
