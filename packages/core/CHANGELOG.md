@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Encapsulated Public API**: Refactored `src/index.ts` to use explicit named exports, hiding internal registry logic and internal types from the public surface.
 - **Express v5 Alignment**: Updated `peerDependencies` to require `express >= 5.0.0`, enforcing compatibility with the project's native Express 5 types.
 - **ESM Hook Cleanup**: Removed legacy `__filename` checks in the alias resolver, optimizing for a pure ESM environment.
+- **CI/CD Stability**: Updated root `package.json` scripts (`build`, `test`, `typecheck`) with `--if-present` to prevent build failures when some workspaces lack these scripts.
 - **CLI Robustness**: Centralized CLI error handling in `cli/index.ts`, removing direct `process.exit()` calls to improve testability and reliability.
 - **Type Safety**: Eliminated `any` types in `ast-parser.ts` and `resolver.ts`, transitioning to strict `estree` and `node` types.
 - **Async I/O Migration**: Refactored `sync-tsconfig` and identifier parsers to use asynchronous file operations for non-blocking execution.
