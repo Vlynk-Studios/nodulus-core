@@ -110,8 +110,13 @@ export async function createApp(
     for (const mod of resolvedModules) {
       const modName = path.basename(mod.dirPath);
       const aliasKey = `@modules/${modName}`;
-      pureModuleAliases[aliasKey] = mod.dirPath;
-      registry.registerAlias(aliasKey, mod.dirPath);
+      
+      // Dual mapping for runtime consistency (N-09)
+      pureModuleAliases[aliasKey] = mod.indexPath;
+      pureModuleAliases[`${aliasKey}/*`] = `${mod.dirPath}/*`;
+      
+      registry.registerAlias(aliasKey, mod.indexPath);
+      registry.registerAlias(`${aliasKey}/*`, `${mod.dirPath}/*`);
     }
 
     await activateAliasResolver(pureModuleAliases, config.aliases, log);

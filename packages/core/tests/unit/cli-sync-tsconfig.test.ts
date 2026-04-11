@@ -70,7 +70,10 @@ describe("CLI: sync-tsconfig", () => {
     expect(result.compilerOptions.target).toBe("es2022"); // Did not touch other fields
     expect(result.compilerOptions.paths).toBeDefined();
     expect(result.compilerOptions.paths["@modules/auth"]).toEqual(["./src/modules/auth/index.ts"]);
+    expect(result.compilerOptions.paths["@modules/auth/*"]).toEqual(["./src/modules/auth/*"]);
     expect(result.compilerOptions.paths["@modules/users"]).toEqual(["./src/modules/users/index.ts"]);
+    expect(result.compilerOptions.paths["@modules/users/*"]).toEqual(["./src/modules/users/*"]);
+    expect(result.compilerOptions.paths["@config"]).toEqual(["./src/config"]);
     expect(result.compilerOptions.paths["@config/*"]).toEqual(["./src/config/*"]);
     
     // Cleanup generated mock index files
@@ -204,6 +207,7 @@ describe("CLI: sync-tsconfig", () => {
 
     // Checks modules exist
     expect(paths["@modules/users"]).toEqual(["./src/modules/users/index.ts"]);
+    expect(paths["@modules/users/*"]).toEqual(["./src/modules/users/*"]);
 
     // Checks domain structural layout generated accurately pointing to internal files/folders
     expect(paths["@billing"]).toEqual(["./src/domains/billing/index.ts"]);
@@ -211,5 +215,36 @@ describe("CLI: sync-tsconfig", () => {
 
     fs.rmSync(path.resolve(process.cwd(), "src/modules"), { recursive: true, force: true });
     fs.rmSync(path.resolve(process.cwd(), "src/domains"), { recursive: true, force: true });
+  });
+
+  it("handles file-based custom aliases correctly WITHOUT forcing wildcards (N-12)", async () => {
+    const initialConfig = { compilerOptions: { paths: {} } };
+    fs.writeFileSync(tsconfigPath, JSON.stringify(initialConfig, null, 2), "utf8");
+
+    vi.mocked(loadConfig).mockResolvedValue({
+      modules: "src/modules/*",
+      aliases: { 
+        "@utils": "./src/shared/utils.ts",
+        "@lib": "./src/lib/main.js",
+        "@styles": "./src/assets/theme.json"
+      },
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+    });
+    vi.mocked(fg).mockResolvedValue([]);
+
+    await runCommand(["--tsconfig", tsconfigPath]);
+
+    const result = JSON.parse(fs.readFileSync(tsconfigPath, "utf8"));
+    const paths = result.compilerOptions.paths;
+
+    expect(paths["@utils"]).toEqual(["./src/shared/utils.ts"]);
+    expect(paths["@utils/*"]).toBeUndefined();
+    
+    expect(paths["@lib"]).toEqual(["./src/lib/main.js"]);
+    expect(paths["@lib/*"]).toBeUndefined();
+
+    expect(paths["@styles"]).toEqual(["./src/assets/theme.json"]);
+    expect(paths["@styles/*"]).toBeUndefined();
   });
 });

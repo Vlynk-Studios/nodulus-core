@@ -61,10 +61,17 @@ const aliases = ${serialisedAliases};
 
 export async function resolve(specifier, context, nextResolve) {
   for (const alias of Object.keys(aliases)) {
-    if (specifier === alias || specifier.startsWith(alias + '/')) {
+    if (alias.endsWith('/*')) {
+      const baseAlias = alias.slice(0, -2);
+      if (specifier.startsWith(baseAlias + '/')) {
+        const baseTarget = aliases[alias].slice(0, -2);
+        const subPath = specifier.slice(baseAlias.length + 1);
+        const resolvedPath = path.resolve(baseTarget, subPath);
+        return nextResolve(pathToFileURL(resolvedPath).href, context);
+      }
+    } else if (specifier === alias) {
       const target = aliases[alias];
-      const resolvedPath = specifier.replace(alias, target);
-      return nextResolve(pathToFileURL(path.resolve(resolvedPath)).href, context);
+      return nextResolve(pathToFileURL(path.resolve(target)).href, context);
     }
   }
   return nextResolve(specifier, context);
