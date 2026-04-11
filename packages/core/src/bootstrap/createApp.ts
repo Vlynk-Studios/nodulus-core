@@ -56,6 +56,10 @@ export async function createApp(
   const config = await loadConfig(options);
   const log = createLogger(config.logger, config.logLevel);
 
+  if (config.domains || config.shared) {
+    log.warn('Infrastructure (domains/shared) is not yet supported in v1.2.x. These keys in configuration will be ignored until v2.0.0.');
+  }
+
   log.info('Bootstrap started', {
     modules: pc.cyan(config.modules),
     prefix: pc.cyan(config.prefix || '(none)'),

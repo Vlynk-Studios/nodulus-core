@@ -79,7 +79,7 @@ export async function resolve(specifier, context, nextResolve) {
 `;
 
       const dataUrl = `data:text/javascript,${encodeURIComponent(loaderCode)}`;
-      const parentUrl = typeof __filename === 'undefined' ? import.meta.url : pathToFileURL(__filename).href;
+      const parentUrl = import.meta.url;
       
       if (typeof register === 'function') {
         register(dataUrl, { parentURL: parentUrl });

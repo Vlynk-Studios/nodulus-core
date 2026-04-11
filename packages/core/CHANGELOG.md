@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.5] - 2026-04-10
+## [1.2.5] - 2026-04-11
 
 ### Added
 - **Configurable NITS Registry**: The NITS registry path is now configurable via `nits.registryPath` in `nodulus.config.ts` (defaults to `.nodulus/registry.json`).
@@ -14,20 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **NITS Identity Tracking**: Nodulus 1.2.5+ includes the **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique ID to every module.
 
 ### Changed
+- **Encapsulated Public API**: Refactored `src/index.ts` to use explicit named exports, hiding internal registry logic and internal types from the public surface.
+- **Express v5 Alignment**: Updated `peerDependencies` to require `express >= 5.0.0`, enforcing compatibility with the project's native Express 5 types.
+- **ESM Hook Cleanup**: Removed legacy `__filename` checks in the alias resolver, optimizing for a pure ESM environment.
 - **CLI Robustness**: Centralized CLI error handling in `cli/index.ts`, removing direct `process.exit()` calls to improve testability and reliability.
 - **Type Safety**: Eliminated `any` types in `ast-parser.ts` and `resolver.ts`, transitioning to strict `estree` and `node` types.
 - **Async I/O Migration**: Refactored `sync-tsconfig` and identifier parsers to use asynchronous file operations for non-blocking execution.
 - **ESM Hook Stability**: Implemented a singleton promise pattern in the ESM alias resolver to prevent race conditions during concurrent activations.
-- **Violation API Stability**: Migrated `ViolationType` from a fixed string union to an extensible constant object.
 
 ### Fixed
+- **Phantom Types Elimination**: Removed the legacy `types/` directory and corrected `tsconfig.json` to prevent re-generation of invalid type definitions.
+- **Alias Resolution Consistency**: Resolved a major discrepancy where `@modules/*` aliases resolved differently in runtime vs `tsconfig.json`. Now both use consistent dual-mapping (index file + directory wildcard).
+- **Custom Alias Precision**: Fixed a bug where wildcard suffixes (`/*`) were incorrectly forced on aliases pointing to single files instead of directories.
+- **Unimplemented Feature Warnings**: Added helpful warnings when detected configuration keys (`domains`, `shared`) that are not yet natively supported in the v1.x branch.
 - **CLI Precision**: Fixed a bug in the global error handler where exit code `0` was shadowed by `1`.
 - **Parsing Resilience**: Resolved a syntax error in the `check` command that caused failures during bulk analysis.
-
-### Changed
-- **Violation API Stability**: Migrated `ViolationType` from a fixed string union to an extensible constant object, preventing breaking changes in future architectural rule additions.
-- **Module Graph Structure**: `buildModuleGraph` and `detectViolations` now operate on a hierarchical `ModuleGraph` instead of flat arrays.
-- **Config Support**: Base `loadConfig` now recognizes `domains` and `shared` configuration keys.
 - **Isolated Alias Logic**: Extracted tsconfig path generation into a pure utility function.
 
 ## [1.2.0] - 2026-04-09
