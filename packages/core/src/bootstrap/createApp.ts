@@ -231,8 +231,10 @@ export async function createApp(
       for (const imp of actualImports) {
         // Extract "users" from "@modules/users" or "@modules/users/..."
         const parts = imp.specifier.split('/');
-        const targetModule = parts[1]; // @modules/<name>
+        const targetModule = imp.specifier.startsWith('@modules/') ? parts[1] : (parts[1] || parts[0]).replace(/^@/, '');
         if (!targetModule || targetModule === registeredMod.name) continue;
+
+        if (!registry.hasModule(targetModule)) continue;
 
         usedImports.add(targetModule);
 
