@@ -97,4 +97,57 @@ describe('NITS Reconciler', () => {
     // One of them kept the ID, the other got a new one
     expect([idA, idB]).toContain(duplicateId);
   });
+
+  it('heals ID conflicts during similarity matching (Step 2)', () => {
+    const duplicateId = 'mod_sim_conflict';
+    const oldRegistry: NitsRegistry = { 
+      version: '1.0.0', 
+      modules: {
+        'mod-a': { id: duplicateId, path: 'src/modules/old-a', identifiers: ['ServiceA', 'ServiceB'] },
+        'mod-b': { id: duplicateId, path: 'src/modules/old-b', identifiers: ['ServiceC', 'ServiceD'] }
+      } 
+    };
+
+    // New paths don't match, forcing similarity match
+    const graph: ModuleGraph = {
+      domains: [],
+      modules: [
+        { name: 'new-a', dirPath: '/project/src/modules/new-a', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['ServiceA', 'ServiceB'] },
+        { name: 'new-b', dirPath: '/project/src/modules/new-b', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['ServiceC', 'ServiceD'] }
+      ]
+    };
+
+    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
+
+    const idA = registry.modules['new-a'].id;
+    const idB = registry.modules['new-b'].id;
+
+    expect(idA).not.toBe(idB);
+    expect(summary.healedConflicts).toBe(1);
+    expect(summary.movedModules).toBe(2);
+  });
+
+  it('matches modules using dynamic threshold when internalIdentifiers is empty', () => {
+    // Tests getDynamicThreshold(0) coverage
+    const emptyId = 'mod_empty';
+    const oldRegistry: NitsRegistry = { 
+      version: '1.0.0', 
+      modules: {
+        'users': { id: emptyId, path: 'src/modules/old-users', identifiers: [] }
+      } 
+    };
+
+    const graph: ModuleGraph = {
+      domains: [],
+      modules: [
+        { name: 'new-users', dirPath: '/project/src/modules/new-users', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: [] }
+      ]
+    };
+
+    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
+
+    // Both sets are empty -> similarity is 1 -> dynamic threshold (0.9) passes
+    expect(registry.modules['new-users'].id).toBe(emptyId);
+    expect(summary.movedModules).toBe(1);
+  });
 });

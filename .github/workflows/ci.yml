@@ -29,9 +29,11 @@ jobs:
     - name: Run lint
       run: npm run lint
       
+    - name: Build
+      run: npm run build --workspaces --if-present
+      
     - name: Run typecheck
       run: npm run typecheck
       
-    - name: Run tests with coverage
-      working-directory: packages/core
-      run: npx vitest run --coverage
+    - name: Run tests
+      run: npm test --workspaces --if-present

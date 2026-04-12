@@ -26,18 +26,20 @@ export async function generatePathAliases(config: NodulusConfig, cwd: string): P
         indexPath = path.join(dirPath, 'index.js');
       }
 
-      let relativeIndexPath = path.relative(cwd, indexPath).replace(/\\/g, '/');
-      if (!relativeIndexPath.startsWith('./') && !relativeIndexPath.startsWith('../')) {
-        relativeIndexPath = './' + relativeIndexPath;
-      }
-
       let relativeDirPath = path.relative(cwd, dirPath).replace(/\\/g, '/');
       if (!relativeDirPath.startsWith('./') && !relativeDirPath.startsWith('../')) {
         relativeDirPath = './' + relativeDirPath;
       }
       
-      // Dual mapping: base points to index, wildcard points to directory
-      pathsObj[aliasKey] = [relativeIndexPath];
+      if (fs.existsSync(indexPath)) {
+        let relativeIndexPath = path.relative(cwd, indexPath).replace(/\\/g, '/');
+        if (!relativeIndexPath.startsWith('./') && !relativeIndexPath.startsWith('../')) {
+          relativeIndexPath = './' + relativeIndexPath;
+        }
+        pathsObj[aliasKey] = [relativeIndexPath];
+      }
+      
+      // Always provide directory wildcard
       pathsObj[`${aliasKey}/*`] = [`${relativeDirPath}/*`];
     }
   }
@@ -61,18 +63,20 @@ export async function generatePathAliases(config: NodulusConfig, cwd: string): P
         indexPath = path.join(dirPath, 'index.js');
       }
       
-      let relativeIndexPath = path.relative(cwd, indexPath).replace(/\\/g, '/');
-      if (!relativeIndexPath.startsWith('./') && !relativeIndexPath.startsWith('../')) {
-        relativeIndexPath = './' + relativeIndexPath;
-      }
-      
       let relativeDirPath = path.relative(cwd, dirPath).replace(/\\/g, '/');
       if (!relativeDirPath.startsWith('./') && !relativeDirPath.startsWith('../')) {
         relativeDirPath = './' + relativeDirPath;
       }
 
-      // Dual mapping: base points to index, wildcard points to directory
-      pathsObj[`@${domainName}`] = [relativeIndexPath];
+      if (fs.existsSync(indexPath)) {
+        let relativeIndexPath = path.relative(cwd, indexPath).replace(/\\/g, '/');
+        if (!relativeIndexPath.startsWith('./') && !relativeIndexPath.startsWith('../')) {
+          relativeIndexPath = './' + relativeIndexPath;
+        }
+        pathsObj[`@${domainName}`] = [relativeIndexPath];
+      }
+
+      // Always provide directory wildcard
       pathsObj[`@${domainName}/*`] = [`${relativeDirPath}/*`];
     }
   }

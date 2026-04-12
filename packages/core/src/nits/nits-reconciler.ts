@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { NITS_REGISTRY_VERSION } from './constants.js';
 import { areIdentitiesSimilar } from './nits-hash.js';
 import { generateNitsId } from './nits-id.js';
 import type { ModuleGraph } from '../cli/lib/graph-builder.js';
@@ -118,7 +119,7 @@ export function reconcile(
 
   return {
     registry: {
-      version: oldRegistry.version || '1.0.0',
+      version: NITS_REGISTRY_VERSION,
       modules: newModulesRecord
     },
     summary

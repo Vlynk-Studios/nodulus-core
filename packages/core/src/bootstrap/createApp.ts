@@ -231,8 +231,10 @@ export async function createApp(
       for (const imp of actualImports) {
         // Extract "users" from "@modules/users" or "@modules/users/..."
         const parts = imp.specifier.split('/');
-        const targetModule = parts[1]; // @modules/<name>
+        const targetModule = imp.specifier.startsWith('@modules/') ? parts[1] : (parts[1] || parts[0]).replace(/^@/, '');
         if (!targetModule || targetModule === registeredMod.name) continue;
+
+        if (!registry.hasModule(targetModule)) continue;
 
         usedImports.add(targetModule);
 
@@ -393,7 +395,8 @@ export async function createApp(
 
         if (ctrl.router.stack && Array.isArray(ctrl.router.stack)) {
           for (const layer of ctrl.router.stack) {
-            const routeObj = layer.route as any;
+            // Express v5 internal API — may change without semver notice
+            const routeObj = (layer as any).route;
             if (routeObj && routeObj.methods) {
               foundRoutes = true;
               const routePath = routeObj.path;

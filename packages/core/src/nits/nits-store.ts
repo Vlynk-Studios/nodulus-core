@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { NITS_REGISTRY_VERSION } from './constants.js';
+import { isValidNitsId } from './nits-id.js';
 
 export interface NitsModuleEntry {
   id: string;
@@ -20,7 +22,7 @@ export function loadNitsRegistry(cwd: string, registryPath: string): NitsRegistr
   const fullPath = path.isAbsolute(registryPath) ? registryPath : path.join(cwd, registryPath);
   
   if (!fs.existsSync(fullPath)) {
-    return { version: '1.0.0', modules: {} };
+    return { version: NITS_REGISTRY_VERSION, modules: {} };
   }
 
   try {
@@ -31,11 +33,23 @@ export function loadNitsRegistry(cwd: string, registryPath: string): NitsRegistr
     if (!data.modules || typeof data.modules !== 'object') {
       throw new Error('Invalid registry format');
     }
+
+    if (data.version && data.version !== NITS_REGISTRY_VERSION) {
+      console.warn(`[Nodulus] Warning: NITS registry version mismatch (found ${data.version}, expected ${NITS_REGISTRY_VERSION}). An automatic migration or healing will be attempted.`);
+    }
+
+    for (const [name, mod] of Object.entries(data.modules)) {
+      const typedMod = mod as NitsModuleEntry;
+      if (!isValidNitsId(typedMod.id)) {
+        throw new Error(`Corrupt NITS ID found for module "${name}": ${typedMod.id}`);
+      }
+    }
     
     return data as NitsRegistry;
-  } catch (_err) {
+  } catch (err: any) {
+    console.warn(`[Nodulus] Warning: NITS registry at "${fullPath}" is corrupted or invalid. Returning a blank state. Detail: ${err.message}`);
     // In case of corruption, we return a blank state that will be "healed" later
-    return { version: '1.0.0', modules: {} };
+    return { version: NITS_REGISTRY_VERSION, modules: {} };
   }
 }
 
