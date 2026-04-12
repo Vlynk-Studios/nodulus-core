@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-04-12
+
+### Fixed
+- **NPM Provenance Failure**: Added `repository` and `homepage` mappings to `package.json` to satisfy Sigstore supply chain verification.
+- **Dynamic Meta Version** [A-01]: The `plugin.meta.version` is now read natively from `package.json` preventing version desync.
+- **Parser Robustness** [A-02]: Cleaned up standard Module imports resolution to consume native Acorn AST instead of regular expressions.
+- **Rule Domain Ignorance** [A-06]: `no-undeclared-imports` now reads `tsconfig.json` mappings to resolve explicitly typed application bounds.
+
 ## [1.3.0] - 2026-04-12
 
 ### Added

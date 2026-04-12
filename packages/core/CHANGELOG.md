@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-04-12
+
+### Fixed
+- **NPM Provenance Synchronization**: Bumped version to sync with `eslint-plugin-nodulus` after a sigstore publishing failure forced a tag re-spin.
+- **NITS Scheme Versioning** [A-08]: `NitsRegistry.version` dynamically tracks expected format.
+- **Strict Express v5 Typing**: Ensured forwards-compatibility by defending `layer.route` access points in the core app builder.
+- **Alias File Emission**: Addressed empty path mapping in `tsconfig.json` generation.
+
 ## [1.3.0] - 2026-04-12
 
 ### Added
