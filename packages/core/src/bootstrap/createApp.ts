@@ -193,6 +193,13 @@ export async function createApp(
   // Step 5 — Validate dependencies
   const allModules = registry.getAllModules();
   for (const mod of allModules) {
+    // Sanitize empty strings in the raw module directly
+    const rawMod = registry.getRawModule(mod.name);
+    if (rawMod) {
+      rawMod.imports = rawMod.imports.filter((imp: string) => imp && imp.trim() !== '');
+      mod.imports = rawMod.imports;
+    }
+
     for (const importName of mod.imports) {
       if (!registry.hasModule(importName)) {
         throw new NodulusError(
@@ -204,7 +211,7 @@ export async function createApp(
     }
   }
 
-  // Step 5.5 — Detect undeclared cross-module imports
+  // Step 5.5 — Detect undeclared cross-module imports AND unused declared imports
   // Reads actual @modules/* import specifiers from every non-index file and
   // cross-checks them against the declared imports[] of that module.
   for (const registeredMod of allModules) {
@@ -217,6 +224,8 @@ export async function createApp(
       ignore: ['**/*.test.*', '**/*.spec.*', '**/*.d.ts', 'index.*']
     });
 
+    const usedImports = new Set<string>();
+
     for (const file of sourceFiles) {
       const actualImports = extractModuleImports(file);
       for (const imp of actualImports) {
@@ -224,6 +233,8 @@ export async function createApp(
         const parts = imp.specifier.split('/');
         const targetModule = parts[1]; // @modules/<name>
         if (!targetModule || targetModule === registeredMod.name) continue;
+
+        usedImports.add(targetModule);
 
         if (!registeredMod.imports.includes(targetModule)) {
           const message = `Module "${registeredMod.name}" imports from "${targetModule}" but it is not declared in imports[].`;
@@ -243,6 +254,25 @@ export async function createApp(
               line: imp.line,
             });
           }
+        }
+      }
+    }
+
+    // Unused imports check
+    for (const declared of registeredMod.imports) {
+      if (!usedImports.has(declared)) {
+        const message = `Module "${registeredMod.name}" declares import "${declared}" but never uses it.`;
+        if (config.strict) {
+          throw new NodulusError(
+            'UNUSED_IMPORT',
+            message,
+            `Remove "${declared}" from imports[] in "${registeredMod.name}".`
+          );
+        } else {
+          log.warn(message, {
+            module: registeredMod.name,
+            unusedTarget: declared
+          });
         }
       }
     }

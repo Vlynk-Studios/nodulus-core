@@ -15,7 +15,8 @@ export type NodulusErrorCode =
   | "DUPLICATE_REPOSITORY"
   | "DUPLICATE_SCHEMA"
   | "INVALID_ESM_ENV"
-  | "CLI_ERROR";
+  | "CLI_ERROR"
+  | "UNUSED_IMPORT";
 
 export class NodulusError extends Error {
   readonly code: NodulusErrorCode;
