@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # Required for provenance
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,24 +26,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Build all packages
+        run: npm run build --if-present
 
       - name: Run tests
         working-directory: packages/core
         run: npx vitest run --coverage
 
-      - name: Validate version matches tag
+      - name: Validate versions match tag
         run: |
-          PKG_VERSION=$(node -p "require('./packages/core/package.json').version")
           TAG_VERSION=${GITHUB_REF_NAME#v}
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "❌ Version mismatch: package.json=$PKG_VERSION tag=$TAG_VERSION"
+
+          CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
+          if [ "$CORE_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch: core package.json=$CORE_VERSION tag=$TAG_VERSION"
             exit 1
           fi
-          echo "✔ Version OK: $PKG_VERSION matches tag $GITHUB_REF_NAME"
+          echo "✅ core@$CORE_VERSION matches tag $GITHUB_REF_NAME"
 
-      - name: Publish to NPM
+          PLUGIN_VERSION=$(node -p "require('./packages/eslint-plugin-nodulus/package.json').version")
+          if [ "$PLUGIN_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch: eslint-plugin-nodulus package.json=$PLUGIN_VERSION tag=$TAG_VERSION"
+            exit 1
+          fi
+          echo "✅ eslint-plugin-nodulus@$PLUGIN_VERSION matches tag $GITHUB_REF_NAME"
+
+      - name: Publish @vlynk-studios/nodulus-core
         run: npm publish -w packages/core --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @vlynk-studios/eslint-plugin-nodulus
+        run: npm publish -w packages/eslint-plugin-nodulus --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

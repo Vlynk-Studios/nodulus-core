@@ -1,52 +1,53 @@
 {
-    "name":  "@vlynk-studios/eslint-plugin-nodulus",
-    "version":  "1.3.0",
-    "description":  "ESLint plugin for Nodulus architecture validation.",
-    "type":  "module",
-    "main":  "./dist/index.js",
-    "exports":  {
-                    ".":  {
-                              "import":  "./dist/index.js",
-                              "types":  "./dist/index.d.ts"
-                          }
-                },
-    "files":  [
-                  "dist",
-                  "README.md",
-                  "CHANGELOG.md"
-              ],
-    "scripts":  {
-                    "build":  "tsup",
-                    "test":  "vitest run",
-                    "typecheck":  "tsc --noEmit"
-                },
-    "keywords":  [
-                     "eslint",
-                     "eslintplugin",
-                     "nodulus"
-                 ],
-    "author":  "Vlynk Studios \u0026 Keiver-dev",
-    "license":  "MIT",
-    "publishConfig":  {
-                          "access":  "public"
-                      },
-    "peerDependencies":  {
-                             "eslint":  "\u003e=8.0.0"
-                         },
-    "peerDependenciesMeta":  {
-                                 "@typescript-eslint/parser":  {
-                                                                   "optional":  true
-                                                               }
-                             },
-    "devDependencies":  {
-                            "@typescript-eslint/parser":  "8.58.1",
-                            "eslint":  "10.2.0",
-                            "tsup":  "8.5.1",
-                            "typescript":  "5.4.5",
-                            "vitest":  "4.1.2"
-                        },
-    "dependencies":  {
-                         "acorn":  "8.16.0",
-                         "acorn-walk":  "8.3.5"
-                     }
+  "name": "@vlynk-studios/eslint-plugin-nodulus",
+  "version": "1.3.0",
+  "description": "ESLint plugin for Nodulus architecture validation.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "nodulus"
+  ],
+  "author": "Vlynk Studios & Keiver-dev",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@typescript-eslint/parser": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "8.58.1",
+    "eslint": "10.2.0",
+    "tsup": "8.5.1",
+    "typescript": "5.4.5",
+    "vitest": "4.1.2"
+  },
+  "dependencies": {
+    "acorn": "8.16.0",
+    "acorn-walk": "8.3.5"
+  }
 }
