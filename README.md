@@ -29,7 +29,7 @@ Nodulus ships as two focused packages from the same repository:
 | Package | Description | npm |
 |---|---|---|
 | `@vlynk-studios/nodulus-core` | Core framework — module discovery, routing, aliases, validation | [![npm](https://img.shields.io/npm/v/@vlynk-studios/nodulus-core.svg)](https://www.npmjs.com/package/@vlynk-studios/nodulus-core) |
-| `@vlynk-studios/eslint-plugin-nodulus` | ESLint rules — static enforcement of Nodulus module conventions | [![npm](https://img.shields.io/npm/v/eslint-plugin-nodulus.svg)](https://www.npmjs.com/package/@vlynk-studios/eslint-plugin-nodulus) |
+| `@vlynk-studios/eslint-plugin-nodulus` | ESLint rules | [![npm](https://img.shields.io/npm/v/@vlynk-studios/eslint-plugin-nodulus.svg)](https://www.npmjs.com/package/@vlynk-studios/eslint-plugin-nodulus) |
 
 Both packages are independent installs — use one or both depending on your setup. The ESLint plugin is a companion, not a dependency of the core.
 
