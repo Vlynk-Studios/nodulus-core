@@ -1,6 +1,10 @@
+import { createRequire } from 'node:module';
 import type { Linter } from 'eslint';
 import noPrivateImports from './rules/no-private-imports.js';
 import noUndeclaredImports from './rules/no-undeclared-imports.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 
 const defaultRules = {
   'nodulus/no-private-imports': 'error',
@@ -10,7 +14,7 @@ const defaultRules = {
 const plugin = {
   meta: {
     name: '@vlynk-studios/eslint-plugin-nodulus',
-    version: '1.3.0',
+    version,
   },
   rules: {
     'no-private-imports': noPrivateImports,

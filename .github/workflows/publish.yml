@@ -27,11 +27,10 @@ jobs:
         run: npm ci
 
       - name: Build all packages
-        run: npm run build --if-present
+        run: npm run build --workspaces --if-present
 
       - name: Run tests
-        working-directory: packages/core
-        run: npx vitest run --coverage
+        run: npm test --workspaces --if-present
 
       - name: Validate versions match tag
         run: |

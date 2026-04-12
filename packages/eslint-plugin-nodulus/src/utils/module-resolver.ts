@@ -63,10 +63,16 @@ function extractIdentifierCall(
 
                 if (keyName && prop.value.type === "ArrayExpression") {
                   const arr: string[] = [];
+                  let hasNonLiteral = false;
                   for (const elem of prop.value.elements) {
                     if (elem && elem.type === "Literal") {
                       arr.push(String(elem.value));
+                    } else if (elem) {
+                      hasNonLiteral = true;
                     }
+                  }
+                  if (hasNonLiteral) {
+                    console.warn(`[Nodulus] Warning: Found non-literal element (spread, variable, or expression) in "${keyName}" array at ${filePath}. These won't be statically analyzable.`);
                   }
                   options[keyName] = arr;
                 } else if (keyName && prop.value.type === "Literal") {
@@ -130,38 +136,13 @@ export function getModuleImports(filePath: string): string[] | null {
   }
 
   try {
-    const code = fs.readFileSync(indexPath, 'utf-8');
-    const match = code.match(/imports\s*:\s*\[([\s\S]*?)\]/);
-    
-    if (!match) {
+    const call = extractIdentifierCall(indexPath, 'Module');
+    if (!call || !Array.isArray(call.options.imports)) {
       moduleImportsCache.set(indexPath, []);
       return [];
     }
 
-    const rawElements = match[1].split(',').map(s => s.trim()).filter(Boolean);
-    const result: string[] = [];
-    let hasNonLiteral = false;
-
-    for (const elem of rawElements) {
-      if (elem.startsWith('...')) {
-        hasNonLiteral = true;
-        continue;
-      }
-
-      const strMatch = elem.match(/^['"`](.*)['"`]$/);
-      if (strMatch) {
-        if (strMatch[1] !== '') {
-          result.push(strMatch[1]);
-        }
-      } else {
-        if (elem !== '') hasNonLiteral = true;
-      }
-    }
-
-    if (hasNonLiteral) {
-      console.warn(`[Nodulus] Warning: Found non-literal element (spread, variable, or expression) in imports array at ${indexPath}. These won't be statically analyzable.`);
-    }
-
+    const result = call.options.imports as string[];
     moduleImportsCache.set(indexPath, result);
     return result;
   } catch (_e) {

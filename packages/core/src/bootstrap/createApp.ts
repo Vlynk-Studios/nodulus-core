@@ -395,7 +395,8 @@ export async function createApp(
 
         if (ctrl.router.stack && Array.isArray(ctrl.router.stack)) {
           for (const layer of ctrl.router.stack) {
-            const routeObj = layer.route as any;
+            // Express v5 internal API — may change without semver notice
+            const routeObj = (layer as any).route;
             if (routeObj && routeObj.methods) {
               foundRoutes = true;
               const routePath = routeObj.path;
