@@ -1,6 +1,6 @@
 {
   "name": "@vlynk-studios/nodulus-core",
-  "version": "1.2.6",
+  "version": "1.3.0",
   "description": "A lightweight structural layer for Express with native ESM hooks support.",
   "author": "Vlynk Studios & Keiver-dev",
   "license": "MIT",

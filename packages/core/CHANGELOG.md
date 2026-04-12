@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-12
+
+### Added
+- **ESLint Plugin src/index.ts Entrypoint** [N-14]: Created the canonical entrypoint for @vlynk-studios/eslint-plugin-nodulus, registering all rules without depending on @typescript-eslint/parser. Added modern "exports" field to the plugin's package.json.
+- **ESLint Plugin Build Pipeline** [N-15]: Added 	sup.config.ts and a "build": "tsup" script to eslint-plugin-nodulus, enabling its first-ever compiled distribution.
+- **Cache Invalidation API** [N-23]: Exported clearDomainCache(), clearSharedAllowedCache(), and clearModuleImportsCache() from module-resolver.ts to prevent state-leakage between tests in the ESLint plugin.
+- **Cross-Domain @scope/* Import Support** [N-04]: Updated extractModuleImports to capture any @-scoped import, filtering known NPM scopes to avoid false positives. Enables full compatibility with cross-domain @domain/* aliases.
+- **NITS Registry Corruption Warning** [N-25]: loadNitsRegistry now emits a console.warn() with the underlying JSON.parse error message before performing a soft reset on a corrupted registry file.
+- **NITS Reconciler Test Coverage** [N-27]: Added tests for identity-conflict healing (Step 2) and dynamic similarity-threshold matching when internalIdentifiers is empty, bringing branch coverage of src/nits to a satisfactory level.
+
+### Changed
+- **extractIdentifierCall Robustness** [N-26]: The ESLint plugin's AST parser now handles spread elements and non-literal variables in import option arrays without crashing, emitting a graceful warning instead.
+- **getDomainSharedAllowed AST Migration** [N-16]: Replaced the regex-based TypeScript parser in the ESLint plugin with a proper corn AST walk for rigorous extractIdentifierCall analysis, eliminating false positive/negative classification errors.
+
 ## [1.2.6] - 2026-04-11
 
 ### Added

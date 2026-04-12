@@ -39,12 +39,32 @@ export function extractModuleImports(filePath: string): ImportFound[] {
         const imp = node as unknown as ImportDeclaration;
         if (imp.source && typeof imp.source.value === "string") {
           const specifier = imp.source.value;
-          if (specifier.startsWith("@modules/")) {
-            imports.push({
-              specifier,
-              line: imp.loc?.start.line || 0,
-              file: filePath,
-            });
+          if (specifier.startsWith("@")) {
+            const excludedScopes = [
+              "@types",
+              "@typescript-eslint",
+              "@vitest",
+              "@eslint",
+              "@nestjs",
+              "@angular",
+              "@babel",
+              "@jest",
+              "@testing-library",
+              "@vitejs",
+              "@swc",
+              "@puppeteer",
+              "@playwright"
+            ];
+            
+            const isExcluded = excludedScopes.some(scope => specifier.startsWith(scope + "/") || specifier === scope);
+            
+            if (!isExcluded) {
+              imports.push({
+                specifier,
+                line: imp.loc?.start.line || 0,
+                file: filePath,
+              });
+            }
           }
         }
       },
