@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-04-11
+
+### Added
+- **Publish CI Validation**: The NPM publish pipeline now validates that the workflow tag versions exactly match the `package.json` descriptor before dispatching the build to the public registry.
+- **Coverage Metrics Baseline**: Bootstrapped robust baseline instrumentation via `@vitest/coverage-v8`, setting dynamic thresholds inside Vite and enforcing total validation in CI environments to prevent regressions.
+
+### Changed
+- **Alias Resolution Predictability**: Centralized runtime assertions within the internal module loading bootstrap path to fail-fast (`ALIAS_NOT_FOUND`) if a manually specified path mapping in `nodulus.config` points to a nonexistent directory.
+
+### Fixed
+- **Undeclared Import Guard**: Bootstrapping now correctly intercepts undeclared cross-module dependencies at runtime; when combined with `strict: true` the app fails explicitly with an `UNDECLARED_IMPORT` validation error, harmonizing runtime guarantees with the CLI's static analysis.
+- **Variable Shadowing Collisions**: Resolved an internal variable scope shadowing defect residing within `sync-tsconfig` logic blocks related to iterator aliases.
+- **Wildcard Alias Generation Anomalies**: Synchronizing configurations containing targeted single-file aliases no longer incorrectly emits wildcard boundaries (`/*`) for properties matching discrete resources instead of expansive directory hierarchies.
+
 ## [1.2.5] - 2026-04-11
 
 ### Added

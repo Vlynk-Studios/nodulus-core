@@ -124,6 +124,21 @@ describe('Integration Tests', () => {
         expect((err as NodulusError).details).toContain('phantomModule');
       });
     });
+
+    it('silently filters out empty strings and does not throw MISSING_IMPORT', async () => {
+      await runInTmpApp({
+        'nodulus.config.js': 'export default { strict: false };',
+        'src/modules/clean/index.ts': `
+          import { Module } from '{{SOURCE}}';
+          Module('clean', { imports: ['', '  '] });
+          export const foo = 'bar';
+        `
+      }, async (_, app) => {
+        const result = await createApp(app as any);
+        expect(result.modules).toHaveLength(1);
+        expect(result.modules[0].imports).toEqual([]);
+      });
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -138,10 +153,16 @@ describe('Integration Tests', () => {
           Module('mod-a', { imports: ['mod-b'] });
           export const a = 1;
         `,
+        'src/modules/mod-a/use.ts': `
+          import { b } from '@modules/mod-b';
+        `,
         'src/modules/mod-b/index.ts': `
           import { Module } from '{{SOURCE}}';
           Module('mod-b', { imports: ['mod-a'] });
           export const b = 2;
+        `,
+        'src/modules/mod-b/use.ts': `
+          import { a } from '@modules/mod-a';
         `
       }, async (_, app) => {
         await expect(createApp(app as any)).rejects.toMatchObject({
@@ -158,10 +179,16 @@ describe('Integration Tests', () => {
           Module('circ-a', { imports: ['circ-b'] });
           export const a = 1;
         `,
+        'src/modules/circ-a/use.ts': `
+          import { b } from '@modules/circ-b';
+        `,
         'src/modules/circ-b/index.ts': `
           import { Module } from '{{SOURCE}}';
           Module('circ-b', { imports: ['circ-a'] });
           export const b = 2;
+        `,
+        'src/modules/circ-b/use.ts': `
+          import { a } from '@modules/circ-a';
         `
       }, async (_, app) => {
         const result = await createApp(app as any);
@@ -276,6 +303,52 @@ describe('Integration Tests', () => {
           'warn',
           expect.stringContaining('undeclaredExport'),
           expect.objectContaining({ name: 'test2', exportName: 'undeclaredExport' })
+        );
+      });
+    });
+
+    it('throws UNUSED_IMPORT in strict mode when a declared import is never used', async () => {
+      await runInTmpApp({
+        'nodulus.config.js': 'export default { strict: true };',
+        'src/modules/mod-x/index.ts': `
+          import { Module } from '{{SOURCE}}';
+          Module('mod-x', { exports: ['x'] });
+          export const x = 1;
+        `,
+        'src/modules/mod-y/index.ts': `
+          import { Module } from '{{SOURCE}}';
+          Module('mod-y', { imports: ['mod-x'] });
+          export const y = 1;
+        `
+      }, async (_, app) => {
+        await expect(createApp(app as any)).rejects.toMatchObject({
+          code: 'UNUSED_IMPORT',
+        });
+      });
+    });
+
+    it('warns about UNUSED_IMPORT in non-strict mode but does not interrupt bootstrap', async () => {
+      const loggerHandler = vi.fn();
+      await runInTmpApp({
+        'nodulus.config.js': 'export default { strict: false };',
+        'src/modules/mod-x/index.ts': `
+          import { Module } from '{{SOURCE}}';
+          Module('mod-x', { exports: ['x'] });
+          export const x = 1;
+        `,
+        'src/modules/mod-y/index.ts': `
+          import { Module } from '{{SOURCE}}';
+          Module('mod-y', { imports: ['mod-x'] });
+          export const y = 1;
+        `
+      }, async (_, app) => {
+        const result = await createApp(app as any, { logger: loggerHandler });
+        expect(result.modules).toHaveLength(2);
+        
+        expect(loggerHandler).toHaveBeenCalledWith(
+          'warn',
+          expect.stringContaining('declares import "mod-x" but never uses it'),
+          expect.objectContaining({ module: 'mod-y', unusedTarget: 'mod-x' })
         );
       });
     });

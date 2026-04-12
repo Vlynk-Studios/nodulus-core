@@ -5,4 +5,5 @@ dist
 .DS_Store
 Rules-API.md
 Backlog.md
+coverage
 types/

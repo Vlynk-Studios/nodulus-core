@@ -5,11 +5,21 @@ export default defineConfig({
   test: {
     testTimeout: 15000,      // Integrations tests with filesystem can be slow in CI
     pool: 'forks',           // True isolation for process.cwd() spies across suites
-    // coverage: {
-    //   provider: 'v8',
-    //   reporter: ['text', 'json', 'html'],
-    //   exclude: ['tests/**', 'dist/**']
-    // },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'tests/**',
+        'dist/**',
+        'src/cli/index.ts',   // CLI entry point — no logic to test
+      ],
+      thresholds: {
+        lines: 85,
+        branches: 70,
+        functions: 90,
+        statements: 85,
+      }
+    },
     alias: {
       '@modules': path.resolve(__dirname, 'tests/fixtures/basic-app/src/modules'),
       '@config': path.resolve(__dirname, 'tests/fixtures/basic-app/src/config'),
@@ -17,3 +27,4 @@ export default defineConfig({
     }
   }
 });
+
