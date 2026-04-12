@@ -1,5 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as acorn from 'acorn';
+import * as walk from 'acorn-walk';
 
 const domainCache = new Map<string, string | null>();
 const sharedAllowedCache = new Map<string, string[] | null>();
@@ -22,6 +24,67 @@ export function getDomainFromFilePath(filePath: string): string | null {
   return result;
 }
 
+export interface IdentifierCall {
+  name: string;
+  options: Record<string, unknown>;
+}
+
+function extractIdentifierCall(
+  filePath: string,
+  calleeName: string
+): IdentifierCall | null {
+  let found: IdentifierCall | null = null;
+  try {
+    const code = fs.readFileSync(filePath, "utf-8");
+    const ast = acorn.parse(code, {
+      ecmaVersion: "latest",
+      sourceType: "module",
+    });
+
+    walk.simple(ast, {
+      CallExpression(node: any) {
+        if (node.callee.type === 'Identifier' && node.callee.name === calleeName) {
+          const nameArg = node.arguments[0];
+          if (nameArg && nameArg.type === "Literal") {
+            const name = nameArg.value as string;
+            const options: Record<string, unknown> = {};
+
+            const optionsArg = node.arguments[1];
+            if (optionsArg && optionsArg.type === "ObjectExpression") {
+              for (const prop of optionsArg.properties) {
+                if (prop.type !== 'Property') continue;
+                
+                let keyName = '';
+                if (prop.key.type === "Identifier") {
+                  keyName = prop.key.name;
+                } else if (prop.key.type === "Literal") {
+                  keyName = String(prop.key.value);
+                }
+
+                if (keyName && prop.value.type === "ArrayExpression") {
+                  const arr: string[] = [];
+                  for (const elem of prop.value.elements) {
+                    if (elem && elem.type === "Literal") {
+                      arr.push(String(elem.value));
+                    }
+                  }
+                  options[keyName] = arr;
+                } else if (keyName && prop.value.type === "Literal") {
+                  options[keyName] = prop.value.value;
+                }
+              }
+            }
+            found = { name, options };
+          }
+        }
+      },
+    });
+  } catch (_error) {
+    return null;
+  }
+  return found;
+}
+
 export function getDomainSharedAllowed(sharedIndexPath: string): string[] | null {
   if (sharedAllowedCache.has(sharedIndexPath)) {
     return sharedAllowedCache.get(sharedIndexPath)!;
@@ -29,21 +92,11 @@ export function getDomainSharedAllowed(sharedIndexPath: string): string[] | null
 
   let result: string[] | null = null;
   
-  try {
-    if (fs.existsSync(sharedIndexPath)) {
-      const code = fs.readFileSync(sharedIndexPath, 'utf-8');
-      
-      const match = code.match(/DomainShared\s*\(\s*['"][^'"]+['"]\s*,\s*\{[\s\S]*?allowedDomains\s*:\s*\[([\s\S]*?)\]/);
-      if (match && match[1]) {
-        const rawArray = match[1];
-        result = rawArray
-          .split(',')
-          .map(s => s.replace(/['"`]/g, '').trim())
-          .filter(Boolean);
-      }
+  if (fs.existsSync(sharedIndexPath)) {
+    const call = extractIdentifierCall(sharedIndexPath, 'DomainShared');
+    if (call && Array.isArray(call.options.allowedDomains)) {
+      result = call.options.allowedDomains as string[];
     }
-  } catch (_error) {
-    // Graceful fail on read issues
   }
 
   sharedAllowedCache.set(sharedIndexPath, result);

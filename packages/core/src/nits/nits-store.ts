@@ -33,7 +33,8 @@ export function loadNitsRegistry(cwd: string, registryPath: string): NitsRegistr
     }
     
     return data as NitsRegistry;
-  } catch (_err) {
+  } catch (err: any) {
+    console.warn(`[Nodulus] Warning: NITS registry at "${fullPath}" is corrupted or invalid. Returning a blank state. Detail: ${err.message}`);
     // In case of corruption, we return a blank state that will be "healed" later
     return { version: '1.0.0', modules: {} };
   }
