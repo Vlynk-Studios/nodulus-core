@@ -3,13 +3,7 @@ import { NITS_REGISTRY_VERSION } from './constants.js';
 import { areIdentitiesSimilar } from './nits-hash.js';
 import { generateNitsId } from './nits-id.js';
 import type { ModuleGraph } from '../cli/lib/graph-builder.js';
-import type { NitsRegistry, NitsModuleEntry } from './nits-store.js';
-
-export interface ReconciliationSummary {
-  newModules: number;
-  movedModules: number;
-  healedConflicts: number;
-}
+import type { NitsRegistry, NitsModuleEntry, ReconciliationSummary } from '../types/nits.js';
 
 /**
  * Reconciles the current module graph with the persisted NITS registry.
@@ -55,7 +49,7 @@ export function reconcile(
       }
 
       usedIds.add(entry.id);
-      newModulesRecord[node.name] = {
+      newModulesRecord[relPath] = {
         id: entry.id,
         path: relPath,
         identifiers: node.internalIdentifiers
@@ -93,7 +87,7 @@ export function reconcile(
       }
 
       usedIds.add(entry.id);
-      newModulesRecord[node.name] = {
+      newModulesRecord[normalize(node.dirPath)] = {
         id: entry.id,
         path: normalize(node.dirPath),
         identifiers: node.internalIdentifiers
@@ -109,7 +103,7 @@ export function reconcile(
   for (const node of unmatchedNodes) {
     const id = generateNitsId();
     usedIds.add(id);
-    newModulesRecord[node.name] = {
+    newModulesRecord[normalize(node.dirPath)] = {
       id,
       path: normalize(node.dirPath),
       identifiers: node.internalIdentifiers

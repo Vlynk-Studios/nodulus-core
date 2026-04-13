@@ -40,6 +40,10 @@ export function areIdentitiesSimilar(
   newIdentifiers: string[],
   configThreshold?: number
 ): { isSimilar: boolean; similarity: number; thresholdUsed: number } {
+  if (oldIdentifiers.length === 0 && newIdentifiers.length === 0) {
+    return { isSimilar: false, similarity: 1, thresholdUsed: configThreshold ?? getDynamicThreshold(0) };
+  }
+
   const oldSet = new Set(oldIdentifiers);
   const newSet = new Set(newIdentifiers);
   const similarity = calculateJaccardSimilarity(oldSet, newSet);

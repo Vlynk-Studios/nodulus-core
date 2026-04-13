@@ -12,7 +12,7 @@ import { updateAliasCache } from '../aliases/cache.js';
 import { createLogger } from '../core/logger.js';
 import { performance } from 'node:perf_hooks';
 import pc from 'picocolors';
-import { extractModuleImports } from '../cli/lib/ast-parser.js';
+import { extractModuleImports } from '../nits/import-scanner.js';
 
 export async function createApp(
   app: Application,

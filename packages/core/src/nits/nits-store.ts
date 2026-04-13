@@ -3,16 +3,7 @@ import path from 'node:path';
 import { NITS_REGISTRY_VERSION } from './constants.js';
 import { isValidNitsId } from './nits-id.js';
 
-export interface NitsModuleEntry {
-  id: string;
-  path: string; // Relative path to project root
-  identifiers: string[];
-}
-
-export interface NitsRegistry {
-  version: string;
-  modules: Record<string, NitsModuleEntry>; // Key is module name (logical name)
-}
+import type { NitsRegistry, NitsModuleEntry } from '../types/nits.js';
 
 /**
  * Loads the NITS registry.

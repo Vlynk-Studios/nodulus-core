@@ -547,6 +547,7 @@ try {
 | `DUPLICATE_ALIAS` | Two aliases resolve to the same name but different paths |
 | `DUPLICATE_BOOTSTRAP` | `createApp()` called more than once with the same Express instance |
 | `REGISTRY_MISSING_CONTEXT` | A Nodulus API was called outside of a `createApp()` async context |
+| `UNUSED_IMPORT` | A module is listed in `imports` but it is never actually imported in code |
 | `INVALID_ESM_ENV` | `createApp()` called in a non-ESM environment (missing `"type": "module"` in `package.json`) |
 
 ---

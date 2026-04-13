@@ -2,11 +2,13 @@ import fg from 'fast-glob';
 import path from 'node:path';
 import fs from 'node:fs';
 import { 
-  extractModuleDeclaration, 
+  extractModuleDeclaration
+} from './ast-parser.js';
+import {
   extractModuleImports, 
   extractInternalIdentifiers,
-  ImportFound 
-} from './ast-parser.js';
+  type ImportFound 
+} from '../../nits/import-scanner.js';
 import type { NodulusConfig } from '../../types/index.js';
 
 export interface BaseNode {

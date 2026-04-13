@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { reconcile } from '../../src/nits/nits-reconciler.js';
 import type { ModuleGraph } from '../../src/cli/lib/graph-builder.js';
-import type { NitsRegistry } from '../../src/nits/nits-store.js';
+import type { NitsRegistry } from '../../src/types/nits.js';
 
 describe('NITS Reconciler', () => {
   const cwd = '/project';
@@ -17,9 +17,9 @@ describe('NITS Reconciler', () => {
 
     const { registry, summary } = reconcile(graph, oldRegistry, cwd);
 
-    expect(registry.modules['users']).toBeDefined();
-    expect(registry.modules['users'].id).toMatch(/^mod_[0-9a-f]{8}$/);
-    expect(registry.modules['users'].path).toBe('src/modules/users');
+    expect(registry.modules['src/modules/users']).toBeDefined();
+    expect(registry.modules['src/modules/users'].id).toMatch(/^mod_[0-9a-f]{8}$/);
+    expect(registry.modules['src/modules/users'].path).toBe('src/modules/users');
     expect(summary.newModules).toBe(1);
   });
 
@@ -34,13 +34,13 @@ describe('NITS Reconciler', () => {
     const oldRegistry: NitsRegistry = { 
       version: '1.0.0', 
       modules: {
-        'users': { id: oldId, path: 'src/modules/users', identifiers: ['UserService'] }
+        'src/modules/users': { id: oldId, path: 'src/modules/users', identifiers: ['UserService'] }
       } 
     };
 
     const { registry, summary } = reconcile(graph, oldRegistry, cwd);
 
-    expect(registry.modules['users'].id).toBe(oldId);
+    expect(registry.modules['src/modules/users'].id).toBe(oldId);
     expect(summary.newModules).toBe(0);
   });
 
@@ -50,7 +50,7 @@ describe('NITS Reconciler', () => {
     const oldRegistry: NitsRegistry = { 
       version: '1.0.0', 
       modules: {
-        'users': { id: oldId, path: 'src/modules/users', identifiers: ['UserService', 'UserRepo', 'UserSchema', 'UserValidator'] }
+        'src/modules/users': { id: oldId, path: 'src/modules/users', identifiers: ['UserService', 'UserRepo', 'UserSchema', 'UserValidator'] }
       } 
     };
 
@@ -64,8 +64,8 @@ describe('NITS Reconciler', () => {
 
     const { registry, summary } = reconcile(graph, oldRegistry, cwd);
 
-    expect(registry.modules['new-auth'].id).toBe(oldId);
-    expect(registry.modules['new-auth'].path).toBe('src/modules/auth');
+    expect(registry.modules['src/modules/auth'].id).toBe(oldId);
+    expect(registry.modules['src/modules/auth'].path).toBe('src/modules/auth');
     expect(summary.movedModules).toBe(1);
   });
 
@@ -74,8 +74,8 @@ describe('NITS Reconciler', () => {
     const oldRegistry: NitsRegistry = { 
       version: '1.0.0', 
       modules: {
-        'mod-a': { id: duplicateId, path: 'src/modules/mod-a', identifiers: ['A'] },
-        'mod-b': { id: duplicateId, path: 'src/modules/mod-b', identifiers: ['B'] }
+        'src/modules/mod-a': { id: duplicateId, path: 'src/modules/mod-a', identifiers: ['A'] },
+        'src/modules/mod-b': { id: duplicateId, path: 'src/modules/mod-b', identifiers: ['B'] }
       } 
     };
 
@@ -89,8 +89,8 @@ describe('NITS Reconciler', () => {
 
     const { registry, summary } = reconcile(graph, oldRegistry, cwd);
 
-    const idA = registry.modules['mod-a'].id;
-    const idB = registry.modules['mod-b'].id;
+    const idA = registry.modules['src/modules/mod-a'].id;
+    const idB = registry.modules['src/modules/mod-b'].id;
 
     expect(idA).not.toBe(idB);
     expect(summary.healedConflicts).toBe(1);
@@ -103,8 +103,8 @@ describe('NITS Reconciler', () => {
     const oldRegistry: NitsRegistry = { 
       version: '1.0.0', 
       modules: {
-        'mod-a': { id: duplicateId, path: 'src/modules/old-a', identifiers: ['ServiceA', 'ServiceB'] },
-        'mod-b': { id: duplicateId, path: 'src/modules/old-b', identifiers: ['ServiceC', 'ServiceD'] }
+        'src/modules/old-a': { id: duplicateId, path: 'src/modules/old-a', identifiers: ['ServiceA', 'ServiceB'] },
+        'src/modules/old-b': { id: duplicateId, path: 'src/modules/old-b', identifiers: ['ServiceC', 'ServiceD'] }
       } 
     };
 
@@ -119,21 +119,20 @@ describe('NITS Reconciler', () => {
 
     const { registry, summary } = reconcile(graph, oldRegistry, cwd);
 
-    const idA = registry.modules['new-a'].id;
-    const idB = registry.modules['new-b'].id;
+    const idA = registry.modules['src/modules/new-a'].id;
+    const idB = registry.modules['src/modules/new-b'].id;
 
     expect(idA).not.toBe(idB);
     expect(summary.healedConflicts).toBe(1);
     expect(summary.movedModules).toBe(2);
   });
 
-  it('matches modules using dynamic threshold when internalIdentifiers is empty', () => {
-    // Tests getDynamicThreshold(0) coverage
+  it('DOES NOT match modules when internalIdentifiers is entirely empty for both (False Positive Guard)', () => {
     const emptyId = 'mod_empty';
     const oldRegistry: NitsRegistry = { 
       version: '1.0.0', 
       modules: {
-        'users': { id: emptyId, path: 'src/modules/old-users', identifiers: [] }
+        'src/modules/old-users': { id: emptyId, path: 'src/modules/old-users', identifiers: [] }
       } 
     };
 
@@ -146,8 +145,9 @@ describe('NITS Reconciler', () => {
 
     const { registry, summary } = reconcile(graph, oldRegistry, cwd);
 
-    // Both sets are empty -> similarity is 1 -> dynamic threshold (0.9) passes
-    expect(registry.modules['new-users'].id).toBe(emptyId);
-    expect(summary.movedModules).toBe(1);
+    // As of 1.4.0, two empty modules are no longer considered highly similar
+    expect(registry.modules['src/modules/new-users'].id).not.toBe(emptyId);
+    expect(summary.movedModules).toBe(0);
+    expect(summary.newModules).toBe(1);
   });
 });
