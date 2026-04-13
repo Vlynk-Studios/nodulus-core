@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import path from 'node:path';
 import { NodulusError } from './errors.js';
 import { findCircularDependencies } from './utils/cycle-detector.js';
 import type { 
@@ -17,6 +18,7 @@ export type ModuleRegistration = RegisteredModule;
 export type FeatureRegistration = FileEntry;
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
+  id: entry.id,
   name: entry.name,
   path: entry.path,
   imports: entry.imports,
@@ -76,11 +78,11 @@ export function createRegistry(): InternalRegistry {
 
   return {
     hasModule(name: string): boolean {
-      return modules.has(name);
+      return Array.from(modules.values()).some(m => m.name === name);
     },
 
   getModule(name: string): RegisteredModule | undefined {
-    const entry = modules.get(name);
+    const entry = Array.from(modules.values()).find(m => m.name === name);
     return entry ? toRegisteredModule(entry) : undefined;
   },
 
@@ -98,22 +100,22 @@ export function createRegistry(): InternalRegistry {
 
   getDependencyGraph(): Map<string, string[]> {
     const graph = new Map<string, string[]>();
-    for (const [name, entry] of modules.entries()) {
-      graph.set(name, entry.imports);
+    for (const entry of modules.values()) {
+      graph.set(entry.name, entry.imports);
     }
     return graph;
   },
 
     findCircularDependencies(): string[][] {
       const dependencyMap = new Map<string, string[]>();
-      for (const [name, entry] of modules.entries()) {
-        dependencyMap.set(name, entry.imports);
+      for (const entry of modules.values()) {
+        dependencyMap.set(entry.name, entry.imports);
       }
       return findCircularDependencies(dependencyMap);
     },
 
   registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void {
-    if (modules.has(name)) {
+    if (this.hasModule(name)) {
       throw new NodulusError(
         'DUPLICATE_MODULE',
         `A module with this name already exists. Each module must have a unique name.`,
@@ -140,7 +142,8 @@ export function createRegistry(): InternalRegistry {
       controllers: []
     };
     
-    modules.set(name, entry);
+    const relPath = path.relative(process.cwd(), dirPath).replace(/\\/g, '/');
+    modules.set(relPath, entry);
   },
 
     registerAlias(alias: string, targetPath: string): void {
@@ -175,7 +178,7 @@ export function createRegistry(): InternalRegistry {
     },
 
     getRawModule(name: string): ModuleEntry | undefined {
-      return modules.get(name);
+      return Array.from(modules.values()).find(m => m.name === name);
     },
 
     registerFileMetadata(entry: FileEntry): void {

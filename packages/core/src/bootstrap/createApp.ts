@@ -13,6 +13,9 @@ import { createLogger } from '../core/logger.js';
 import { performance } from 'node:perf_hooks';
 import pc from 'picocolors';
 import { extractModuleImports } from '../nits/import-scanner.js';
+import { loadNitsRegistry, saveNitsRegistry } from '../nits/nits-store.js';
+import { reconcile } from '../nits/nits-reconciler.js';
+import { reportReconciliation } from '../nits/nits-reporter.js';
 
 export async function createApp(
   app: Application,
@@ -358,6 +361,55 @@ export async function createApp(
         name: mod.name,
         path: mod.path,
       });
+    }
+  }
+
+  // Step 6.5 — NITS Identity Tracking
+  if (config.nits?.enabled !== false) {
+    const graph: import('../cli/lib/graph-builder.js').ModuleGraph = {
+      domains: [],
+      modules: []
+    };
+
+    for (const mod of allModules) {
+      const rawMod = registry.getRawModule(mod.name);
+      if (!rawMod) continue;
+
+      const services = registry.getAllServices().filter(s => s.module === mod.name).map(s => s.name);
+      const repositories = registry.getAllRepositories().filter(r => r.module === mod.name).map(r => r.name);
+      const schemas = registry.getAllSchemas().filter(s => s.module === mod.name).map(s => s.name);
+      const controllers = rawMod.controllers.map(c => c.name);
+
+      const internalIdentifiers = [...services, ...repositories, ...schemas, ...controllers];
+
+      graph.modules.push({
+        name: mod.name,
+        dirPath: mod.path,
+        indexPath: rawMod.indexPath,
+        declaredImports: mod.imports,
+        actualImports: [],
+        internalIdentifiers
+      });
+    }
+
+    const cwd = process.cwd();
+    const oldRegistry = loadNitsRegistry(cwd, config.nits?.registryPath);
+    const { registry: nitsRegistry, summary } = reconcile(graph, oldRegistry, cwd);
+
+    if (summary.newModules > 0 || summary.movedModules > 0 || summary.healedConflicts > 0) {
+      reportReconciliation(summary);
+      saveNitsRegistry(cwd, nitsRegistry, config.nits?.registryPath);
+    }
+
+    for (const mod of allModules) {
+      const relPath = path.relative(cwd, mod.path).replace(/\\/g, '/');
+      const nitsEntry = nitsRegistry.modules[relPath];
+      if (nitsEntry) {
+        const rawMod = registry.getRawModule(mod.name);
+        if (rawMod) {
+          rawMod.id = nitsEntry.id;
+        }
+      }
     }
   }
 

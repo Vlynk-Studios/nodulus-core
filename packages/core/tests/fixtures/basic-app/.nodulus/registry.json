@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "modules": {
+    "src/modules/auth": {
+      "id": "mod_4a8a60ea",
+      "path": "src/modules/auth",
+      "identifiers": [
+        "auth.routes"
+      ]
+    },
+    "src/modules/notifications": {
+      "id": "mod_d0f64406",
+      "path": "src/modules/notifications",
+      "identifiers": []
+    },
+    "src/modules/users": {
+      "id": "mod_be7dffdf",
+      "path": "src/modules/users",
+      "identifiers": [
+        "users.routes"
+      ]
+    }
+  }
+}
