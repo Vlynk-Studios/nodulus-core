@@ -8,7 +8,7 @@ vi.mock('../../src/nits/nits-hash.js', async () => {
   const actual = await vi.importActual('../../src/nits/nits-hash.js') as any;
   return {
     ...actual,
-    calculateModuleHash: vi.fn(async () => 'mock-hash')
+    computeModuleHash: vi.fn(async () => ({ hash: 'mock-hash', identifiers: [] }))
   };
 });
 
@@ -39,7 +39,7 @@ describe('NITS Reconciler (Identity-First)', () => {
     const oldId = 'mod_12345678';
     const sharedHash = 'same-code-signature';
     
-    vi.mocked(nitsHash.calculateModuleHash).mockResolvedValue(sharedHash);
+    vi.mocked(nitsHash.computeModuleHash).mockResolvedValue({ hash: sharedHash, identifiers: ['UserService'] });
 
     const oldRegistry: NitsRegistry = { 
       project: 'test',

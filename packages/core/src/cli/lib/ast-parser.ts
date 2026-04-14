@@ -18,7 +18,7 @@ export interface ModuleDeclaration {
 
 export function extractIdentifierCall(
   filePath: string,
-  calleeName: 'Module' | 'Domain' | 'SubModule' | 'DomainShared'
+  calleeName: string
 ): IdentifierCall | null {
   let found: IdentifierCall | null = null;
 

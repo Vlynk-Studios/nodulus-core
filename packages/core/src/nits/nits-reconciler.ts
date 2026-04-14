@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { NITS_REGISTRY_VERSION } from './constants.js';
-import { areIdentitiesSimilar, calculateModuleHash } from './nits-hash.js';
+import { areIdentitiesSimilar, computeModuleHash } from './nits-hash.js';
 import { generateModuleId } from './nits-id.js';
 import type { ModuleGraph } from '../cli/lib/graph-builder.js';
 import type { 
@@ -60,14 +60,14 @@ export async function reconcile(
   });
 
   // STEP 1: Process modules (Exact Path + Content match)
-  const processedNodes: { node: any, hash: string }[] = [];
+  const processedNodes: { node: any, hash: string, identifiers: string[] }[] = [];
   for (const node of unmatchedNodes) {
-    const hash = await calculateModuleHash(node.dirPath);
-    processedNodes.push({ node, hash });
+    const { hash, identifiers } = await computeModuleHash(node.dirPath);
+    processedNodes.push({ node, hash, identifiers });
   }
 
   // Matching Logic
-  for (const { node, hash } of processedNodes) {
+  for (const { node, hash, identifiers } of processedNodes) {
     const relPath = normalize(node.dirPath);
     
     // Priority 1: Exact Path Match
@@ -77,7 +77,7 @@ export async function reconcile(
       const isConfirmed = old.hash === hash;
       const status: NitsStatus = isConfirmed ? 'active' : 'active'; // Still active if path matches
 
-      const record = createRecord(old.id, node.name, relPath, hash, status, node.internalIdentifiers);
+      const record = createRecord(old.id, node.name, relPath, hash, status, identifiers);
       newModulesRecord[record.id] = record;
       usedIds.add(record.id);
       
@@ -96,7 +96,7 @@ export async function reconcile(
     matchIdx = oldEntries.findIndex(e => e.hash === hash);
     if (matchIdx !== -1) {
       const old = oldEntries[matchIdx];
-      const record = createRecord(old.id, node.name, relPath, hash, 'moved', node.internalIdentifiers);
+      const record = createRecord(old.id, node.name, relPath, hash, 'moved', identifiers);
       
       newModulesRecord[record.id] = record;
       usedIds.add(record.id);
@@ -125,7 +125,7 @@ export async function reconcile(
 
     if (bestSimIdx !== -1) {
       const old = oldEntries[bestSimIdx];
-      const record = createRecord(old.id, node.name, relPath, hash, 'candidate', node.internalIdentifiers);
+      const record = createRecord(old.id, node.name, relPath, hash, 'candidate', identifiers);
       
       newModulesRecord[record.id] = record;
       usedIds.add(record.id);
@@ -143,7 +143,7 @@ export async function reconcile(
 
     // Priority 4: Brand New Module
     const id = generateModuleId(usedIds);
-    const record = createRecord(id, node.name, relPath, hash, 'active', node.internalIdentifiers);
+    const record = createRecord(id, node.name, relPath, hash, 'active', identifiers);
     
     newModulesRecord[record.id] = record;
     usedIds.add(record.id);
