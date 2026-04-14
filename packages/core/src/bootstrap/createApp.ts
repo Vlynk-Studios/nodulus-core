@@ -393,17 +393,23 @@ export async function createApp(
     }
 
     const cwd = process.cwd();
-    const oldRegistry = loadNitsRegistry(cwd, config.nits?.registryPath);
-    const { registry: nitsRegistry, summary } = reconcile(graph, oldRegistry, cwd);
+    const oldRegistry = loadNitsRegistry(cwd, config.nits?.registryPath || '.nodulus/registry.json');
+    const { registry: nitsRegistry, result: nitsResult } = await reconcile(graph, oldRegistry, cwd);
 
-    if (summary.newModules > 0 || summary.movedModules > 0 || summary.healedConflicts > 0) {
-      reportReconciliation(summary);
-      saveNitsRegistry(cwd, nitsRegistry, config.nits?.registryPath);
+    const hasChanges = 
+      nitsResult.newModules.length > 0 || 
+      nitsResult.moved.length > 0 || 
+      nitsResult.stale.length > 0;
+
+    if (hasChanges) {
+      reportReconciliation(nitsResult);
+      saveNitsRegistry(cwd, nitsRegistry, config.nits?.registryPath || '.nodulus/registry.json');
     }
 
     for (const mod of allModules) {
       const relPath = path.relative(cwd, mod.path).replace(/\\/g, '/');
-      const nitsEntry = nitsRegistry.modules[relPath];
+      // Find the record by matching path in the new registry
+      const nitsEntry = Object.values(nitsRegistry.modules).find(m => m.path === relPath);
       if (nitsEntry) {
         const rawMod = registry.getRawModule(mod.name);
         if (rawMod) {

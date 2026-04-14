@@ -1,21 +1,35 @@
 {
+  "project": "basic-app-fixture",
   "version": "1.0.0",
+  "lastCheck": "2026-04-14T00:03:59.202Z",
   "modules": {
-    "src/modules/auth": {
-      "id": "mod_4a8a60ea",
+    "mod_c19779f0": {
+      "id": "mod_c19779f0",
+      "name": "auth",
       "path": "src/modules/auth",
+      "hash": "3e9ea6a47a31c2a81f6a109fbfa67e0e432ca9358ba52904359179fd1100e916",
+      "status": "active",
+      "lastSeen": "2026-04-14T00:03:59.190Z",
       "identifiers": [
         "auth.routes"
       ]
     },
-    "src/modules/notifications": {
-      "id": "mod_d0f64406",
+    "mod_e69e3da1": {
+      "id": "mod_e69e3da1",
+      "name": "notifications",
       "path": "src/modules/notifications",
+      "hash": "6b7a06bc3d12be905913c7f7244d56a7cfb6276bc4b36d4fa4fb4295009e3a4a",
+      "status": "active",
+      "lastSeen": "2026-04-14T00:03:59.190Z",
       "identifiers": []
     },
-    "src/modules/users": {
-      "id": "mod_be7dffdf",
+    "mod_7ffb309c": {
+      "id": "mod_7ffb309c",
+      "name": "users",
       "path": "src/modules/users",
+      "hash": "91df9c008432ff070014b80042de7474db914b8853ee1f80bb7816510da623d2",
+      "status": "active",
+      "lastSeen": "2026-04-14T00:03:59.190Z",
       "identifiers": [
         "users.routes"
       ]

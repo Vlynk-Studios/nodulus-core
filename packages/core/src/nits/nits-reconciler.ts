@@ -1,121 +1,171 @@
 import path from 'node:path';
 import { NITS_REGISTRY_VERSION } from './constants.js';
-import { areIdentitiesSimilar } from './nits-hash.js';
-import { generateNitsId } from './nits-id.js';
+import { areIdentitiesSimilar, calculateModuleHash } from './nits-hash.js';
+import { generateModuleId } from './nits-id.js';
 import type { ModuleGraph } from '../cli/lib/graph-builder.js';
-import type { NitsRegistry, NitsModuleEntry, ReconciliationSummary } from '../types/nits.js';
+import type { 
+  NitsRegistry, 
+  NitsModuleRecord, 
+  ReconciliationResult, 
+  NitsStatus 
+} from '../types/nits.js';
 
 /**
  * Reconciles the current module graph with the persisted NITS registry.
  * 
- * Strategy:
- * 1. Match by exact path (standard case).
- * 2. Match orphans by identity similarity (moved/renamed folders).
- * 3. Assign new IDs to remaining nodes.
- * 4. Resolve ID conflicts (healing) if they arise from merge conflicts.
+ * Strategy (Identity-First):
+ * 1. Match by ID (if available in graph).
+ * 2. Match by Content Hash (priority for moves).
+ * 3. Match by Identity Similarity (Jaccard on identifiers).
+ * 4. Assign new IDs for brand new stuff.
+ * 5. Track stale modules (missing on disk).
  */
-export function reconcile(
+export async function reconcile(
   graph: ModuleGraph, 
   oldRegistry: NitsRegistry, 
   cwd: string,
   configThreshold?: number
-): { registry: NitsRegistry; summary: ReconciliationSummary } {
-  const newModulesRecord: Record<string, NitsModuleEntry> = {};
-  const orphanedEntries = Object.entries(oldRegistry.modules);
-  const summary: ReconciliationSummary = { 
-    newModules: 0, 
-    movedModules: 0, 
-    healedConflicts: 0 
+): Promise<{ registry: NitsRegistry; result: ReconciliationResult }> {
+  const newModulesRecord: Record<string, NitsModuleRecord> = {};
+  const result: ReconciliationResult = {
+    confirmed: [],
+    moved: [],
+    stale: [],
+    newModules: []
   };
-  
+
+  const oldEntries = Object.values(oldRegistry.modules);
   const usedIds = new Set<string>();
+  const unmatchedNodes = [...graph.modules];
+  const timestamp = new Date().toISOString();
+  
   const normalize = (p: string) => path.relative(cwd, p).replace(/\\/g, '/');
 
-  // STEP 1: Match modules by exact path (Priority 1)
-  const unmatchedNodes = [...graph.modules];
-  for (let i = unmatchedNodes.length - 1; i >= 0; i--) {
-    const node = unmatchedNodes[i];
+  // Helper to create a record
+  const createRecord = (
+    id: string, 
+    name: string, 
+    relPath: string, 
+    hash: string, 
+    status: NitsStatus,
+    identifiers: string[]
+  ): NitsModuleRecord => ({
+    id,
+    name,
+    path: relPath,
+    hash,
+    status,
+    lastSeen: timestamp,
+    identifiers
+  });
+
+  // STEP 1: Process modules (Exact Path + Content match)
+  const processedNodes: { node: any, hash: string }[] = [];
+  for (const node of unmatchedNodes) {
+    const hash = await calculateModuleHash(node.dirPath);
+    processedNodes.push({ node, hash });
+  }
+
+  // Matching Logic
+  for (const { node, hash } of processedNodes) {
     const relPath = normalize(node.dirPath);
     
-    // Find entry with same path
-    const matchIdx = orphanedEntries.findIndex(([_, entry]) => entry.path === relPath);
+    // Priority 1: Exact Path Match
+    let matchIdx = oldEntries.findIndex(e => e.path === relPath);
     if (matchIdx !== -1) {
-      const [_, entry] = orphanedEntries[matchIdx];
+      const old = oldEntries[matchIdx];
+      const isConfirmed = old.hash === hash;
+      const status: NitsStatus = isConfirmed ? 'active' : 'active'; // Still active if path matches
+
+      const record = createRecord(old.id, node.name, relPath, hash, status, node.internalIdentifiers);
+      newModulesRecord[record.id] = record;
+      usedIds.add(record.id);
       
-      // Healing: If ID is already taken by another previously matched module
-      if (usedIds.has(entry.id)) {
-        entry.id = generateNitsId();
-        summary.healedConflicts++;
+      if (isConfirmed) {
+        result.confirmed.push(record);
+      } else {
+        // Technically still active, just updated content
+        result.confirmed.push(record);
       }
-
-      usedIds.add(entry.id);
-      newModulesRecord[relPath] = {
-        id: entry.id,
-        path: relPath,
-        identifiers: node.internalIdentifiers
-      };
-
-      unmatchedNodes.splice(i, 1);
-      orphanedEntries.splice(matchIdx, 1);
+      
+      oldEntries.splice(matchIdx, 1);
+      continue;
     }
-  }
 
-  // STEP 2: Match remaining nodes by Identity Similarity (Priority 2)
-  for (let i = unmatchedNodes.length - 1; i >= 0; i--) {
-    const node = unmatchedNodes[i];
-    
-    let bestMatchIdx = -1;
+    // Priority 2: Hash Match (Moved Module)
+    matchIdx = oldEntries.findIndex(e => e.hash === hash);
+    if (matchIdx !== -1) {
+      const old = oldEntries[matchIdx];
+      const record = createRecord(old.id, node.name, relPath, hash, 'moved', node.internalIdentifiers);
+      
+      newModulesRecord[record.id] = record;
+      usedIds.add(record.id);
+      
+      result.moved.push({
+        record,
+        oldPath: old.path,
+        newPath: relPath,
+        brokenImports: [] // To be populated if needed
+      });
+      
+      oldEntries.splice(matchIdx, 1);
+      continue;
+    }
+
+    // Priority 3: Similarity Match (Candidate)
+    let bestSimIdx = -1;
     let highestSim = 0;
-
-    for (let j = 0; j < orphanedEntries.length; j++) {
-      const [_, entry] = orphanedEntries[j];
-      const simResult = areIdentitiesSimilar(entry.identifiers, node.internalIdentifiers, configThreshold);
-      
-      if (simResult.isSimilar && simResult.similarity > highestSim) {
-        highestSim = simResult.similarity;
-        bestMatchIdx = j;
-      }
+    for (let j = 0; j < oldEntries.length; j++) {
+       const simResult = areIdentitiesSimilar(oldEntries[j].identifiers, node.internalIdentifiers, configThreshold);
+       if (simResult.isSimilar && simResult.similarity > highestSim) {
+         highestSim = simResult.similarity;
+         bestSimIdx = j;
+       }
     }
 
-    if (bestMatchIdx !== -1) {
-      const [_, entry] = orphanedEntries[bestMatchIdx];
+    if (bestSimIdx !== -1) {
+      const old = oldEntries[bestSimIdx];
+      const record = createRecord(old.id, node.name, relPath, hash, 'candidate', node.internalIdentifiers);
       
-      // Healing: If similarity match has a duplicate ID
-      if (usedIds.has(entry.id)) {
-        entry.id = generateNitsId();
-        summary.healedConflicts++;
-      }
-
-      usedIds.add(entry.id);
-      newModulesRecord[normalize(node.dirPath)] = {
-        id: entry.id,
-        path: normalize(node.dirPath),
-        identifiers: node.internalIdentifiers
-      };
-
-      summary.movedModules++;
-      unmatchedNodes.splice(i, 1);
-      orphanedEntries.splice(bestMatchIdx, 1);
+      newModulesRecord[record.id] = record;
+      usedIds.add(record.id);
+      
+      result.moved.push({
+        record,
+        oldPath: old.path,
+        newPath: relPath,
+        brokenImports: []
+      });
+      
+      oldEntries.splice(bestSimIdx, 1);
+      continue;
     }
+
+    // Priority 4: Brand New Module
+    const id = generateModuleId(usedIds);
+    const record = createRecord(id, node.name, relPath, hash, 'active', node.internalIdentifiers);
+    
+    newModulesRecord[record.id] = record;
+    usedIds.add(record.id);
+    result.newModules.push(record);
   }
 
-  // STEP 3: Assign and create new IDs for brand new modules
-  for (const node of unmatchedNodes) {
-    const id = generateNitsId();
-    usedIds.add(id);
-    newModulesRecord[normalize(node.dirPath)] = {
-      id,
-      path: normalize(node.dirPath),
-      identifiers: node.internalIdentifiers
-    };
-    summary.newModules++;
+  // STEP 2: Handle Stale Modules
+  for (const old of oldEntries) {
+    if (!usedIds.has(old.id)) {
+      const staleRecord = { ...old, status: 'stale' as NitsStatus };
+      newModulesRecord[staleRecord.id] = staleRecord;
+      result.stale.push(staleRecord);
+    }
   }
 
   return {
     registry: {
+      project: oldRegistry.project || 'unknown',
       version: NITS_REGISTRY_VERSION,
+      lastCheck: timestamp,
       modules: newModulesRecord
     },
-    summary
+    result
   };
 }

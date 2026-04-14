@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import fg from 'fast-glob';
 import { DEFAULT_SIMILARITY_THRESHOLD, MINIMUM_SIMILARITY_THRESHOLD } from './constants.js';
 
 /**
@@ -56,4 +60,32 @@ export function areIdentitiesSimilar(
     similarity,
     thresholdUsed
   };
+}
+/**
+ * Calculates a unique SHA-256 hash for a module based on the content
+ * of its source files (.ts, .js, .mts, .mjs).
+ * 
+ * Excludes tests, hidden files, and type definitions.
+ */
+export async function calculateModuleHash(dirPath: string): Promise<string> {
+  const hash = createHash('sha256');
+  
+  const files = await fg('**/*.{ts,js,mts,mjs}', {
+    cwd: dirPath,
+    absolute: true,
+    ignore: ['**/*.test.*', '**/*.spec.*', '**/*.d.ts', 'index.*']
+  });
+  
+  // Sort files for deterministic hash
+  files.sort();
+  
+  for (const file of files) {
+    // Include filename to distinguish between identity-identical content in different structures
+    hash.update(path.basename(file));
+    
+    const content = fs.readFileSync(file);
+    hash.update(content);
+  }
+  
+  return hash.digest('hex');
 }

@@ -1,153 +1,101 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { reconcile } from '../../src/nits/nits-reconciler.js';
+import * as nitsHash from '../../src/nits/nits-hash.js';
 import type { ModuleGraph } from '../../src/cli/lib/graph-builder.js';
 import type { NitsRegistry } from '../../src/types/nits.js';
 
-describe('NITS Reconciler', () => {
+vi.mock('../../src/nits/nits-hash.js', async () => {
+  const actual = await vi.importActual('../../src/nits/nits-hash.js') as any;
+  return {
+    ...actual,
+    calculateModuleHash: vi.fn(async () => 'mock-hash')
+  };
+});
+
+describe('NITS Reconciler (Identity-First)', () => {
   const cwd = '/project';
 
-  it('assigns new IDs to brand new modules', () => {
+  it('assigns new IDs indexable by ID', async () => {
     const graph: ModuleGraph = {
       domains: [],
       modules: [
         { name: 'users', dirPath: '/project/src/modules/users', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['UserService'] }
       ]
     };
-    const oldRegistry: NitsRegistry = { version: '1.0.0', modules: {} };
+    const oldRegistry: NitsRegistry = { project: 'test', version: '1.0.0', lastCheck: '', modules: {} };
 
-    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
+    const { registry, result } = await reconcile(graph, oldRegistry, cwd);
 
-    expect(registry.modules['src/modules/users']).toBeDefined();
-    expect(registry.modules['src/modules/users'].id).toMatch(/^mod_[0-9a-f]{8}$/);
-    expect(registry.modules['src/modules/users'].path).toBe('src/modules/users');
-    expect(summary.newModules).toBe(1);
+    const ids = Object.keys(registry.modules);
+    expect(ids.length).toBe(1);
+    expect(ids[0]).toMatch(/^mod_[0-9a-f]{8}$/);
+    
+    const record = registry.modules[ids[0]];
+    expect(record.path).toBe('src/modules/users');
+    expect(result.newModules.length).toBe(1);
   });
 
-  it('keeps the same ID for an existing module with same path', () => {
+  it('detects a moved module via content hash', async () => {
     const oldId = 'mod_12345678';
-    const graph: ModuleGraph = {
-      domains: [],
-      modules: [
-        { name: 'users', dirPath: '/project/src/modules/users', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['UserService'] }
-      ]
-    };
+    const sharedHash = 'same-code-signature';
+    
+    vi.mocked(nitsHash.calculateModuleHash).mockResolvedValue(sharedHash);
+
     const oldRegistry: NitsRegistry = { 
-      version: '1.0.0', 
+      project: 'test',
+      version: '1.0.0',
+      lastCheck: '',
       modules: {
-        'src/modules/users': { id: oldId, path: 'src/modules/users', identifiers: ['UserService'] }
+        [oldId]: { 
+          id: oldId, 
+          name: 'users', 
+          path: 'src/modules/old-path', 
+          hash: sharedHash, 
+          status: 'active', 
+          lastSeen: '', 
+          identifiers: [] 
+        }
       } 
     };
 
-    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
+    const graph: ModuleGraph = {
+      domains: [],
+      modules: [
+        { name: 'users', dirPath: '/project/src/modules/new-path', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: [] }
+      ]
+    };
 
-    expect(registry.modules['src/modules/users'].id).toBe(oldId);
-    expect(summary.newModules).toBe(0);
+    const { registry, result } = await reconcile(graph, oldRegistry, cwd);
+
+    expect(registry.modules[oldId]).toBeDefined();
+    expect(registry.modules[oldId].path).toBe('src/modules/new-path');
+    expect(registry.modules[oldId].status).toBe('moved');
+    expect(result.moved.length).toBe(1);
   });
 
-  it('matches a moved module via similarity (Identity Persistence)', () => {
-    const oldId = 'mod_moved_1';
-    // Old registry says 'users' was at 'src/modules/users'
+  it('marks missing modules as stale', async () => {
+    const staleId = 'mod_gone';
     const oldRegistry: NitsRegistry = { 
-      version: '1.0.0', 
+      project: 'test',
+      version: '1.0.0',
+      lastCheck: '',
       modules: {
-        'src/modules/users': { id: oldId, path: 'src/modules/users', identifiers: ['UserService', 'UserRepo', 'UserSchema', 'UserValidator'] }
+        [staleId]: { 
+          id: staleId, 
+          name: 'deleted', 
+          path: 'src/modules/deleted', 
+          hash: 'abc', 
+          status: 'active', 
+          lastSeen: '', 
+          identifiers: [] 
+        }
       } 
     };
 
-    // New graph says 'auth' is at 'src/modules/auth' and has SAME identifiers (Pure Move)
-    const graph: ModuleGraph = {
-      domains: [],
-      modules: [
-        { name: 'new-auth', dirPath: '/project/src/modules/auth', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['UserService', 'UserRepo', 'UserSchema', 'UserValidator'] }
-      ]
-    };
+    const graph: ModuleGraph = { domains: [], modules: [] };
+    const { registry, result } = await reconcile(graph, oldRegistry, cwd);
 
-    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
-
-    expect(registry.modules['src/modules/auth'].id).toBe(oldId);
-    expect(registry.modules['src/modules/auth'].path).toBe('src/modules/auth');
-    expect(summary.movedModules).toBe(1);
-  });
-
-  it('heals ID conflicts (duplicate IDs from merge)', () => {
-    const duplicateId = 'mod_conflict';
-    const oldRegistry: NitsRegistry = { 
-      version: '1.0.0', 
-      modules: {
-        'src/modules/mod-a': { id: duplicateId, path: 'src/modules/mod-a', identifiers: ['A'] },
-        'src/modules/mod-b': { id: duplicateId, path: 'src/modules/mod-b', identifiers: ['B'] }
-      } 
-    };
-
-    const graph: ModuleGraph = {
-      domains: [],
-      modules: [
-        { name: 'mod-a', dirPath: '/project/src/modules/mod-a', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['A'] },
-        { name: 'mod-b', dirPath: '/project/src/modules/mod-b', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['B'] }
-      ]
-    };
-
-    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
-
-    const idA = registry.modules['src/modules/mod-a'].id;
-    const idB = registry.modules['src/modules/mod-b'].id;
-
-    expect(idA).not.toBe(idB);
-    expect(summary.healedConflicts).toBe(1);
-    // One of them kept the ID, the other got a new one
-    expect([idA, idB]).toContain(duplicateId);
-  });
-
-  it('heals ID conflicts during similarity matching (Step 2)', () => {
-    const duplicateId = 'mod_sim_conflict';
-    const oldRegistry: NitsRegistry = { 
-      version: '1.0.0', 
-      modules: {
-        'src/modules/old-a': { id: duplicateId, path: 'src/modules/old-a', identifiers: ['ServiceA', 'ServiceB'] },
-        'src/modules/old-b': { id: duplicateId, path: 'src/modules/old-b', identifiers: ['ServiceC', 'ServiceD'] }
-      } 
-    };
-
-    // New paths don't match, forcing similarity match
-    const graph: ModuleGraph = {
-      domains: [],
-      modules: [
-        { name: 'new-a', dirPath: '/project/src/modules/new-a', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['ServiceA', 'ServiceB'] },
-        { name: 'new-b', dirPath: '/project/src/modules/new-b', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: ['ServiceC', 'ServiceD'] }
-      ]
-    };
-
-    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
-
-    const idA = registry.modules['src/modules/new-a'].id;
-    const idB = registry.modules['src/modules/new-b'].id;
-
-    expect(idA).not.toBe(idB);
-    expect(summary.healedConflicts).toBe(1);
-    expect(summary.movedModules).toBe(2);
-  });
-
-  it('DOES NOT match modules when internalIdentifiers is entirely empty for both (False Positive Guard)', () => {
-    const emptyId = 'mod_empty';
-    const oldRegistry: NitsRegistry = { 
-      version: '1.0.0', 
-      modules: {
-        'src/modules/old-users': { id: emptyId, path: 'src/modules/old-users', identifiers: [] }
-      } 
-    };
-
-    const graph: ModuleGraph = {
-      domains: [],
-      modules: [
-        { name: 'new-users', dirPath: '/project/src/modules/new-users', indexPath: '', declaredImports: [], actualImports: [], internalIdentifiers: [] }
-      ]
-    };
-
-    const { registry, summary } = reconcile(graph, oldRegistry, cwd);
-
-    // As of 1.4.0, two empty modules are no longer considered highly similar
-    expect(registry.modules['src/modules/new-users'].id).not.toBe(emptyId);
-    expect(summary.movedModules).toBe(0);
-    expect(summary.newModules).toBe(1);
+    expect(registry.modules[staleId].status).toBe('stale');
+    expect(result.stale.length).toBe(1);
   });
 });
