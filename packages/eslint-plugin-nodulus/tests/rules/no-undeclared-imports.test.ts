@@ -27,7 +27,7 @@ afterEach(() => {
   moduleResolver.clearModuleImportsCache();
 });
 
-describe('archivo dentro de un módulo Nodulus', () => {
+describe('file inside a Nodulus module', () => {
   beforeEach(() => {
     vi.spyOn(moduleResolver, 'getModuleImports').mockReturnValue(['users']);
   });
@@ -61,7 +61,7 @@ describe('archivo dentro de un módulo Nodulus', () => {
   });
 });
 
-describe('archivo fuera de un módulo Nodulus', () => {
+describe('file outside a Nodulus module', () => {
   beforeEach(() => {
     vi.spyOn(moduleResolver, 'getModuleImports').mockReturnValue(null);
   });

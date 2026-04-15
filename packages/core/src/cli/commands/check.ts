@@ -4,6 +4,7 @@ import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
 import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../../nits/nits-store.js';
+import { createLogger, defaultLogHandler } from '../../core/logger.js';
 import { reconcile, applyReconciliation } from '../../nits/nits-reconciler.js';
 import { reportReconciliation } from '../../nits/nits-reporter.js';
 import { computeModuleHash } from '../../nits/nits-hash.js';
@@ -51,7 +52,8 @@ export function checkCommand(): Command {
 
           const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;
           if (hasChanges && options.format !== 'json') {
-            reportReconciliation(result);
+            const logger = createLogger(defaultLogHandler, 'info');
+            reportReconciliation(result, logger);
           }
         }
 

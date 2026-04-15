@@ -15,9 +15,9 @@ import type {
  * Reconciles discovered modules with the persisted NITS registry using the 
  * "Verification Triangle" algorithm.
  * 
- * Paso 1 — Match por Path     (confianza máxima)
- * Paso 2 — Match por Hash     (confianza alta, similarity >= 0.9)
- * Paso 3 — Match por Nombre   (confianza media, record anterior 'stale')
+ * Step 1 — Match by Path     (maximum confidence)
+ * Step 2 — Match by Hash     (high confidence, similarity >= 0.9)
+ * Step 3 — Match by Name     (medium confidence, previous record 'stale')
  */
 export async function reconcile(
   discovered: DiscoveredModule[],
@@ -55,7 +55,7 @@ export async function reconcile(
     identifiers: disc.identifiers
   });
 
-  // PASO 1: Match por Path (Confianza Máxima)
+  // STEP 1: Match by Path (Maximum Confidence)
   for (let i = unmatchedDiscovered.length - 1; i >= 0; i--) {
     const disc = unmatchedDiscovered[i];
     const relPath = normalize(disc.dirPath);
@@ -78,7 +78,7 @@ export async function reconcile(
     }
   }
 
-  // PASO 2: Match por Hash (Confianza Alta, Similarity >= 0.9)
+  // STEP 2: Match by Hash (High Confidence, Similarity >= 0.9)
   for (let i = unmatchedDiscovered.length - 1; i >= 0; i--) {
     const disc = unmatchedDiscovered[i];
     
@@ -111,7 +111,7 @@ export async function reconcile(
     }
   }
 
-  // PASO 3: Match por Nombre (Confianza Media)
+  // STEP 3: Match by Name (Medium Confidence)
   for (let i = unmatchedDiscovered.length - 1; i >= 0; i--) {
     const disc = unmatchedDiscovered[i];
     
@@ -135,7 +135,7 @@ export async function reconcile(
     }
   }
 
-  // FINALIZACIÓN: New Modules & Stale
+  // FINALIZATION: New Modules & Stale
   for (const disc of unmatchedDiscovered) {
     const id = generateModuleId(usedIds);
     const record = createRecord(id, disc, 'active');
@@ -153,7 +153,7 @@ export async function reconcile(
 /**
  * Applies the reconciliation result to create a new NitsRegistry.
  * Note: candidates are NOT automatically included as active in the new registry 
- * (as per Paso 3 requirements), they stay as candidates in the registry 
+ * (as per Step 3 requirements), they stay as candidates in the registry 
  * until confirmed (implementation detail: we include them as 'candidate').
  */
 export function applyReconciliation(

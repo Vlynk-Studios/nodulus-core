@@ -6,6 +6,8 @@ import fg from "fast-glob";
 import type { ImportDeclaration, CallExpression, Literal } from 'estree';
 import type { MovedModule, BrokenImport } from "../types/nits.js";
 
+import { calculateAlias } from "./utils.js";
+
 export interface ImportFound {
   specifier: string;
   line: number;
@@ -109,34 +111,6 @@ export function extractInternalIdentifiers(filePath: string): string[] {
   return names;
 }
 
-/**
- * Calculates the likely old alias based on the previous file path.
- * 
- * Logic:
- * - src/modules/users -> @modules/users
- * - src/domains/billing/modules/payments -> @billing/payments
- */
-function calculateOldAlias(oldPath: string): string {
-  const parts = oldPath.split(/[\\/]/);
-  
-  // Try to find domain structure: domains/<domain>/modules/<name>
-  const domainsIdx = parts.indexOf('domains');
-  if (domainsIdx !== -1 && parts.length > domainsIdx + 3 && parts[domainsIdx + 2] === 'modules') {
-    const domain = parts[domainsIdx + 1];
-    const name = parts[domainsIdx + 3];
-    return `@${domain}/${name}`;
-  }
-  
-  // Try to find standard structure: modules/<name>
-  const modulesIdx = parts.indexOf('modules');
-  if (modulesIdx !== -1 && parts.length > modulesIdx + 1) {
-    const name = parts[modulesIdx + 1];
-    return `@modules/${name}`;
-  }
-
-  // Fallback: use basename as module name under @modules
-  return `@modules/${path.basename(oldPath)}`;
-}
 
 /**
  * Given a list of moved modules, scans the entire project for files that
@@ -162,7 +136,7 @@ export async function scanBrokenImports(
 
   const movedWithAliases = movedModules.map(m => ({
     ...m,
-    oldAlias: calculateOldAlias(m.oldPath)
+    oldAlias: calculateAlias(m.oldPath)
   }));
 
   for (const file of files) {

@@ -29,7 +29,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     modules: {}
   });
 
-  it('Test: primera ejecución (previous = null) → todos son newModules con IDs generados', async () => {
+  it('Test: first run (previous = null) → all are newModules with generated IDs', async () => {
     const discovered: DiscoveredModule[] = [
       { name: 'm1', dirPath: '/project/src/m1', identifiers: ['Id1'], hash: 'h1' },
       { name: 'm2', dirPath: '/project/src/m2', identifiers: ['Id2'], hash: 'h2' }
@@ -43,7 +43,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.newModules[0].id).not.toBe(result.newModules[1].id);
   });
 
-  it('Test: ejecución sin cambios → todos confirmed', async () => {
+  it('Test: run with no changes → all confirmed', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -62,7 +62,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.newModules.length).toBe(0);
   });
 
-  it('Test: módulo movido (mismo hash, path distinto) → moved con oldPath y newPath', async () => {
+  it('Test: moved module (same hash, different path) → moved with oldPath and newPath', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -84,7 +84,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.moved[0].newPath).toBe('src/new');
   });
 
-  it('Test: módulo eliminado → stale, conservado en registry', async () => {
+  it('Test: deleted module → stale, preserved in registry', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -99,7 +99,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.stale[0].status).toBe('stale');
   });
 
-  it('Test: módulo clonado → original confirmed, copia en newModules con ID distinto', async () => {
+  it('Test: cloned module → original confirmed, copy in newModules with different ID', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -124,7 +124,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.moved.length).toBe(0);
   });
 
-  it('Test: renombre de Module("users") a Module("accounts") mismo path → confirmed, nombre actualizado', async () => {
+  it('Test: rename from Module("users") to Module("accounts") same path → confirmed, name updated', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -143,7 +143,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.confirmed[0].name).toBe('accounts');
   });
 
-  it('Test: hash similar en dos records → ambos se tratan como newModules, no se asume movimiento', async () => {
+  it('Test: similar hash on two records → both treated as newModules, no movement assumed', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -165,7 +165,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.stale.length).toBe(2);
   });
 
-  it('Paso 3: único match por nombre en registros stale → candidate', async () => {
+  it('Step 3: unique match by name in stale records → candidate', async () => {
     const previous: NitsRegistry = {
       ...createEmptyRegistry(),
       modules: {
@@ -177,12 +177,12 @@ describe('NITS Reconciler (Verification Triangle)', () => {
       { name: 'widget', dirPath: '/project/src/new-widget', identifiers: [], hash: 'h_new' }
     ];
 
-    // No hash similarity → Paso 2 skipped
+    // No hash similarity → Step 2 skipped
     vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.1);
 
     const result = await reconcile(discovered, previous, cwd);
 
-    // Paso 3 should match by name on the stale record
+    // Step 3 should match by name on the stale record
     expect(result.candidates.length).toBe(1);
     expect(result.candidates[0].record.id).toBe('mod_x');
     expect(result.candidates[0].oldPath).toBe('src/old-widget');

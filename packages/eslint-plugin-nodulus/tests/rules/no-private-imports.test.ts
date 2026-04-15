@@ -3,7 +3,7 @@ import { describe, it } from 'vitest';
 import * as tsParser from '@typescript-eslint/parser';
 import rule from '../../src/rules/no-private-imports.js';
 
-// Integración de Vitest para RuleTester
+// Vitest integration for RuleTester
 RuleTester.describe = describe;
 RuleTester.it = it;
 

@@ -384,7 +384,7 @@ export async function createApp(
       nitsResult.stale.length > 0;
 
     if (hasChanges) {
-      reportReconciliation(nitsResult);
+      reportReconciliation(nitsResult, log);
       await saveNitsRegistry(nitsRegistry, cwd);
     }
 
