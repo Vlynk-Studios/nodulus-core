@@ -3,7 +3,7 @@ import pc from 'picocolors';
 import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
-import { loadNitsRegistry, saveNitsRegistry, createEmptyRegistry } from '../../nits/nits-store.js';
+import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../../nits/nits-store.js';
 import { reconcile } from '../../nits/nits-reconciler.js';
 import { reportReconciliation } from '../../nits/nits-reporter.js';
 
@@ -24,7 +24,7 @@ export function checkCommand(): Command {
         
         // NITS Reconciliation (Identity Tracking)
         if (config.nits.enabled) {
-          const oldRegistry = await loadNitsRegistry(cwd) || createEmptyRegistry(cwd);
+          const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
           const { registry: updatedRegistry, result } = await reconcile(
             graph, 
             oldRegistry, 

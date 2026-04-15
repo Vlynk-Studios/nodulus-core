@@ -6,11 +6,27 @@ import { isValidModuleId } from './nits-id.js';
 import type { NitsRegistry } from '../types/nits.js';
 
 /**
- * Creates an initial empty registry state.
+ * Returns the project name inferred from package.json in the current working directory.
  */
-export function createEmptyRegistry(cwd: string): NitsRegistry {
+export function inferProjectName(cwd: string): string {
+  try {
+    const pkgPath = path.join(cwd, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      return pkg.name || 'unknown';
+    }
+  } catch {
+    // Failsafe
+  }
+  return 'unknown';
+}
+
+/**
+ * Initializes an empty NITS registry state.
+ */
+export function initNitsRegistry(projectName: string): NitsRegistry {
   return {
-    project: resolveProjectName(cwd),
+    project: projectName || 'unknown',
     version: NITS_REGISTRY_VERSION,
     lastCheck: new Date().toISOString(),
     modules: {}
@@ -85,7 +101,7 @@ export async function saveNitsRegistry(registry: NitsRegistry, cwd: string): Pro
   }
 
   // Ensure metadata is current before persisting
-  registry.project = resolveProjectName(cwd);
+  registry.project = inferProjectName(cwd);
   registry.lastCheck = new Date().toISOString();
 
   await fs.promises.writeFile(
@@ -95,18 +111,3 @@ export async function saveNitsRegistry(registry: NitsRegistry, cwd: string): Pro
   );
 }
 
-/**
- * Resolves the project name from package.json in the current working directory.
- */
-function resolveProjectName(cwd: string): string {
-  try {
-    const pkgPath = path.join(cwd, 'package.json');
-    if (fs.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-      return pkg.name || 'unnamed-project';
-    }
-  } catch {
-    // Failsafe
-  }
-  return 'unnamed-project';
-}
