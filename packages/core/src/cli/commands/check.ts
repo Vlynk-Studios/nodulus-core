@@ -32,7 +32,7 @@ export function checkCommand(): Command {
             config.nits.similarityThreshold
           );
           
-          saveNitsRegistry(cwd, updatedRegistry);
+          await saveNitsRegistry(updatedRegistry, cwd);
 
           // Map IDs back to the graph nodes for reporting
           for (const node of graph.modules) {

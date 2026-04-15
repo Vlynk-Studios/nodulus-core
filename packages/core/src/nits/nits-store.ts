@@ -76,19 +76,23 @@ function isValidRegistry(data: any): data is NitsRegistry {
 /**
  * Saves the NITS registry to the standardized path (.nodulus/registry.json).
  */
-export function saveNitsRegistry(cwd: string, registry: NitsRegistry): void {
+export async function saveNitsRegistry(registry: NitsRegistry, cwd: string): Promise<void> {
   const fullPath = path.join(cwd, '.nodulus', 'registry.json');
   const dir = path.dirname(fullPath);
   
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    await fs.promises.mkdir(dir, { recursive: true });
   }
 
-  // Ensure project name is current
+  // Ensure metadata is current before persisting
   registry.project = resolveProjectName(cwd);
   registry.lastCheck = new Date().toISOString();
 
-  fs.writeFileSync(fullPath, JSON.stringify(registry, null, 2), 'utf-8');
+  await fs.promises.writeFile(
+    fullPath, 
+    JSON.stringify(registry, null, 2), 
+    'utf-8'
+  );
 }
 
 /**

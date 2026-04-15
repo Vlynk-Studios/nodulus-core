@@ -403,7 +403,7 @@ export async function createApp(
 
     if (hasChanges) {
       reportReconciliation(nitsResult);
-      saveNitsRegistry(cwd, nitsRegistry);
+      await saveNitsRegistry(nitsRegistry, cwd);
     }
 
     for (const mod of allModules) {

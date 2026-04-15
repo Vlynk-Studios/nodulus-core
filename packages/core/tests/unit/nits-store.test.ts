@@ -6,10 +6,10 @@ import fs from 'node:fs';
 vi.mock('node:fs', () => ({
   default: {
     existsSync: vi.fn(),
-    mkdirSync: vi.fn(),
-    writeFileSync: vi.fn(),
     promises: {
-      readFile: vi.fn()
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      mkdir: vi.fn()
     }
   }
 }));
@@ -39,9 +39,9 @@ describe('NITS Store', () => {
     expect(registry?.project).toBe('test');
   });
 
-  it('should save the registry securely', () => {
+  it('should save the registry securely', async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
-    saveNitsRegistry('/mock', { project: 'test', lastCheck: '', version: '1.0', modules: {} });
-    expect(fs.writeFileSync).toHaveBeenCalled();
+    await saveNitsRegistry({ project: 'test', lastCheck: '', version: '1.0', modules: {} }, '/mock');
+    expect(fs.promises.writeFile).toHaveBeenCalled();
   });
 });
