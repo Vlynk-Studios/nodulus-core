@@ -6,54 +6,78 @@ import { isValidModuleId } from './nits-id.js';
 import type { NitsRegistry } from '../types/nits.js';
 
 /**
- * Loads the NITS registry.
- * Returns a fresh registry if the file is missing or corrupted.
+ * Creates an initial empty registry state.
  */
-export function loadNitsRegistry(cwd: string, registryPath: string): NitsRegistry {
-  const fullPath = path.isAbsolute(registryPath) ? registryPath : path.join(cwd, registryPath);
-  
-  const createEmptyRegistry = (): NitsRegistry => ({ 
+export function createEmptyRegistry(cwd: string): NitsRegistry {
+  return {
     project: resolveProjectName(cwd),
-    version: NITS_REGISTRY_VERSION, 
+    version: NITS_REGISTRY_VERSION,
     lastCheck: new Date().toISOString(),
-    modules: {} 
-  });
+    modules: {}
+  };
+}
 
+/**
+ * Loads the NITS registry from the standardized path (.nodulus/registry.json).
+ * Returns null if the file is missing or corrupted.
+ */
+export async function loadNitsRegistry(cwd: string): Promise<NitsRegistry | null> {
+  const fullPath = path.join(cwd, '.nodulus', 'registry.json');
+  
   if (!fs.existsSync(fullPath)) {
-    return createEmptyRegistry();
+    return null;
   }
 
   try {
-    const content = fs.readFileSync(fullPath, 'utf-8');
+    const content = await fs.promises.readFile(fullPath, 'utf-8');
     const data = JSON.parse(content);
     
-    // Minimal validation
-    if (!data.modules || typeof data.modules !== 'object') {
-      throw new Error('Invalid registry format');
+    // Schema Validation
+    if (!isValidRegistry(data)) {
+      console.warn(`[Nodulus] Warning: NITS registry at "${fullPath}" has an invalid structure. Ignoring.`);
+      return null;
     }
 
-    if (data.version && data.version !== NITS_REGISTRY_VERSION) {
+    if (data.version !== NITS_REGISTRY_VERSION) {
       console.warn(`[Nodulus] Warning: NITS registry version mismatch (found ${data.version}, expected ${NITS_REGISTRY_VERSION}).`);
     }
 
-    for (const [id, mod] of Object.entries(data.modules)) {
+    // Deep validation of module IDs
+    for (const id of Object.keys(data.modules)) {
       if (!isValidModuleId(id)) {
-        throw new Error(`Corrupt NITS ID found in registry key: ${id}`);
+        console.warn(`[Nodulus] Warning: Corrupt NITS ID found in registry: ${id}. Registry considered invalid.`);
+        return null;
       }
     }
     
     return data as NitsRegistry;
   } catch (err: any) {
-    console.warn(`[Nodulus] Warning: NITS registry at "${fullPath}" is corrupted or invalid. Returning a blank state. Detail: ${err.message}`);
-    return createEmptyRegistry();
+    console.warn(`[Nodulus] Warning: Failed to load NITS registry at "${fullPath}": ${err.message}`);
+    return null;
   }
 }
 
 /**
- * Saves the NITS registry.
+ * Validates the basic structure of a NITS registry object.
  */
-export function saveNitsRegistry(cwd: string, registry: NitsRegistry, registryPath: string): void {
-  const fullPath = path.isAbsolute(registryPath) ? registryPath : path.join(cwd, registryPath);
+function isValidRegistry(data: any): data is NitsRegistry {
+  return (
+    data &&
+    typeof data === 'object' &&
+    typeof data.project === 'string' &&
+    typeof data.version === 'string' &&
+    typeof data.lastCheck === 'string' &&
+    data.modules &&
+    typeof data.modules === 'object'
+  );
+}
+
+
+/**
+ * Saves the NITS registry to the standardized path (.nodulus/registry.json).
+ */
+export function saveNitsRegistry(cwd: string, registry: NitsRegistry): void {
+  const fullPath = path.join(cwd, '.nodulus', 'registry.json');
   const dir = path.dirname(fullPath);
   
   if (!fs.existsSync(dir)) {

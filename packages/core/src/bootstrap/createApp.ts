@@ -13,7 +13,7 @@ import { createLogger } from '../core/logger.js';
 import { performance } from 'node:perf_hooks';
 import pc from 'picocolors';
 import { extractModuleImports } from '../nits/import-scanner.js';
-import { loadNitsRegistry, saveNitsRegistry } from '../nits/nits-store.js';
+import { loadNitsRegistry, saveNitsRegistry, createEmptyRegistry } from '../nits/nits-store.js';
 import { reconcile } from '../nits/nits-reconciler.js';
 import { reportReconciliation } from '../nits/nits-reporter.js';
 
@@ -393,7 +393,7 @@ export async function createApp(
     }
 
     const cwd = process.cwd();
-    const oldRegistry = loadNitsRegistry(cwd, config.nits?.registryPath || '.nodulus/registry.json');
+    const oldRegistry = await loadNitsRegistry(cwd) || createEmptyRegistry(cwd);
     const { registry: nitsRegistry, result: nitsResult } = await reconcile(graph, oldRegistry, cwd);
 
     const hasChanges = 
@@ -403,7 +403,7 @@ export async function createApp(
 
     if (hasChanges) {
       reportReconciliation(nitsResult);
-      saveNitsRegistry(cwd, nitsRegistry, config.nits?.registryPath || '.nodulus/registry.json');
+      saveNitsRegistry(cwd, nitsRegistry);
     }
 
     for (const mod of allModules) {

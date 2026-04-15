@@ -3,8 +3,9 @@ import pc from 'picocolors';
 import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
-import { loadNitsRegistry, saveNitsRegistry } from '../../nits/nits-store.js';
+import { loadNitsRegistry, saveNitsRegistry, createEmptyRegistry } from '../../nits/nits-store.js';
 import { reconcile } from '../../nits/nits-reconciler.js';
+import { reportReconciliation } from '../../nits/nits-reporter.js';
 
 export function checkCommand(): Command {
   const check = new Command('check');
@@ -23,23 +24,24 @@ export function checkCommand(): Command {
         
         // NITS Reconciliation (Identity Tracking)
         if (config.nits.enabled) {
-          const oldRegistry = loadNitsRegistry(cwd, config.nits.registryPath);
-          const { registry: updatedRegistry, summary } = reconcile(
+          const oldRegistry = await loadNitsRegistry(cwd) || createEmptyRegistry(cwd);
+          const { registry: updatedRegistry, result } = await reconcile(
             graph, 
             oldRegistry, 
             cwd, 
             config.nits.similarityThreshold
           );
           
-          saveNitsRegistry(cwd, updatedRegistry, config.nits.registryPath);
+          saveNitsRegistry(cwd, updatedRegistry);
 
           // Map IDs back to the graph nodes for reporting
           for (const node of graph.modules) {
             node.id = updatedRegistry.modules[node.name]?.id;
           }
 
-          if (summary.healedConflicts > 0 && options.format !== 'json') {
-            console.log(pc.yellow(`⚠ NITS: Healed ${summary.healedConflicts} ID conflict(s) in registry.`));
+          const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;
+          if (hasChanges && options.format !== 'json') {
+            reportReconciliation(result);
           }
         }
 
