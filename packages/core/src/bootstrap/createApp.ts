@@ -14,8 +14,10 @@ import { performance } from 'node:perf_hooks';
 import pc from 'picocolors';
 import { extractModuleImports } from '../nits/import-scanner.js';
 import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../nits/nits-store.js';
-import { reconcile } from '../nits/nits-reconciler.js';
+import { reconcile, applyReconciliation } from '../nits/nits-reconciler.js';
 import { reportReconciliation } from '../nits/nits-reporter.js';
+import { computeModuleHash } from '../nits/nits-hash.js';
+import type { DiscoveredModule } from '../types/nits.js';
 
 export async function createApp(
   app: Application,
@@ -363,42 +365,29 @@ export async function createApp(
       });
     }
   }
-
   // Step 6.5 — NITS Identity Tracking
   if (config.nits?.enabled !== false) {
-    const graph: import('../cli/lib/graph-builder.js').ModuleGraph = {
-      domains: [],
-      modules: []
-    };
-
+    const discovered: DiscoveredModule[] = [];
     for (const mod of allModules) {
-      const rawMod = registry.getRawModule(mod.name);
-      if (!rawMod) continue;
-
-      const services = registry.getAllServices().filter(s => s.module === mod.name).map(s => s.name);
-      const repositories = registry.getAllRepositories().filter(r => r.module === mod.name).map(r => r.name);
-      const schemas = registry.getAllSchemas().filter(s => s.module === mod.name).map(s => s.name);
-      const controllers = rawMod.controllers.map(c => c.name);
-
-      const internalIdentifiers = [...services, ...repositories, ...schemas, ...controllers];
-
-      graph.modules.push({
+      const { hash, identifiers } = await computeModuleHash(mod.path);
+      discovered.push({
         name: mod.name,
         dirPath: mod.path,
-        indexPath: rawMod.indexPath,
-        declaredImports: mod.imports,
-        actualImports: [],
-        internalIdentifiers
+        domain: undefined, // v1.x fallback
+        identifiers,
+        hash
       });
     }
 
     const cwd = process.cwd();
     const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
-    const { registry: nitsRegistry, result: nitsResult } = await reconcile(graph, oldRegistry, cwd);
+    const nitsResult = await reconcile(discovered, oldRegistry, cwd);
+    const nitsRegistry = applyReconciliation(nitsResult, oldRegistry.project);
 
     const hasChanges = 
       nitsResult.newModules.length > 0 || 
       nitsResult.moved.length > 0 || 
+      nitsResult.candidates.length > 0 ||
       nitsResult.stale.length > 0;
 
     if (hasChanges) {

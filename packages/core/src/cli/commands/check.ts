@@ -4,8 +4,10 @@ import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
 import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../../nits/nits-store.js';
-import { reconcile } from '../../nits/nits-reconciler.js';
+import { reconcile, applyReconciliation } from '../../nits/nits-reconciler.js';
 import { reportReconciliation } from '../../nits/nits-reporter.js';
+import { computeModuleHash } from '../../nits/nits-hash.js';
+import type { DiscoveredModule } from '../../types/nits.js';
 
 export function checkCommand(): Command {
   const check = new Command('check');
@@ -24,13 +26,21 @@ export function checkCommand(): Command {
         
         // NITS Reconciliation (Identity Tracking)
         if (config.nits.enabled) {
+          const discovered: DiscoveredModule[] = [];
+          for (const node of graph.modules) {
+            const { hash, identifiers } = await computeModuleHash(node.dirPath);
+            discovered.push({
+              name: node.name,
+              dirPath: node.dirPath,
+              domain: undefined,
+              identifiers,
+              hash
+            });
+          }
+
           const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
-          const { registry: updatedRegistry, result } = await reconcile(
-            graph, 
-            oldRegistry, 
-            cwd, 
-            config.nits.similarityThreshold
-          );
+          const result = await reconcile(discovered, oldRegistry, cwd);
+          const updatedRegistry = applyReconciliation(result, oldRegistry.project);
           
           await saveNitsRegistry(updatedRegistry, cwd);
 
