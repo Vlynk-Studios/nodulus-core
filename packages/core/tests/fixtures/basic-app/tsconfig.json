@@ -3,7 +3,9 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "composite": true,
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
@@ -14,3 +16,4 @@
   },
   "include": ["src/**/*"]
 }
+

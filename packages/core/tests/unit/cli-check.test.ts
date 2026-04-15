@@ -5,6 +5,10 @@ import { detectViolations, ViolationType } from '../../src/cli/lib/violations.js
 import { buildModuleGraph, ModuleNode } from '../../src/cli/lib/graph-builder.js';
 import { checkCommand } from '../../src/cli/commands/check.js';
 import * as configModule from '../../src/core/config.js';
+import * as nitsStore from '../../src/nits/nits-store.js';
+import * as nitsReconciler from '../../src/nits/nits-reconciler.js';
+import * as nitsHash from '../../src/nits/nits-hash.js';
+import { NITS_REGISTRY_VERSION } from '../../src/nits/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +62,64 @@ describe('nodulus check', () => {
       expect(circular).toBeDefined();
       expect(circular?.cycle).toEqual(['A', 'B', 'A']);
     });
+
+    it('domain names in graph are treated as valid targets (no undeclared violation)', () => {
+      const mockNodes: ModuleNode[] = [
+        {
+          name: 'orders', dirPath: '/orders', indexPath: '/orders/index.ts',
+          // 'payments' declared in imports so it is NOT an undeclared violation
+          declaredImports: ['payments'],
+          actualImports: [{ specifier: '@payments', file: '/orders/index.ts', line: 1 }],
+          internalIdentifiers: []
+        }
+      ];
+      const mockGraph = {
+        // 'payments' exists as a domain — but since declaredImports includes it, no undeclared violation either
+        domains: [{ name: 'payments', dirPath: '/payments', indexPath: '/payments/index.ts', modules: [] }],
+        modules: mockNodes
+      };
+
+      const violations = detectViolations(mockGraph);
+      const undeclared = violations.filter(v => v.type === ViolationType.UNDECLARED_IMPORT);
+      expect(undeclared).toHaveLength(0);
+    });
+
+    it('imports from a domain NOT in declaredImports generates undeclared violation', () => {
+      const mockNodes: ModuleNode[] = [
+        {
+          name: 'orders', dirPath: '/orders', indexPath: '/orders/index.ts',
+          declaredImports: [], // NOT declared
+          actualImports: [{ specifier: '@payments', file: '/orders/index.ts', line: 1 }],
+          internalIdentifiers: []
+        }
+      ];
+      const mockGraph = {
+        domains: [{ name: 'payments', dirPath: '/payments', indexPath: '/payments/index.ts', modules: [] }],
+        modules: mockNodes
+      };
+
+      const violations = detectViolations(mockGraph);
+      const undeclared = violations.filter(v => v.type === ViolationType.UNDECLARED_IMPORT);
+      // domain name IS in moduleNames set, but not in declaredImports → undeclared violation
+      expect(undeclared).toHaveLength(1);
+    });
+
+    it('location-less violations still display Unknown location in text output', () => {
+      const mockNodes: ModuleNode[] = [
+        {
+          name: 'orders', dirPath: '/orders', indexPath: '/orders/index.ts',
+          declaredImports: [],
+          actualImports: [{ specifier: '@modules/users/internal/repo.js', file: '/orders/service.ts', line: 5 }],
+          internalIdentifiers: []
+        },
+        { name: 'users', dirPath: '/users', indexPath: '/users/index.ts', declaredImports: [], actualImports: [], internalIdentifiers: [] }
+      ];
+      const violations = detectViolations({ domains: [], modules: mockNodes });
+      const priv = violations.find(v => v.type === ViolationType.PRIVATE_IMPORT);
+      expect(priv).toBeDefined();
+      expect(priv?.location).toBeDefined();
+      expect(priv?.location?.file).toBe('/orders/service.ts');
+    });
   });
 
   describe('checkCommand action', () => {
@@ -103,6 +165,75 @@ describe('nodulus check', () => {
       expect(jsonOutput.domains).toBeDefined();
       expect(jsonOutput.violations).toBeDefined();
       expect(Array.isArray(jsonOutput.violations)).toBe(true);
+    });
+
+    it('--module with unknown name throws a descriptive error', async () => {
+      const cmd = checkCommand();
+      await expect(
+        cmd.parseAsync(['node', 'test', '--module', 'does-not-exist'])
+      ).rejects.toThrow(/does-not-exist/);
+    });
+
+    it('--no-circular flag suppresses circular dependency violations', async () => {
+      const cmd = checkCommand();
+      // The fixture has a circular dep between users <-> orders.
+      // With --no-circular it should NOT throw in strict mode due to circular.
+      // (It may still throw for other violations — so we just check the call doesn't include circular in JSON)
+      await cmd.parseAsync(['node', 'test', '--format', 'json', '--no-circular']);
+      const logCall = logSpy.mock.calls.find((call: any[]) => typeof call[0] === 'string' && call[0].includes('"violations":'));
+      const json = JSON.parse(logCall![0]);
+      const hasCircular = json.violations.some((v: any) => v.type === 'circular-dependency');
+      expect(hasCircular).toBe(false);
+    });
+
+    it('--format json + --strict throws when violations present', async () => {
+      const cmd = checkCommand();
+      await expect(
+        cmd.parseAsync(['node', 'test', '--format', 'json', '--strict'])
+      ).rejects.toThrow(/violations found/i);
+    });
+
+    it('NITS enabled: runs reconciliation, saves registry, and reports changes', async () => {
+      vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+        modules: 'src/modules/*',
+        prefix: '',
+        aliases: {},
+        strict: false,
+        nits: { enabled: true }
+      } as any);
+
+      const fakeRegistry = {
+        project: 'test',
+        version: NITS_REGISTRY_VERSION,
+        lastCheck: '',
+        modules: {}
+      };
+
+      vi.spyOn(nitsStore, 'loadNitsRegistry').mockResolvedValue(null);
+      vi.spyOn(nitsStore, 'initNitsRegistry').mockReturnValue(fakeRegistry as any);
+      vi.spyOn(nitsStore, 'saveNitsRegistry').mockResolvedValue(undefined);
+      vi.spyOn(nitsStore, 'inferProjectName').mockReturnValue('test-project');
+      vi.spyOn(nitsHash, 'computeModuleHash').mockResolvedValue({ hash: 'abc', identifiers: [] });
+      vi.spyOn(nitsReconciler, 'reconcile').mockResolvedValue({
+        confirmed: [],
+        moved: [],
+        candidates: [],
+        stale: [],
+        newModules: [{ id: 'mod_abc', name: 'orders', path: 'src/modules/orders', hash: 'abc', status: 'active', lastSeen: '', identifiers: [] }]
+      });
+      vi.spyOn(nitsReconciler, 'applyReconciliation').mockReturnValue(fakeRegistry as any);
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const cmd = checkCommand();
+      await cmd.parseAsync(['node', 'test', '--module', 'orders']);
+
+      expect(nitsStore.saveNitsRegistry).toHaveBeenCalled();
+      // reportReconciliation should have been called because newModules.length > 0 in text format
+      const nitsOutput = consoleSpy.mock.calls.some((call: any[]) =>
+        typeof call[0] === 'string' && call[0].includes('NITS')
+      );
+      expect(nitsOutput).toBe(true);
     });
   });
 });

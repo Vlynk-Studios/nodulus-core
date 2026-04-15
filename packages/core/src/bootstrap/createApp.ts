@@ -345,13 +345,6 @@ export async function createApp(
           );
         }
 
-        log.debug(`Controller registered: ${pc.green(ctrlMeta.name)} → ${pc.cyan(ctrlMeta.prefix)}`, {
-          name: ctrlMeta.name,
-          prefix: ctrlMeta.prefix,
-          module: mod.name,
-          middlewareCount: ctrlMeta.middlewares.length,
-        });
-
         // Bind the active Express Router instance directly to the internally saved metadata
         ctrlMeta.router = imported.default;
         rawMod.controllers.push(ctrlMeta);

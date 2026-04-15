@@ -149,7 +149,7 @@ describe('saveNitsRegistry', () => {
     await saveNitsRegistry({ ...VALID_REGISTRY }, '/mock/project');
 
     const writtenPath = vi.mocked(fs.promises.writeFile).mock.calls
-      .find(c => (c[0] as string).endsWith('registry.json'))?.[0] as string;
+      .find((c: any) => (c[0] as string).endsWith('registry.json'))?.[0] as string;
     expect(writtenPath).toBeDefined();
     expect(writtenPath.replace(/\\/g, '/')).toContain('.nodulus/registry.json');
   });

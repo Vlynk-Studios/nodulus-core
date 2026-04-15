@@ -41,6 +41,11 @@ export async function activateAliasResolver(moduleAliases: Record<string, string
     try {
       const combinedAliases = { ...moduleAliases, ...folderAliases };
 
+      if (Object.keys(combinedAliases).length === 0) {
+        log.debug('No aliases to register, skipping ESM hook activation');
+        return;
+      }
+
       for (const [alias, target] of Object.entries(folderAliases)) {
         log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
       }
@@ -48,9 +53,6 @@ export async function activateAliasResolver(moduleAliases: Record<string, string
         log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'module' });
       }
 
-      // Aliases are serialised directly into the hook source so they are available
-      // in the hook's closure regardless of whether Node.js propagates context.data
-      // across all resolution chains (not guaranteed in every Node 20.6+ build).
       const serialisedAliases = JSON.stringify(combinedAliases);
 
       const loaderCode = `
@@ -80,12 +82,12 @@ export async function resolve(specifier, context, nextResolve) {
 
       const dataUrl = `data:text/javascript,${encodeURIComponent(loaderCode)}`;
       const parentUrl = import.meta.url;
-      
+
       if (typeof register === 'function') {
         register(dataUrl, { parentURL: parentUrl });
         isHookRegistered = true;
         log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
-          aliasCount: Object.keys(combinedAliases).length
+          aliasCount: Object.keys(combinedAliases).length,
         });
       } else {
         log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
@@ -93,7 +95,7 @@ export async function resolve(specifier, context, nextResolve) {
         });
       }
     } catch (err) {
-      log.warn('ESM alias hook registration threw an unexpected error — aliases may not resolve at runtime', {
+      log.warn('ESM alias hook registration threw an unexpected error', {
         error: (err as any)?.message ?? String(err)
       });
     } finally {

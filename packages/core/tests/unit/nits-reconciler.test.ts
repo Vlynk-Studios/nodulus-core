@@ -164,4 +164,63 @@ describe('NITS Reconciler (Verification Triangle)', () => {
     expect(result.newModules.length).toBe(1);
     expect(result.stale.length).toBe(2);
   });
+
+  it('Paso 3: único match por nombre en registros stale → candidate', async () => {
+    const previous: NitsRegistry = {
+      ...createEmptyRegistry(),
+      modules: {
+        'mod_x': { id: 'mod_x', name: 'widget', path: 'src/old-widget', hash: 'h_old', status: 'stale', lastSeen: '', identifiers: [] }
+      }
+    };
+
+    const discovered: DiscoveredModule[] = [
+      { name: 'widget', dirPath: '/project/src/new-widget', identifiers: [], hash: 'h_new' }
+    ];
+
+    // No hash similarity → Paso 2 skipped
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.1);
+
+    const result = await reconcile(discovered, previous, cwd);
+
+    // Paso 3 should match by name on the stale record
+    expect(result.candidates.length).toBe(1);
+    expect(result.candidates[0].record.id).toBe('mod_x');
+    expect(result.candidates[0].oldPath).toBe('src/old-widget');
+    expect(result.candidates[0].newPath).toBe('src/new-widget');
+    expect(result.newModules.length).toBe(0);
+  });
+});
+
+import { applyReconciliation } from '../../src/nits/nits-reconciler.js';
+
+describe('applyReconciliation()', () => {
+  const makeRecord = (id: string, name: string, status: 'active' | 'moved' | 'candidate' | 'stale' = 'active') => ({
+    id,
+    name,
+    path: `src/${name}`,
+    hash: 'h',
+    status,
+    lastSeen: '',
+    identifiers: []
+  });
+
+  it('assembles registry containing confirmed, moved, candidates, newModules, and stale', () => {
+    const result = {
+      confirmed:  [makeRecord('mod_c', 'confirmed')],
+      moved:      [{ record: makeRecord('mod_m', 'moved', 'moved'),   oldPath: 'old', newPath: 'new', brokenImports: [] }],
+      candidates: [{ record: makeRecord('mod_k', 'candidate', 'candidate'), oldPath: 'old', newPath: 'new', brokenImports: [] }],
+      newModules: [makeRecord('mod_n', 'new')],
+      stale:      [makeRecord('mod_s', 'gone', 'stale')]
+    };
+
+    const registry = applyReconciliation(result, 'my-project');
+
+    expect(registry.project).toBe('my-project');
+    expect(Object.keys(registry.modules)).toHaveLength(5);
+    expect(registry.modules['mod_c']?.name).toBe('confirmed');
+    expect(registry.modules['mod_m']?.name).toBe('moved');
+    expect(registry.modules['mod_k']?.name).toBe('candidate');
+    expect(registry.modules['mod_n']?.name).toBe('new');
+    expect(registry.modules['mod_s']?.status).toBe('stale');
+  });
 });
