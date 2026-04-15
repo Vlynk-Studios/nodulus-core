@@ -3,7 +3,6 @@ import { reportReconciliation } from '../../src/nits/nits-reporter.js';
 import type { ReconciliationResult } from '../../src/types/nits.js';
 import type { Logger } from '../../src/core/logger.js';
 
-// Mock picocolors to return strings as-is to simplify assertions
 vi.mock('picocolors', () => {
   const identity = (s: any) => s;
   const pcMock = {
@@ -53,17 +52,17 @@ describe('reportReconciliation()', () => {
     vi.restoreAllMocks();
   });
 
-  it('no imprime nada (solo debug) si no hay cambios significativos', () => {
+  it('does not print anything (only debug) if there are no significant changes (moved, stale, candidate)', () => {
     const log = createMockLogger();
-    const result = { ...emptyResult(), confirmed: [makeModule('users')] };
+    const result = { ...emptyResult(), confirmed: [makeModule('users')], newModules: [makeModule('new')] };
     
     reportReconciliation(result, log);
     
     expect(log.warn).not.toHaveBeenCalled();
-    expect((log.debug as any).mock.calls[0][0]).toContain('Sin cambios detectados');
+    expect((log.debug as any).mock.calls[0][0]).toContain('no changes detected');
   });
 
-  it('reporta movimientos detallados en español', () => {
+  it('reports detailed movements', () => {
     const log = createMockLogger();
     const result = { 
       ...emptyResult(), 
@@ -80,15 +79,15 @@ describe('reportReconciliation()', () => {
     reportReconciliation(result, log);
     
     const warnOutput = (log.warn as any).mock.calls[0][0];
-    expect(warnOutput).toMatch(/Movimiento detectado: 'users'/);
-    expect(warnOutput).toMatch(/\s{11}Antes: src\/modules\/users/);
-    expect(warnOutput).toMatch(/\s{11}Ahora: src\/domains\/workspace\/modules\/users/);
-    expect(warnOutput).toMatch(/\s{11}Imports rotos \(1 archivo\(s\)\):/);
+    expect(warnOutput).toMatch(/Movement detected: 'users'/);
+    expect(warnOutput).toMatch(/\s{11}Before: src\/modules\/users/);
+    expect(warnOutput).toMatch(/\s{11}Now: src\/domains\/workspace\/modules\/users/);
+    expect(warnOutput).toMatch(/\s{11}Broken imports \(1 file\(s\)\):/);
     expect(warnOutput).toMatch(/\s{13}src\/app\.ts:14\s{2}→\s{2}@modules\/users/);
-    expect(warnOutput).toMatch(/\s{11}Actualizá los imports a: @workspace\/users/);
+    expect(warnOutput).toMatch(/\s{11}Update imports to: @workspace\/users/);
   });
 
-  it('reporta módulos stale (desaparecidos)', () => {
+  it('reports stale (missing) modules', () => {
     const log = createMockLogger();
     const result = { 
       ...emptyResult(), 
@@ -98,12 +97,12 @@ describe('reportReconciliation()', () => {
     reportReconciliation(result, log);
     
     const warnOutput = (log.warn as any).mock.calls[0][0];
-    expect(warnOutput).toMatch(/Módulo 'payments' no encontrado en disco/);
-    expect(warnOutput).toMatch(/\s{11}Última ubicación: src\/payments/);
-    expect(warnOutput).toMatch(/\s{11}Si fue.*podés ignorar esto/);
+    expect(warnOutput).toMatch(/Module 'payments' not found on disk/);
+    expect(warnOutput).toMatch(/\s{11}Last location: src\/payments/);
+    expect(warnOutput).toMatch(/\s{11}If it was intentionally deleted, you can ignore this/);
   });
 
-  it('reporta candidatos (posibles reubicaciones)', () => {
+  it('reports candidates (possible relocations)', () => {
     const log = createMockLogger();
     const result = { 
       ...emptyResult(), 
@@ -118,23 +117,29 @@ describe('reportReconciliation()', () => {
     reportReconciliation(result, log);
     
     const warnOutput = (log.warn as any).mock.calls[0][0];
-    expect(warnOutput).toMatch(/Posible reubicación: 'orders'/);
-    expect(warnOutput).toMatch(/\s{11}Se encontró un módulo con el mismo nombre/);
-    expect(warnOutput).toMatch(/\s{11}Nuevo path: src\/domains\/billing\/modules\/orders/);
+    expect(warnOutput).toMatch(/Possible relocation: 'orders'/);
+    expect(warnOutput).toMatch(/\s{11}A module with the same name was found in a new location/);
+    expect(warnOutput).toMatch(/\s{11}New path: src\/domains\/billing\/modules\/orders/);
   });
 
-  it('loguea nuevos módulos solo en nivel debug', () => {
+  it('logs new modules in debug ONLY if there are other significant changes', () => {
     const log = createMockLogger();
-    const result = { ...emptyResult(), newModules: [makeModule('new')] };
-    
-    reportReconciliation(result, log);
-    
+    const res1 = { ...emptyResult(), newModules: [makeModule('new')] };
+    reportReconciliation(res1, log);
     expect(log.warn).not.toHaveBeenCalled();
+    expect((log.debug as any).mock.calls[0][0]).toContain('no changes detected');
+
+    const res2 = { 
+      ...emptyResult(), 
+      newModules: [makeModule('new')],
+      moved: [{ record: makeModule('m'), oldPath: 'o', newPath: 'n', brokenImports: [] }] 
+    };
+    reportReconciliation(res2, log);
     const debugCalls = (log.debug as any).mock.calls.map((c: any[]) => c[0]);
-    expect(debugCalls.some((c: string) => c.includes('1 nuevos módulos descubiertos'))).toBe(true);
+    expect(debugCalls.some((c: string) => c.includes('1 new modules discovered'))).toBe(true);
   });
 
-  it('incluye resumen de reconciliación en debug', () => {
+  it('includes reconciliation summary in debug if there are significant changes', () => {
     const log = createMockLogger();
     const result = { ...emptyResult(), moved: [{ record: makeModule('m'), oldPath: 'o', newPath: 'n', brokenImports: [] }] };
     
