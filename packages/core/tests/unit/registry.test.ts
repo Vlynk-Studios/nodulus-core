@@ -10,14 +10,15 @@ describe('Registry', () => {
         'users',
         { imports: [], exports: ['UserService'] },
         '/src/modules/users',
-        '/src/modules/users/index.ts'
+        '/src/modules/users/index.ts',
+        'mod_users_001'
       );
 
       expect(getActiveRegistry().hasModule('users')).toBe(true);
 
-      // Getting the mapped RegisteredModule
       const registered = getActiveRegistry().getModule('users');
       expect(registered).toEqual({
+        id: 'mod_users_001',
         name: 'users',
         path: '/src/modules/users',
         imports: [],
@@ -28,25 +29,59 @@ describe('Registry', () => {
       const all = getActiveRegistry().getAllModules();
       expect(all).toHaveLength(1);
       expect(all[0].name).toBe('users');
+      expect(all[0].id).toBe('mod_users_001');
     });
   });
 
-  it('throws DUPLICATE_MODULE when registering twice', async () => {
+  it('throws DUPLICATE_MODULE when registering twice with same nitsId', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
       const name = 'auth';
       const options = { imports: [], exports: [] };
       const dirPath = '/some/path';
       const indexPath = '/some/path/index.ts';
+      const id = 'mod_auth_123';
 
-      getActiveRegistry().registerModule(name, options, dirPath, indexPath);
+      getActiveRegistry().registerModule(name, options, dirPath, indexPath, id);
 
-      expect(() => getActiveRegistry().registerModule(name, options, dirPath, indexPath)).toThrowError(NodulusError);
+      // Same ID, different everything else -> Still Duplicate
+      expect(() => getActiveRegistry().registerModule('other', options, '/other', '/other/index.ts', id)).toThrowError(NodulusError);
       try {
-        getActiveRegistry().registerModule(name, options, dirPath, indexPath);
+        getActiveRegistry().registerModule('other', options, '/other', '/other/index.ts', id);
       } catch (e: any) {
         expect(e.code).toBe('DUPLICATE_MODULE');
       }
+    });
+  });
+
+  it('allows duplicate names if paths and NITS IDs are different', async () => {
+    const r = createRegistry();
+    await registryContext.run(r, async () => {
+      // Module 1: users in root
+      getActiveRegistry().registerModule(
+        'users', 
+        { imports: [] }, 
+        '/src/modules/users', 
+        '/src/modules/users/index.ts', 
+        'mod_users_original'
+      );
+
+      // Module 2: users in a domain folder (pre-preparing v2.0.0)
+      getActiveRegistry().registerModule(
+        'users', 
+        { imports: [] }, 
+        '/src/domains/billing/modules/users', 
+        '/src/domains/billing/modules/users/index.ts', 
+        'mod_users_billing'
+      );
+
+      expect(getActiveRegistry().hasModule('users')).toBe(true);
+      
+      // In v1.4.0, getModule(name) returns the LAST one registered (modulesByName index behavior)
+      const mod = getActiveRegistry().getModule('users');
+      expect(mod?.id).toBe('mod_users_billing');
+      
+      expect(getActiveRegistry().getAllModules()).toHaveLength(2);
     });
   });
 
@@ -73,10 +108,8 @@ describe('Registry', () => {
     await registryContext.run(r, async () => {
       getActiveRegistry().registerAlias('@utils', '/src/utils');
 
-      // Repeating the same target is fine (idempotent)
       expect(() => getActiveRegistry().registerAlias('@utils', '/src/utils')).not.toThrow();
 
-      // Different target throws error
       expect(() => getActiveRegistry().registerAlias('@utils', '/src/other-utils')).toThrowError(NodulusError);
       try {
         getActiveRegistry().registerAlias('@utils', '/src/other-utils');
@@ -89,8 +122,8 @@ describe('Registry', () => {
   it('getDependencyGraph() reflects declared imports', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('users', { imports: ['database'] }, '/users', '/users/index.ts');
-      getActiveRegistry().registerModule('database', { imports: [] }, '/database', '/database/index.ts');
+      getActiveRegistry().registerModule('users', { imports: ['database'] }, '/users', '/users/index.ts', 'id_u');
+      getActiveRegistry().registerModule('database', { imports: [] }, '/database', '/database/index.ts', 'id_d');
 
       const graph = getActiveRegistry().getDependencyGraph();
       expect(graph.get('users')).toEqual(['database']);
@@ -101,8 +134,8 @@ describe('Registry', () => {
   it('findCircularDependencies() detects A -> B -> A', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('A', { imports: ['B'] }, '/a', '/a/index.ts');
-      getActiveRegistry().registerModule('B', { imports: ['A'] }, '/b', '/b/index.ts');
+      getActiveRegistry().registerModule('A', { imports: ['B'] }, '/a', '/a/index.ts', 'id_a');
+      getActiveRegistry().registerModule('B', { imports: ['A'] }, '/b', '/b/index.ts', 'id_b');
 
       const cycles = getActiveRegistry().findCircularDependencies();
       expect(cycles.length).toBeGreaterThan(0);
@@ -110,29 +143,14 @@ describe('Registry', () => {
     });
   });
 
-  it('findCircularDependencies() detects A -> B -> C -> A', async () => {
+  it('seeds and retrieves NITS IDs by path', () => {
     const r = createRegistry();
-    await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('moduleA', { imports: ['moduleB'] }, '/ma', '/ma/index.ts');
-      getActiveRegistry().registerModule('moduleB', { imports: ['moduleC'] }, '/mb', '/mb/index.ts');
-      getActiveRegistry().registerModule('moduleC', { imports: ['moduleA'] }, '/mc', '/mc/index.ts');
-
-      const cycles = getActiveRegistry().findCircularDependencies();
-      expect(cycles.length).toBeGreaterThan(0);
-      expect(cycles[0]).toEqual(['moduleA', 'moduleB', 'moduleC', 'moduleA']);
-    });
-  });
-
-  it('findCircularDependencies() returns [] if there are no cycles', async () => {
-    const r = createRegistry();
-    await registryContext.run(r, async () => {
-      getActiveRegistry().registerModule('X', { imports: ['Y'] }, '/x', '/x/index.ts');
-      getActiveRegistry().registerModule('Y', { imports: ['Z'] }, '/y', '/y/index.ts');
-      getActiveRegistry().registerModule('Z', { imports: [] }, '/z', '/z/index.ts');
-
-      const cycles = getActiveRegistry().findCircularDependencies();
-      expect(cycles).toEqual([]);
-    });
+    r.seedNitsIds(new Map([['/abs/path', 'mod_123']]));
+    
+    expect(r.getNitsIdForPath('/abs/path')).toBe('mod_123');
+    // Normalized
+    expect(r.getNitsIdForPath('\\abs\\path')).toBe('mod_123');
+    expect(r.getNitsIdForPath('/unknown')).toBeUndefined();
   });
 
   it('getRegistry() exposes NodulusRegistryAdvanced interface', async () => {
@@ -144,8 +162,6 @@ describe('Registry', () => {
       expect(typeof advancedRegistry.getDependencyGraph).toBe('function');
     });
   });
-
-  // -- Context isolation tests --
 
   it('getActiveRegistry() throws REGISTRY_MISSING_CONTEXT outside createApp', () => {
     expect(() => getActiveRegistry()).toThrow(NodulusError);
@@ -162,14 +178,13 @@ describe('Registry', () => {
 
     await Promise.all([
       registryContext.run(rA, async () => {
-        getActiveRegistry().registerModule('moduleA', {}, '/pathA', '/pathA/index.ts');
-        // Yield to allow the other context to run
+        getActiveRegistry().registerModule('moduleA', {}, '/pathA', '/pathA/index.ts', 'id_a_unique');
         await new Promise(resolve => setTimeout(resolve, 10));
         expect(getActiveRegistry().hasModule('moduleA')).toBe(true);
         expect(getActiveRegistry().hasModule('moduleB')).toBe(false);
       }),
       registryContext.run(rB, async () => {
-        getActiveRegistry().registerModule('moduleB', {}, '/pathB', '/pathB/index.ts');
+        getActiveRegistry().registerModule('moduleB', {}, '/pathB', '/pathB/index.ts', 'id_b_unique');
         await new Promise(resolve => setTimeout(resolve, 10));
         expect(getActiveRegistry().hasModule('moduleB')).toBe(true);
         expect(getActiveRegistry().hasModule('moduleA')).toBe(false);

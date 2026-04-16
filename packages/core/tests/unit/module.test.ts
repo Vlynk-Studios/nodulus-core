@@ -83,14 +83,14 @@ describe('Module()', () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
       const idxPath = path.join(modDir, 'index.ts');
-      r.registerModule('shared', {}, modDir, idxPath);
+      r.registerModule('shared', {}, modDir, idxPath, 'id_1');
       
       expect(() => {
-        r.registerModule('duplicate', {}, modDir, idxPath);
+        r.registerModule('duplicate', {}, modDir, idxPath, 'id_2');
       }).toThrowError(NodulusError);
       
       try {
-        r.registerModule('duplicate', {}, modDir, idxPath);
+        r.registerModule('duplicate', {}, modDir, idxPath, 'id_3');
       } catch (err: any) {
         expect(err.code).toBe('DUPLICATE_MODULE');
         expect(err.message).toContain('already registered for this folder');

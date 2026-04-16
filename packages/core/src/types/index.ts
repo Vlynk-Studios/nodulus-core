@@ -14,7 +14,7 @@ export interface ControllerEntry {
 }
 
 export interface ModuleEntry {
-  id?: string;        // NITS specific assigned ID
+  id: string;         // NITS specific assigned ID
   name: string;
   path: string;       // absolute path to the module directory
   indexPath: string;  // absolute path to the module's index.ts / index.js
@@ -185,7 +185,7 @@ export interface ResolvedConfig {
 
 /** A module as it appears in the NodularApp result after bootstrap. */
 export interface RegisteredModule {
-  id?: string;
+  id: string;
   name: string;
   path: string;         // absolute path to the module directory
   imports: string[];    // names of modules this module depends on
