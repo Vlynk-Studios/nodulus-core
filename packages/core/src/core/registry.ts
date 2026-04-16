@@ -19,7 +19,7 @@ export type ModuleRegistration = RegisteredModule;
 export type FeatureRegistration = FileEntry;
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
-  id: entry.id,
+  id: entry.nitsId,
   name: entry.name,
   path: entry.path,
   imports: entry.imports,
@@ -38,6 +38,12 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   getNitsIdForPath(dirPath: string): string | undefined;
   /** Registers a module and throws DUPLICATE_MODULE if the nitsId already exists */
   registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string, nitsId: string): void;
+  /** Checks if a module exists in the registry by its NITS ID */
+  hasModuleById(nitsId: string): boolean;
+  /** Returns a registered module by its NITS ID */
+  getModuleById(nitsId: string): RegisteredModule | undefined;
+  /** Returns a registered module by its absolute directory path */
+  getModuleByPath(dirPath: string): RegisteredModule | undefined;
   /** Adds an alias to the registry */
   registerAlias(alias: string, path: string): void;
   /** Stores temporary metadata for a recently evaluated controller */
@@ -100,6 +106,22 @@ export function createRegistry(): InternalRegistry {
       return Array.from(modules.values()).map(toRegisteredModule);
     },
 
+    hasModuleById(nitsId: string): boolean {
+      return modules.has(nitsId);
+    },
+
+    getModuleById(nitsId: string): RegisteredModule | undefined {
+      const entry = modules.get(nitsId);
+      return entry ? toRegisteredModule(entry) : undefined;
+    },
+
+    getModuleByPath(dirPath: string): RegisteredModule | undefined {
+      const nitsId = modulesByPath.get(normalizePath(dirPath));
+      if (!nitsId) return undefined;
+      const entry = modules.get(nitsId);
+      return entry ? toRegisteredModule(entry) : undefined;
+    },
+
     resolveAlias(alias: string): string | undefined {
       return aliases.get(alias);
     },
@@ -156,7 +178,7 @@ export function createRegistry(): InternalRegistry {
       }
       
       const entry: ModuleEntry = {
-        id: nitsId,
+        nitsId,
         name,
         path: dirPath,
         indexPath,

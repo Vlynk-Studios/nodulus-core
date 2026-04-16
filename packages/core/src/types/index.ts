@@ -14,7 +14,7 @@ export interface ControllerEntry {
 }
 
 export interface ModuleEntry {
-  id: string;         // NITS specific assigned ID
+  nitsId: string;     // NITS specific assigned ID
   name: string;
   path: string;       // absolute path to the module directory
   indexPath: string;  // absolute path to the module's index.ts / index.js
