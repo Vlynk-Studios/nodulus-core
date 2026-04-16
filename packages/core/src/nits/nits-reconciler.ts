@@ -152,11 +152,8 @@ export async function reconcile(
 
 /**
  * Applies the reconciliation result to create a new NitsRegistry.
- * Note: candidates are NOT automatically included as active in the new registry 
- * (as per Step 3 requirements), they stay as candidates in the registry 
- * until confirmed (implementation detail: we include them as 'candidate').
  */
-export function applyReconciliation(
+export function buildUpdatedNitsRegistry(
   result: ReconciliationResult, 
   projectName: string
 ): NitsRegistry {
@@ -165,7 +162,7 @@ export function applyReconciliation(
   const allActive = [
     ...result.confirmed,
     ...result.moved.map(m => m.record),
-    ...result.candidates.map(m => m.record), // stored as candidate status
+    ...result.candidates.map(m => m.record),
     ...result.newModules,
     ...result.stale
   ];
@@ -180,4 +177,28 @@ export function applyReconciliation(
     lastCheck: new Date().toISOString(),
     modules
   };
+}
+
+/**
+ * Extracts a clean path -> nitsId mapping from a reconciliation result.
+ * Paths are returned as absolute normalized paths.
+ */
+export function buildNitsIdMap(result: ReconciliationResult, cwd: string): Map<string, string> {
+  const mapping = new Map<string, string>();
+  
+  const allCurrent = [
+    ...result.confirmed,
+    ...result.moved.map(m => m.record),
+    ...result.candidates.map(m => m.record),
+    ...result.newModules
+  ];
+
+  for (const record of allCurrent) {
+    const absPath = path.isAbsolute(record.path) 
+      ? record.path 
+      : path.resolve(cwd, record.path);
+    mapping.set(absPath, record.id);
+  }
+
+  return mapping;
 }

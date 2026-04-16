@@ -221,7 +221,7 @@ describe('nodulus check', () => {
         stale: [],
         newModules: [{ id: 'mod_abc', name: 'orders', path: 'src/modules/orders', hash: 'abc', status: 'active', lastSeen: '', identifiers: [] }]
       });
-      vi.spyOn(nitsReconciler, 'applyReconciliation').mockReturnValue(fakeRegistry as any);
+      vi.spyOn(nitsReconciler, 'buildUpdatedNitsRegistry').mockReturnValue(fakeRegistry as any);
 
       vi.spyOn(console, 'log').mockImplementation(() => {});
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { reconcile } from '../../src/nits/nits-reconciler.js';
+import path from 'node:path';
+import { reconcile, buildUpdatedNitsRegistry, buildNitsIdMap } from '../../src/nits/nits-reconciler.js';
 import * as nitsHash from '../../src/nits/nits-hash.js';
 import { NITS_REGISTRY_VERSION } from '../../src/nits/constants.js';
 import type { NitsRegistry, DiscoveredModule } from '../../src/types/nits.js';
@@ -191,9 +192,7 @@ describe('NITS Reconciler (Verification Triangle)', () => {
   });
 });
 
-import { applyReconciliation } from '../../src/nits/nits-reconciler.js';
-
-describe('applyReconciliation()', () => {
+describe('buildUpdatedNitsRegistry()', () => {
   const makeRecord = (id: string, name: string, status: 'active' | 'moved' | 'candidate' | 'stale' = 'active') => ({
     id,
     name,
@@ -213,14 +212,32 @@ describe('applyReconciliation()', () => {
       stale:      [makeRecord('mod_s', 'gone', 'stale')]
     };
 
-    const registry = applyReconciliation(result, 'my-project');
+    const registry = buildUpdatedNitsRegistry(result as any, 'my-project');
 
     expect(registry.project).toBe('my-project');
     expect(Object.keys(registry.modules)).toHaveLength(5);
     expect(registry.modules['mod_c']?.name).toBe('confirmed');
-    expect(registry.modules['mod_m']?.name).toBe('moved');
-    expect(registry.modules['mod_k']?.name).toBe('candidate');
+    expect(registry.modules['mod_m']?.status).toBe('moved');
+    expect(registry.modules['mod_k']?.status).toBe('candidate');
     expect(registry.modules['mod_n']?.name).toBe('new');
     expect(registry.modules['mod_s']?.status).toBe('stale');
+  });
+});
+
+describe('buildNitsIdMap()', () => {
+  it('extracts a map of absolute paths to IDs', () => {
+    const record = { id: 'mod_123', name: 'test', path: 'src/test' };
+    const result = {
+      confirmed: [record],
+      moved: [],
+      candidates: [],
+      newModules: [],
+      stale: []
+    };
+
+    const map = buildNitsIdMap(result as any, '/project');
+    
+    const expectedPath = path.resolve('/project', 'src/test');
+    expect(map.get(expectedPath)).toBe('mod_123');
   });
 });

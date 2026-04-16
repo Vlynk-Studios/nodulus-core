@@ -14,7 +14,7 @@ import { performance } from 'node:perf_hooks';
 import pc from 'picocolors';
 import { extractModuleImports } from '../nits/import-scanner.js';
 import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../nits/nits-store.js';
-import { reconcile, applyReconciliation } from '../nits/nits-reconciler.js';
+import { reconcile, buildUpdatedNitsRegistry, buildNitsIdMap } from '../nits/nits-reconciler.js';
 import { reportReconciliation } from '../nits/nits-reporter.js';
 import { computeModuleHash } from '../nits/nits-hash.js';
 import { normalizePath } from '../core/utils/paths.js';
@@ -113,6 +113,41 @@ export async function createApp(
     });
   }
 
+  // Step 2.5 — NITS Identity Reconciliation (Identity tracking audit layer)
+  if (config.nits?.enabled !== false) {
+    try {
+      const discovered: DiscoveredModule[] = [];
+      for (const mod of resolvedModules) {
+        const { hash, identifiers } = await computeModuleHash(mod.dirPath);
+        discovered.push({
+          name: mod.name,
+          dirPath: mod.dirPath,
+          domain: undefined,
+          identifiers,
+          hash
+        });
+      }
+
+      const cwd = process.cwd();
+      const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
+      const nitsResult = await reconcile(discovered, oldRegistry, cwd);
+      
+      reportReconciliation(nitsResult, log);
+      
+      const updatedNits = buildUpdatedNitsRegistry(nitsResult, oldRegistry.project);
+      await saveNitsRegistry(updatedNits, cwd);
+
+      // Seed the registry with the reconciled IDs
+      const nitsIdMap = buildNitsIdMap(nitsResult, cwd);
+      registry.seedNitsIds(nitsIdMap);
+      
+      log.debug('NITS identity reconciliation complete.');
+    } catch (err: any) {
+      log.warn(`NITS reconciliation failed: ${err.message}. Bootstrap will continue with temporary identities.`);
+      log.debug('NITS Error detail:', err);
+    }
+  }
+
   // Step 3 — Activate runtime aliases
   if (config.resolveAliases !== false) {
     const pureModuleAliases: Record<string, string> = {};
@@ -138,45 +173,6 @@ export async function createApp(
 
     await activateAliasResolver(pureModuleAliases, config.aliases, log);
     updateAliasCache(registry.getAllAliases());
-  }
-
-  // Step 3.5 — NITS Identity Reconciliation (v1.4.0: Moved to pre-import phase)
-  if (config.nits?.enabled !== false) {
-    const discovered: DiscoveredModule[] = [];
-    for (const mod of resolvedModules) {
-      const { hash, identifiers } = await computeModuleHash(mod.dirPath);
-      discovered.push({
-        name: mod.name,
-        dirPath: mod.dirPath,
-        domain: undefined,
-        identifiers,
-        hash
-      });
-    }
-
-    const cwd = process.cwd();
-    const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
-    const nitsResult = await reconcile(discovered, oldRegistry, cwd);
-    const nitsRegistry = applyReconciliation(nitsResult, oldRegistry.project);
-
-    const hasChanges = 
-      nitsResult.newModules.length > 0 || 
-      nitsResult.moved.length > 0 || 
-      nitsResult.candidates.length > 0 ||
-      nitsResult.stale.length > 0;
-
-    if (hasChanges) {
-      reportReconciliation(nitsResult, log);
-      await saveNitsRegistry(nitsRegistry, cwd);
-    }
-
-    // Seed the registry with path -> nitsId mappings for the upcoming Step 4
-    const idMapping = new Map<string, string>();
-    for (const record of Object.values(nitsRegistry.modules)) {
-      const absPath = normalizePath(path.resolve(cwd, record.path));
-      idMapping.set(absPath, record.id);
-    }
-    registry.seedNitsIds(idMapping);
   }
 
   // Step 4 — Import modules
