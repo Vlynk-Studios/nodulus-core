@@ -78,7 +78,7 @@ describe('loadNitsRegistry', () => {
       modules: {
         'not-a-valid-id': {
           id: 'not-a-valid-id', name: 'users', path: 'src/modules/users',
-          hash: 'abc', status: 'active', lastSeen: '', identifiers: []
+          hash: 'abc', status: 'active', createdAt: '', lastSeen: '', identifiers: []
         }
       }
     }));
@@ -195,6 +195,7 @@ describe('saveNitsRegistry', () => {
           path: 'src/modules/users',
           hash: 'abc1234567',
           status: 'active' as const,
+          createdAt: '2024-01-01T00:00:00.000Z',
           lastSeen: '2024-01-01T00:00:00.000Z',
           identifiers: ['UserService', 'UserRepository']
         }

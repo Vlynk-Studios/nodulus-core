@@ -2,13 +2,15 @@ import path from 'node:path';
 import { NITS_REGISTRY_VERSION } from './constants.js';
 import { hashSimilarity } from './nits-hash.js';
 import { generateModuleId } from './nits-id.js';
+import { NodulusError } from '../core/errors.js';
 import type { 
   NitsRegistry, 
   NitsModuleRecord, 
   ReconciliationResult, 
   NitsStatus,
   DiscoveredModule,
-  MovedModule
+  MovedModule,
+  ReconcileOptions
 } from '../types/nits.js';
 
 /**
@@ -22,7 +24,8 @@ import type {
 export async function reconcile(
   discovered: DiscoveredModule[],
   previous: NitsRegistry | null,
-  cwd: string = process.cwd()
+  cwd: string = process.cwd(),
+  options: ReconcileOptions = {}
 ): Promise<ReconciliationResult> {
   const result: ReconciliationResult = {
     confirmed: [],
@@ -39,11 +42,16 @@ export async function reconcile(
   const timestamp = new Date().toISOString();
   
   const normalize = (p: string) => path.isAbsolute(p) ? path.relative(cwd, p).replace(/\\/g, '/') : p;
+  const isCi = options.isCi ?? !!process.env.CI;
+  const clonePolicy = options.clonePolicy || (isCi ? 'error' : 'new');
+  
+  const activeHashes = new Map<string, string>(); // hash -> path
 
   const createRecord = (
     id: string, 
     disc: DiscoveredModule, 
-    status: NitsStatus
+    status: NitsStatus,
+    createdAt?: string
   ): NitsModuleRecord => ({
     id,
     name: disc.name,
@@ -51,6 +59,7 @@ export async function reconcile(
     domain: disc.domain,
     hash: disc.hash,
     status,
+    createdAt: createdAt || timestamp,
     lastSeen: timestamp,
     identifiers: disc.identifiers
   });
@@ -70,8 +79,9 @@ export async function reconcile(
       }
 
       // Even if hash changed, if path is same, it's the same module (Confirmed)
-      const record = createRecord(prev.id, disc, 'active');
+      const record = createRecord(prev.id, disc, 'active', prev.createdAt);
       result.confirmed.push(record);
+      activeHashes.set(disc.hash, record.path);
       
       unmatchedDiscovered.splice(i, 1);
       unmatchedPrev.splice(prevIdx, 1);
@@ -97,7 +107,7 @@ export async function reconcile(
     if (matchesForThisDisc.length === 1) {
       const bestMatchIdx = matchesForThisDisc[0].idx;
       const prev = unmatchedPrev[bestMatchIdx];
-      const record = createRecord(prev.id, disc, 'moved');
+      const record = createRecord(prev.id, disc, 'moved', prev.createdAt);
       
       result.moved.push({
         record,
@@ -121,7 +131,7 @@ export async function reconcile(
     if (matches.length === 1) {
       const prev = matches[0];
       const prevIdx = unmatchedPrev.indexOf(prev);
-      const record = createRecord(prev.id, disc, 'candidate');
+      const record = createRecord(prev.id, disc, 'candidate', prev.createdAt);
       
       result.candidates.push({
         record,
@@ -137,10 +147,23 @@ export async function reconcile(
 
   // FINALIZATION: New Modules & Stale
   for (const disc of unmatchedDiscovered) {
+    // CLONE DETECTION
+    if (activeHashes.has(disc.hash)) {
+      const originalPath = activeHashes.get(disc.hash)!;
+      if (clonePolicy === 'error') {
+        throw new NodulusError(
+          'DUPLICATE_MODULE',
+          `Duplicate module content detected: "${disc.name}" has the same content as already registered module at "${originalPath}".`,
+          `If this is intentional (e.g. a template or shared code), ensure they have distinct identifiers or use NITS clonePolicy='new' in dev.`
+        );
+      }
+    }
+
     const id = generateModuleId(usedIds);
     const record = createRecord(id, disc, 'active');
     usedIds.add(id);
     result.newModules.push(record);
+    activeHashes.set(disc.hash, record.path);
   }
 
   for (const prev of unmatchedPrev) {

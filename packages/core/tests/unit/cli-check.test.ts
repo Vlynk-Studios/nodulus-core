@@ -219,7 +219,7 @@ describe('nodulus check', () => {
         moved: [],
         candidates: [],
         stale: [],
-        newModules: [{ id: 'mod_abc', name: 'orders', path: 'src/modules/orders', hash: 'abc', status: 'active', lastSeen: '', identifiers: [] }]
+        newModules: [{ id: 'mod_abc', name: 'orders', path: 'src/modules/orders', hash: 'abc', status: 'active', createdAt: '', lastSeen: '', identifiers: [] }]
       });
       vi.spyOn(nitsReconciler, 'buildUpdatedNitsRegistry').mockReturnValue(fakeRegistry as any);
 

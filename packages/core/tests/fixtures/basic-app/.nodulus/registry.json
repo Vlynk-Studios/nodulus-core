@@ -1,7 +1,7 @@
 {
   "project": "basic-app-fixture",
   "version": "1.0.0",
-  "lastCheck": "2026-04-16T17:26:32.526Z",
+  "lastCheck": "2026-04-16T17:35:01.232Z",
   "modules": {
     "mod_7ffb309c": {
       "id": "mod_7ffb309c",
@@ -9,7 +9,8 @@
       "path": "src/modules/users",
       "hash": "e6ef7307a2",
       "status": "active",
-      "lastSeen": "2026-04-16T17:26:32.520Z",
+      "createdAt": "2026-04-16T17:31:52.674Z",
+      "lastSeen": "2026-04-16T17:35:01.227Z",
       "identifiers": [
         "/users"
       ]
@@ -20,7 +21,8 @@
       "path": "src/modules/notifications",
       "hash": "f39adf68e3",
       "status": "active",
-      "lastSeen": "2026-04-16T17:26:32.520Z",
+      "createdAt": "2026-04-16T17:31:52.674Z",
+      "lastSeen": "2026-04-16T17:35:01.227Z",
       "identifiers": []
     },
     "mod_c19779f0": {
@@ -29,7 +31,8 @@
       "path": "src/modules/auth",
       "hash": "549fe7d129",
       "status": "active",
-      "lastSeen": "2026-04-16T17:26:32.520Z",
+      "createdAt": "2026-04-16T17:31:52.674Z",
+      "lastSeen": "2026-04-16T17:35:01.227Z",
       "identifiers": [
         "/auth"
       ]
