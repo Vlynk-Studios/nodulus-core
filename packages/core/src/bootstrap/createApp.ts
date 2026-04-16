@@ -122,7 +122,7 @@ export async function createApp(
         discovered.push({
           name: mod.name,
           dirPath: mod.dirPath,
-          domain: undefined,
+          domain: undefined, // Reserved for v2.0 (Domains are not supported in v1.x)
           identifiers,
           hash
         });

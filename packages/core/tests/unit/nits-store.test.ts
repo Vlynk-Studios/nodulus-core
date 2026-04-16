@@ -10,7 +10,8 @@ vi.mock('node:fs', () => ({
     promises: {
       readFile: vi.fn(),
       writeFile: vi.fn(),
-      mkdir: vi.fn()
+      mkdir: vi.fn(),
+      rename: vi.fn()
     }
   }
 }));
@@ -30,7 +31,7 @@ const VALID_REGISTRY = {
 function captureWrites(): { getRegistry: () => string } {
   let capturedJson = '';
   vi.mocked(fs.promises.writeFile).mockImplementation(async (filePath, data) => {
-    if ((filePath as string).endsWith('registry.json')) {
+    if ((filePath as string).endsWith('.json') || (filePath as string).endsWith('.tmp')) {
       capturedJson = data as string;
     }
   });
@@ -109,6 +110,14 @@ describe('loadNitsRegistry', () => {
     const calledPath = vi.mocked(fs.promises.readFile).mock.calls[0][0] as string;
     expect(calledPath.replace(/\\/g, '/')).toContain('.nodulus/registry.json');
   });
+
+  it('handles EACCES/permission errors by returning null', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.readFile).mockRejectedValue(new Error('EACCES: permission denied'));
+
+    const result = await loadNitsRegistry('/mock');
+    expect(result).toBeNull();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,6 +132,7 @@ describe('saveNitsRegistry', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined);
     vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined);
+    vi.mocked(fs.promises.rename).mockResolvedValue(undefined);
 
     await saveNitsRegistry({ ...VALID_REGISTRY }, '/mock/project');
 
@@ -135,6 +145,7 @@ describe('saveNitsRegistry', () => {
   it('does not call mkdir for the directory when .nodulus/ already exists', async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined);
+    vi.mocked(fs.promises.rename).mockResolvedValue(undefined);
 
     await saveNitsRegistry({ ...VALID_REGISTRY }, '/mock/project');
 
@@ -142,16 +153,21 @@ describe('saveNitsRegistry', () => {
     expect(mkdirCalls).toHaveLength(0);
   });
 
-  it('writes the registry to .nodulus/registry.json', async () => {
+  it('writes the registry using an atomic strategy (writeFile to .tmp then rename)', async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined);
+    vi.mocked(fs.promises.rename).mockResolvedValue(undefined);
 
     await saveNitsRegistry({ ...VALID_REGISTRY }, '/mock/project');
 
-    const writtenPath = vi.mocked(fs.promises.writeFile).mock.calls
-      .find((c: any) => (c[0] as string).endsWith('registry.json'))?.[0] as string;
-    expect(writtenPath).toBeDefined();
-    expect(writtenPath.replace(/\\/g, '/')).toContain('.nodulus/registry.json');
+    const writtenPath = vi.mocked(fs.promises.writeFile).mock.calls[0][0] as string;
+    const renamedFrom = vi.mocked(fs.promises.rename).mock.calls[0][0] as string;
+    const renamedTo = vi.mocked(fs.promises.rename).mock.calls[0][1] as string;
+
+    expect(writtenPath).toContain('registry.json.tmp');
+    expect(renamedFrom).toBe(writtenPath);
+    expect(renamedTo).toContain('registry.json');
+    expect(renamedTo).not.toContain('.tmp');
   });
 
   it('updates lastCheck to the current time on every save', async () => {
@@ -172,7 +188,7 @@ describe('saveNitsRegistry', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     const captured: string[] = [];
     vi.mocked(fs.promises.writeFile).mockImplementation(async (filePath, data) => {
-      if ((filePath as string).endsWith('registry.json')) {
+      if ((filePath as string).endsWith('.tmp')) {
         captured.push(JSON.parse(data as string).lastCheck);
       }
     });
@@ -185,7 +201,7 @@ describe('saveNitsRegistry', () => {
     expect(captured[1] >= captured[0]).toBe(true);
   });
 
-  it('save → load roundtrip: module data is preserved identically', async () => {
+  it('save \u2192 load roundtrip: module data is preserved identically', async () => {
     const registryWithModules = {
       ...VALID_REGISTRY,
       modules: {
@@ -228,11 +244,34 @@ describe('saveNitsRegistry', () => {
     expect(written).toContain('\n');
     expect(written).toContain('  ');
   });
+
+  it('Fix [N-49]: does not mutate the original registry object', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    
+    const originalLastCheck = '2000-01-01T00:00:00.000Z';
+    const myRegistry = { 
+      ...VALID_REGISTRY, 
+      lastCheck: originalLastCheck 
+    };
+
+    await saveNitsRegistry(myRegistry, '/mock/project');
+
+    // The object passed in should still have its original value
+    expect(myRegistry.lastCheck).toBe(originalLastCheck);
+  });
+
+  it('handles write errors (e.g. disk full, permissions) by throwing', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.writeFile).mockRejectedValue(new Error('ENOSPC: no space left on device'));
+
+    await expect(saveNitsRegistry({ ...VALID_REGISTRY }, '/mock/project'))
+      .rejects.toThrow('ENOSPC');
+  });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 // Metadata Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 describe('Metadata Helpers', () => {
   afterEach(() => { vi.restoreAllMocks(); });
