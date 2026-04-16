@@ -22,7 +22,7 @@ function getRecognizedAliases(cwd: string): string[] {
         });
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // Silent fallback to default
   }
   cachedAliases = Array.from(scopes);

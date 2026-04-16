@@ -1,5 +1,4 @@
 import { register } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import type { Logger } from '../core/logger.js';
 
 // Node.js Customization Hooks types

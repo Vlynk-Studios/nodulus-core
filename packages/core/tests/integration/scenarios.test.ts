@@ -631,7 +631,7 @@ describe("Integration Tests", () => {
           if (typeof p === 'string' && p.includes('registry.json')) {
             throw new Error('Disk Full');
           }
-          // @ts-expect-error
+          // @ts-expect-error - 'this' context and spread arguments typing in dynamic mock
           return originalWriteFile.apply(this, [p, ...args]);
         });
 

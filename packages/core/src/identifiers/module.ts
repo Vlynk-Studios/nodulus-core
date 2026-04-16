@@ -19,7 +19,6 @@ export function Module(name: string, options: ModuleOptions = {}): void {
   }
 
   const { filePath: indexPath, dirPath } = getModuleCallerInfo('Module()');
-  const normalizedIndexPath = normalizePath(indexPath);
   const normalizedDirPath = normalizePath(dirPath);
 
   // Rule 1: Name must match folder name

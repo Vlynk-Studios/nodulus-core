@@ -1,5 +1,4 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import path from 'node:path';
 import { NodulusError } from './errors.js';
 import { findCircularDependencies } from './utils/cycle-detector.js';
 import { normalizePath } from './utils/paths.js';

@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as acorn from "acorn";
 import * as walk from "acorn-walk";
-import type { ImportDeclaration, CallExpression, Literal, ObjectExpression, ArrayExpression } from 'estree';
+import type { CallExpression, Literal, ObjectExpression, ArrayExpression } from 'estree';
 
 // Note about TypeScript and acorn parsing:
 // Acorn does not support TS syntax natively — if parsing fails, the file is silently skipped;

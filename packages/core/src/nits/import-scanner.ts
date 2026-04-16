@@ -1,10 +1,8 @@
 import * as fs from "node:fs";
 import path from "node:path";
 import * as acorn from "acorn";
-import * as walk from "acorn-walk";
 import fg from "fast-glob";
-import type { ImportDeclaration, CallExpression, Literal } from 'estree';
-import type { MovedModule, BrokenImport } from "../types/nits.js";
+import type { MovedModule } from "../types/nits.js";
 
 import { calculateAlias } from "./utils.js";
 
@@ -172,6 +170,6 @@ export async function scanBrokenImports(
     }
   }
 
-  // Return original MovedModule structure (without temporary oldAlias)
-  return movedWithAliases.map(({ oldAlias, ...m }) => m as MovedModule);
+  // Return original MovedModule structure (without temporary _oldAlias)
+  return movedWithAliases.map(({ oldAlias: _oldAlias, ...m }) => m as MovedModule);
 }

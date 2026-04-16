@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { getModuleCallerInfo, getFileCallerInfo } from '../../src/core/caller.js';
-import path from 'node:path';
 
 describe('Caller Context Resolution', () => {
   it('should resolve caller file correctly using getFileCallerInfo', () => {
     // Wrap to simulate an identifier call depth
-    function MockService(name: string) {
+    function MockService(_name: string) {
       return getFileCallerInfo('Service');
     }
     
@@ -18,7 +17,7 @@ describe('Caller Context Resolution', () => {
   });
 
   it('should resolve caller directory correctly using getModuleCallerInfo', () => {
-    function MockModule(name: string) {
+    function MockModule(_name: string) {
       return getModuleCallerInfo('Module');
     }
 

@@ -9,7 +9,6 @@ import type {
   ReconciliationResult, 
   NitsStatus,
   DiscoveredModule,
-  MovedModule,
   ReconcileOptions
 } from '../types/nits.js';
 
@@ -47,6 +46,14 @@ export async function reconcile(
   
   const activeHashes = new Map<string, string>(); // hash -> path
 
+  // STEP 0: Pre-populate active identity carriers from previous registry
+  // We ignore empty modules (no identifiers) to avoid N-38 collisions.
+  for (const mod of prevModules) {
+    if (mod.status === 'active' && mod.identifiers.length > 0) {
+      activeHashes.set(mod.hash, mod.path);
+    }
+  }
+
   const createRecord = (
     id: string, 
     disc: DiscoveredModule, 
@@ -81,7 +88,10 @@ export async function reconcile(
       // Even if hash changed, if path is same, it's the same module (Confirmed)
       const record = createRecord(prev.id, disc, 'active', prev.createdAt);
       result.confirmed.push(record);
-      activeHashes.set(disc.hash, record.path);
+      
+      if (disc.identifiers.length > 0) {
+        activeHashes.set(disc.hash, record.path);
+      }
       
       unmatchedDiscovered.splice(i, 1);
       unmatchedPrev.splice(prevIdx, 1);
@@ -116,6 +126,8 @@ export async function reconcile(
         brokenImports: []
       });
 
+      activeHashes.set(disc.hash, record.path);
+
       unmatchedDiscovered.splice(i, 1);
       unmatchedPrev.splice(bestMatchIdx, 1);
     }
@@ -140,6 +152,10 @@ export async function reconcile(
         brokenImports: []
       });
 
+      if (disc.identifiers.length > 0) {
+        activeHashes.set(disc.hash, record.path);
+      }
+
       unmatchedDiscovered.splice(i, 1);
       unmatchedPrev.splice(prevIdx, 1);
     }
@@ -163,7 +179,10 @@ export async function reconcile(
     const record = createRecord(id, disc, 'active');
     usedIds.add(id);
     result.newModules.push(record);
-    activeHashes.set(disc.hash, record.path);
+
+    if (disc.identifiers.length > 0) {
+      activeHashes.set(disc.hash, record.path);
+    }
   }
 
   for (const prev of unmatchedPrev) {

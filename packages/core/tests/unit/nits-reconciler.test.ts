@@ -438,6 +438,70 @@ describe("NITS Reconciler (Verification Triangle)", () => {
         reconcile(discovered, previous, "/project", { clonePolicy: "error" }),
       ).rejects.toThrow(/Duplicate module content detected/i);
     });
+
+    it("Test: empty modules (no identifiers) do not collide even if hashes match (N-38)", async () => {
+      const discovered: DiscoveredModule[] = [
+        {
+          name: "skeleton1",
+          dirPath: "/project/src/skel1",
+          identifiers: [],
+          hash: "empty_structure_hash",
+        },
+        {
+          name: "skeleton2",
+          dirPath: "/project/src/skel2",
+          identifiers: [],
+          hash: "empty_structure_hash",
+        },
+      ];
+
+      const result = await reconcile(discovered, null, "/project", { clonePolicy: 'error' });
+
+      // Should have 2 new modules, no error even if hashes match
+      expect(result.newModules.length).toBe(2);
+      expect(result.newModules[0].name).toBe("skeleton1");
+      expect(result.newModules[1].name).toBe("skeleton2");
+    });
+
+    it("Test: moved module prevents clones in the same cycle (N-36)", async () => {
+      const previous: NitsRegistry = {
+        ...createEmptyRegistry(),
+        modules: {
+          mod1: {
+            id: "mod1",
+            name: "m1",
+            path: "src/old",
+            hash: "h1",
+            status: "active",
+            createdAt: timestamp,
+            lastSeen: "",
+            identifiers: ["Id1"],
+          },
+        },
+      };
+
+      const discovered: DiscoveredModule[] = [
+        {
+          name: "m1",
+          dirPath: "/project/src/new", // Moved
+          identifiers: ["Id1"],
+          hash: "h1",
+        },
+        {
+          name: "clone",
+          dirPath: "/project/src/clone", // Clone
+          identifiers: ["Id1"],
+          hash: "h1",
+        },
+      ];
+
+      vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0);
+
+      // In Step 2, mod1 moves to /src/new. This should immediately block /src/clone.
+      await expect(
+        reconcile(discovered, previous, "/project", { clonePolicy: "error" })
+      ).rejects.toThrow(/Duplicate module content detected/i);
+    });
   });
 
   describe("createdAt immutability", () => {
