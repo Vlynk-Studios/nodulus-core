@@ -15,6 +15,8 @@ describe('Registry', () => {
       );
 
       expect(getActiveRegistry().hasModule('users')).toBe(true);
+      expect(getActiveRegistry().hasModuleById('mod_users_001')).toBe(true);
+      expect(getActiveRegistry().hasModuleById('unknown')).toBe(false);
 
       const registered = getActiveRegistry().getModule('users');
       expect(registered).toEqual({
@@ -26,6 +28,15 @@ describe('Registry', () => {
         controllers: []
       });
 
+      const byId = getActiveRegistry().getModuleById('mod_users_001');
+      expect(byId).toEqual(registered);
+
+      const byPath = getActiveRegistry().getModuleByPath('/src/modules/users');
+      expect(byPath).toEqual(registered);
+      
+      // Normalized path check
+      expect(getActiveRegistry().getModuleByPath('\\src\\modules\\users')).toEqual(registered);
+
       const all = getActiveRegistry().getAllModules();
       expect(all).toHaveLength(1);
       expect(all[0].name).toBe('users');
@@ -33,21 +44,29 @@ describe('Registry', () => {
     });
   });
 
-  it('throws DUPLICATE_MODULE when registering twice with same nitsId', async () => {
+  it('throws DUPLICATE_MODULE when registering twice with same nitsId or same path', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
       const name = 'auth';
       const options = { imports: [], exports: [] };
-      const dirPath = '/some/path';
-      const indexPath = '/some/path/index.ts';
+      const dirPath = '/src/modules/auth';
+      const indexPath = '/src/modules/auth/index.ts';
       const id = 'mod_auth_123';
 
       getActiveRegistry().registerModule(name, options, dirPath, indexPath, id);
 
-      // Same ID, different everything else -> Still Duplicate
-      expect(() => getActiveRegistry().registerModule('other', options, '/other', '/other/index.ts', id)).toThrowError(NodulusError);
+      // 1. Same ID, different name/path -> Error
+      expect(() => {
+        getActiveRegistry().registerModule('other', options, '/src/modules/other', '/src/modules/other/index.ts', id);
+      }).toThrowError(NodulusError);
+
+      // 2. Same Path, different ID/name -> Error
+      expect(() => {
+        getActiveRegistry().registerModule('auth2', options, dirPath, '/src/modules/auth/index.ts', 'other_id');
+      }).toThrowError(NodulusError);
+      
       try {
-        getActiveRegistry().registerModule('other', options, '/other', '/other/index.ts', id);
+        getActiveRegistry().registerModule('auth2', options, dirPath, '/src/modules/auth/index.ts', 'other_id');
       } catch (e: any) {
         expect(e.code).toBe('DUPLICATE_MODULE');
       }
