@@ -230,6 +230,12 @@ describe('nodulus check', () => {
 
       expect(nitsStore.saveNitsRegistry).toHaveBeenCalled();
       expect(reconcileSpy).toHaveBeenCalled();
+      
+      // Verify ID mapping appeared in log
+      const logCall = logSpy.mock.calls.find((call: any[]) => 
+        typeof call[0] === 'string' && call[0].includes('[mod_abc]')
+      );
+      expect(logCall).toBeDefined();
     });
   });
 });

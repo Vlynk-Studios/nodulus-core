@@ -1,11 +1,12 @@
 import { Command } from 'commander';
+import path from 'node:path';
 import pc from 'picocolors';
 import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
 import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../../nits/nits-store.js';
 import { createLogger, defaultLogHandler } from '../../core/logger.js';
-import { reconcile, buildUpdatedNitsRegistry } from '../../nits/nits-reconciler.js';
+import { reconcile, buildUpdatedNitsRegistry, buildNitsIdMap } from '../../nits/nits-reconciler.js';
 import { reportReconciliation } from '../../nits/nits-reporter.js';
 import { computeModuleHash } from '../../nits/nits-hash.js';
 import type { DiscoveredModule } from '../../types/nits.js';
@@ -44,10 +45,12 @@ export function checkCommand(): Command {
           const updatedRegistry = buildUpdatedNitsRegistry(result, oldRegistry.project);
           
           await saveNitsRegistry(updatedRegistry, cwd);
+          
+          const idMap = buildNitsIdMap(result, cwd);
 
           // Map IDs back to the graph nodes for reporting
           for (const node of graph.modules) {
-            node.id = updatedRegistry.modules[node.name]?.id;
+            node.id = idMap.get(path.resolve(node.dirPath));
           }
 
           const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;

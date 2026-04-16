@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-16
+
+### Added
+- **Identity-First Architecture** [N-28]: Fully transitioned NITS to an identity-first system where `nitsId` is the primary key. Enables stable tracking across renames, moves, and content changes.
+- **Content Clone Detection** [N-29]: Implementated hashing-based duplicate detection. Mode configurable via `clonePolicy` ('error' in CI/strict, 'new' in dev).
+- **Immutable timestamps** [N-30]: `NitsModuleRecord` now preserves `createdAt` strictly across all reconciliations to track actual module age.
+- **Enhanced Bootstrap Resilience**: The `createApp` lifecycle now robustly handles NITS registry I/O failures, falling back to temporary identities with warning logs.
+
+### Fixed
+- **checkCommand ID Mapping** [N-34]: Resolved a critical bug where `nodulus check` failed to map IDs because it looked them up by name instead of the new `nitsId` primary key.
+
 ## [1.3.1] - 2026-04-12
 
 ### Fixed
