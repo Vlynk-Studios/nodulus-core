@@ -40,7 +40,7 @@ export async function reconcile(
   const usedIds = new Set<string>(prevModules.map(m => m.id));
   const timestamp = new Date().toISOString();
   
-  const normalize = (p: string) => path.isAbsolute(p) ? path.relative(cwd, p).replace(/\\/g, '/') : p;
+  const normalize = (p: string) => (path.isAbsolute(p) ? path.relative(cwd, p) : p).replace(/\\/g, '/');
   const isCi = options.isCi ?? !!process.env.CI;
   const clonePolicy = options.clonePolicy || (isCi ? 'error' : 'new');
   

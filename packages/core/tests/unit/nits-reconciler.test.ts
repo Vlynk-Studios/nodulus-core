@@ -545,6 +545,43 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       expect(result.confirmed[0].lastSeen).not.toBe(originalDate); // Updated!
     });
   });
+
+  describe("Path Normalization (N-39)", () => {
+    it("should normalize Windows-style relative paths to forward slashes", async () => {
+      const previous: NitsRegistry = {
+        ...createEmptyRegistry(),
+        modules: {
+          mod_1: {
+            id: "mod_1",
+            name: "users",
+            path: "src/users", // Forward slashes in registry
+            hash: "h1",
+            status: "active",
+            createdAt: timestamp,
+            lastSeen: "",
+            identifiers: ["Id1"],
+          },
+        },
+      };
+
+      // Simulating a Windows environment where some paths might come in with backslashes
+      // even if they are relative.
+      const discovered: DiscoveredModule[] = [
+        {
+          name: "users",
+          dirPath: "src\\users", // Windows relative path
+          identifiers: ["Id1"],
+          hash: "h1",
+        },
+      ];
+
+      // We expect it to be confirmed because src\users should normalize to src/users
+      const result = await reconcile(discovered, previous, "/project");
+
+      expect(result.confirmed.length).toBe(1);
+      expect(result.confirmed[0].id).toBe("mod_1");
+    });
+  });
 });
 
 describe("buildUpdatedNitsRegistry()", () => {
