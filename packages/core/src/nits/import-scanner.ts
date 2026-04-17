@@ -79,50 +79,6 @@ export function extractModuleImports(filePath: string): ImportFound[] {
   return imports;
 }
 
-/**
- * Extracts all Nodulus identifier names (Service, Controller, Repository, Schema) 
- * called in a source file using Regex.
- */
-export function extractInternalIdentifiers(filePath: string): string[] {
-  const names: string[] = [];
-  const targetCallees = ['Service', 'Controller', 'Repository', 'Schema'];
-
-  try {
-    const code = fs.readFileSync(filePath, "utf-8");
-    const isJs = filePath.endsWith('.js') || filePath.endsWith('.mjs') || filePath.endsWith('.cjs');
-
-    if (isJs) {
-       try {
-        acorn.parse(code, {
-          ecmaVersion: "latest",
-          sourceType: "module",
-        });
-      } catch (e: any) {
-        console.warn(`[Nodulus] [NITS Parser] Warning: Failed to parse internal identifiers in "${filePath}".`);
-        console.debug(`  Detail: ${e.message}`);
-        return [];
-      }
-    }
-    
-    // Regex to match: Identifier('name')
-    const idRegex = /(Service|Controller|Repository|Schema)\s*\(\s*['"]([^'"]+)['"]/g;
-    
-    let match;
-    while ((match = idRegex.exec(code)) !== null) {
-      if (targetCallees.includes(match[1])) {
-        names.push(match[2]);
-      }
-    }
-  } catch (error: any) {
-    if (error.code !== 'ENOENT') {
-      console.warn(`[Nodulus] [NITS Parser] Warning: Failed to parse internal identifiers in "${filePath}".`);
-      console.debug(`  Detail: ${error.message}`);
-    }
-  }
-
-  return names;
-}
-
 
 /**
  * Given a list of moved modules, scans the entire project for files that

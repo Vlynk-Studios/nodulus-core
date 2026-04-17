@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { extractModuleImports, extractInternalIdentifiers, scanBrokenImports } from '../../src/nits/import-scanner.js';
+import { extractModuleImports, scanBrokenImports } from '../../src/nits/import-scanner.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -57,34 +57,6 @@ describe('NITS Import Scanner', () => {
     const result = extractModuleImports(p);
     expect(result).toHaveLength(1);
     expect(result[0].specifier).toBe('@modules/auth');
-  });
-
-  it('extractInternalIdentifiers returns [] for a non-existent file (ENOENT)', () => {
-    const result = extractInternalIdentifiers('/does/not/exist.ts');
-    expect(result).toEqual([]);
-  });
-
-  it('extractInternalIdentifiers returns [] and warns for non-ENOENT parse error', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const p = writeTempFile('@@@ bad syntax', '.js');
-    tmpFiles.push(p);
-    const result = extractInternalIdentifiers(p);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  it('extractInternalIdentifiers picks up Service, Controller, Repository, Schema calls', () => {
-    const code = [
-      "Service('UserService');",
-      "Repository('UserRepo');",
-      "Schema('UserSchema');"
-    ].join('\n');
-    const p = writeTempFile(code, '.js');
-    tmpFiles.push(p);
-    const result = extractInternalIdentifiers(p);
-    expect(result).toContain('UserService');
-    expect(result).toContain('UserRepo');
-    expect(result).toContain('UserSchema');
   });
 
   describe('scanBrokenImports', () => {

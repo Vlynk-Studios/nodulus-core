@@ -21,9 +21,10 @@ export function extractIdentifierCall(
   calleeName: string
 ): IdentifierCall | null {
   let found: IdentifierCall | null = null;
+  let code = "";
 
   try {
-    const code = fs.readFileSync(filePath, "utf-8");
+    code = fs.readFileSync(filePath, "utf-8");
     const ast = acorn.parse(code, {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -72,11 +73,20 @@ export function extractIdentifierCall(
       },
     });
   } catch (error: any) {
-    if (error.code !== 'ENOENT') {
-      console.warn(`[Nodulus] [Parser] Warning: Failed to parse identifier call in "${filePath}".`);
-      console.debug(`  Detail: ${error.message}`);
+    if (error.code === 'ENOENT') {
+      return null;
     }
-    return null;
+    // Ignore acorn parse errors for now to allow fallback to operate
+  }
+
+  // Fallback: Acorn no parsea TypeScript nativamente (interfaces, tipos, tipados fuertes).
+  // Se documenta de manera explícita y se centraliza aquí el soporte Regex como fallback.
+  if (!found && code) {
+    const regex = new RegExp(`${calleeName}\\s*\\(\\s*['"]([^'"]+)['"]`, "g");
+    let match;
+    while ((match = regex.exec(code)) !== null) {
+      found = { name: match[1], options: {} };
+    }
   }
 
   return found;

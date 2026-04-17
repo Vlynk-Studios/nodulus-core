@@ -2,11 +2,11 @@ import fg from 'fast-glob';
 import path from 'node:path';
 import fs from 'node:fs';
 import { 
-  extractModuleDeclaration
+  extractModuleDeclaration,
+  extractIdentifierCall
 } from './ast-parser.js';
 import {
   extractModuleImports, 
-  extractInternalIdentifiers,
   type ImportFound 
 } from '../../nits/import-scanner.js';
 import type { NodulusConfig } from '../../types/index.js';
@@ -64,9 +64,13 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
 
     const actualImports: ImportFound[] = [];
     const internalIdentifiers: string[] = [];
+    const targetCallees = ['Service', 'Controller', 'Repository', 'Schema'];
 
     // Also check index file for identifiers
-    internalIdentifiers.push(...extractInternalIdentifiers(indexPath));
+    for (const callee of targetCallees) {
+      const result = extractIdentifierCall(indexPath, callee);
+      if (result) internalIdentifiers.push(result.name);
+    }
 
     const moduleFiles = await fg('**/*.{ts,js,mts,mjs}', {
       cwd: dirPath,
@@ -78,8 +82,10 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
       const fileImports = extractModuleImports(file);
       actualImports.push(...fileImports);
       
-      const fileIdentifiers = extractInternalIdentifiers(file);
-      internalIdentifiers.push(...fileIdentifiers);
+      for (const callee of targetCallees) {
+        const result = extractIdentifierCall(file, callee);
+        if (result) internalIdentifiers.push(result.name);
+      }
     }
 
     nodes.push({
