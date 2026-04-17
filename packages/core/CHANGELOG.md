@@ -7,14 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0] - 2026-04-16
 
+> **Prerequisite for v2.0.0:** This release establishes the foundational **Nodulus Integrated Tracking System (NITS)**. While it introduces no new commands, it replaces the fragile name-based module resolution with a robust persistent identity system, paving the way for the upcoming unified Domain-Driven architecture.
+
 ### Added
-- **Identity-First Architecture** [N-28]: Fully transitioned NITS to an identity-first system where `nitsId` is the primary key. Enables stable tracking across renames, moves, and content changes.
-- **Content Clone Detection** [N-29]: Implementated hashing-based duplicate detection. Mode configurable via `clonePolicy` ('error' in CI/strict, 'new' in dev).
-- **Immutable timestamps** [N-30]: `NitsModuleRecord` now preserves `createdAt` strictly across all reconciliations to track actual module age.
-- **Enhanced Bootstrap Resilience**: The `createApp` lifecycle now robustly handles NITS registry I/O failures, falling back to temporary identities with warning logs.
+- **Nodulus Integrated Tracking System (NITS)**: A complete reconciliation layer assigning persistent unique `mod_{hex}` IDs to modules, flawlessly tracking them across git branches, file renames, and folder restructurings (`registry.json`).
+- **Verification Triangle Reconciler**: NITS intelligently resolves changing identities through a 3-step confidence algorithm:
+  1. Absolute Path matching (Maximum confidence).
+  2. AST Semantic Hash similarity (High confidence - tracks moved modules).
+  3. Unique Node Name fallback (Medium confidence - generates "candidate" suggestions).
+- **Semantic AST Hashing**: Computes module hashes strictly via semantic domain identifiers (Services, Controllers, Repositories). Meaningful code refactors are honored regardless of internal comments or whitespace.
+- **Interactive Clone Detection** [N-29] & [N-44]: Incorporates strict state policies (`clonePolicy`) and dynamic `activeHashes` to definitively protect the project graph from split-brain scenarios when codebase branches mistakenly deploy copy-pasted active modules.
+- **Outdated Import Scanner**: The engine natively parses cross-module dependencies to detect and emit targeted console warnings (`reportReconciliation`) when aliases import routes from previously `moved` modules.
+- **Immutable Timestamp Persistence** [N-30]: Registry payloads permanently track `createdAt` lifecycles shielding origins. 
+
+### Changed
+- **Identity-First Core** [N-28]: Completely standardized the underlying runtime memory Maps (`registry.ts`) to anchor architecture via `nitsId`, deprecating string-name keys.
+- **Duplicate Directory Policies** [N-43]: System actively prevents generic module-name collisions by emitting safe `DUPLICATE_MODULE` errors upon `modulesByName` overwrites, enforcing directory isolation conventions.
+- **Dynamic Reconcile Options** [N-45]: Allows customized integration hooks overriding the Jaccard similarity threshold arrays (`similarityThreshold`).
+- **Enhanced Bootstrap Resilience**: Integrated NITS strictly as an audit layer in `createApp`. Total disk I/O, corrupted registries, or JSON permission errors will gracefully report warnings without critically disrupting backend initializations.
 
 ### Fixed
-- **checkCommand ID Mapping** [N-34]: Resolved a critical bug where `nodulus check` failed to map IDs because it looked them up by name instead of the new `nitsId` primary key.
+- **CLI Analyzer Exceptions** [N-46]: Reconciled an architectural flaw where pipeline structural checks (`nodulus check`) would abruptly crash processes facing transient file-locking incidents.
+- **checkCommand Graph ID Mapping** [N-34]: Addressed a legacy lookup failure in the CLI command improperly trying to attach IDs using names over exact absolute path mapping constraints.
 
 ## [1.3.1] - 2026-04-12
 
