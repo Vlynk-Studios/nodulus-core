@@ -629,7 +629,7 @@ describe("buildUpdatedNitsRegistry()", () => {
     expect(Object.keys(registry.modules)).toHaveLength(5);
     expect(registry.modules["mod_c"]?.name).toBe("confirmed");
     expect(registry.modules["mod_m"]?.status).toBe("moved");
-    expect(registry.modules["mod_k"]?.status).toBe("candidate");
+    expect(registry.modules["mod_k"]?.status).toBe("stale");
     expect(registry.modules["mod_n"]?.name).toBe("new");
     expect(registry.modules["mod_s"]?.status).toBe("stale");
   });

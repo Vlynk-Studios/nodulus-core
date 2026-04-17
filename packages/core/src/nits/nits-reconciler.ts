@@ -207,7 +207,7 @@ export function buildUpdatedNitsRegistry(
   const allActive = [
     ...result.confirmed,
     ...result.moved.map(m => m.record),
-    ...result.candidates.map(m => m.record),
+    ...result.candidates.map(m => ({ ...m.record, status: 'stale' as NitsStatus })),
     ...result.newModules,
     ...result.stale
   ];
