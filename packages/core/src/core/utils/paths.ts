@@ -11,7 +11,7 @@ export function normalizePath(filePath: string): string {
   if (!filePath) return filePath;
   
   // 1. Basic path normalization
-  let normalized = path.normalize(filePath);
+  let normalized = path.normalize(filePath).replace(/\\/g, '/');
   
   // 2. Handle Windows drive letter casing
   if (process.platform === 'win32' && /^[a-z]:/i.test(normalized)) {

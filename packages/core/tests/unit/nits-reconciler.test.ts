@@ -184,8 +184,10 @@ describe("NITS Reconciler (Verification Triangle)", () => {
     ];
 
     vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0);
-
-    const result = await reconcile(discovered, previous, cwd);
+    
+    // We explicitly set clonePolicy: 'new' to ensure this test passes even in CI
+    // where the default would be 'error'.
+    const result = await reconcile(discovered, previous, cwd, { clonePolicy: 'new' });
 
     expect(result.confirmed.length).toBe(1);
     expect(result.confirmed[0].id).toBe("mod_orig");
