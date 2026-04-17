@@ -108,7 +108,8 @@ export async function reconcile(
       const prev = unmatchedPrev[j];
       const sim = hashSimilarity(prev.identifiers, disc.identifiers);
       
-      if (sim >= 0.9) {
+      const threshold = options.similarityThreshold ?? 0.9;
+      if (sim >= threshold) {
         matchesForThisDisc.push({ sim, idx: j });
       }
     }
@@ -126,7 +127,9 @@ export async function reconcile(
         brokenImports: []
       });
 
-      activeHashes.set(disc.hash, record.path);
+      if (disc.identifiers.length > 0) {
+        activeHashes.set(disc.hash, record.path);
+      }
 
       unmatchedDiscovered.splice(i, 1);
       unmatchedPrev.splice(bestMatchIdx, 1);

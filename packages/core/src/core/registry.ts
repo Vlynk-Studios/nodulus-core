@@ -187,6 +187,15 @@ export function createRegistry(): InternalRegistry {
       };
       
       modules.set(nitsId, entry);
+
+      if (modulesByName.has(name) && modulesByName.get(name) !== nitsId) {
+        throw new NodulusError(
+          'DUPLICATE_MODULE',
+          `A module with the name "${name}" is already registered. Names must be unique unless domains are explicitly supported.`,
+          `Duplicate name: ${name}, Path: ${dirPath}`
+        );
+      }
+
       modulesByName.set(name, nitsId);
       modulesByPath.set(normalizedPath, nitsId);
     },

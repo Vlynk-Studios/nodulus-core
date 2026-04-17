@@ -28,35 +28,42 @@ export function checkCommand(): Command {
         
         // NITS Reconciliation (Identity Tracking)
         if (config.nits.enabled) {
-          const discovered: DiscoveredModule[] = [];
-          for (const node of graph.modules) {
-            const { hash, identifiers } = await computeModuleHash(node.dirPath);
-            discovered.push({
-              name: node.name,
-              dirPath: node.dirPath,
-              domain: undefined,
-              identifiers,
-              hash
+          try {
+            const discovered: DiscoveredModule[] = [];
+            for (const node of graph.modules) {
+              const { hash, identifiers } = await computeModuleHash(node.dirPath);
+              discovered.push({
+                name: node.name,
+                dirPath: node.dirPath,
+                domain: undefined,
+                identifiers,
+                hash
+              });
+            }
+
+            const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
+            const result = await reconcile(discovered, oldRegistry, cwd, {
+              similarityThreshold: config.nits.similarityThreshold
             });
-          }
+            const updatedRegistry = buildUpdatedNitsRegistry(result, oldRegistry.project);
+            
+            await saveNitsRegistry(updatedRegistry, cwd);
+            
+            const idMap = buildNitsIdMap(result, cwd);
 
-          const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
-          const result = await reconcile(discovered, oldRegistry, cwd);
-          const updatedRegistry = buildUpdatedNitsRegistry(result, oldRegistry.project);
-          
-          await saveNitsRegistry(updatedRegistry, cwd);
-          
-          const idMap = buildNitsIdMap(result, cwd);
+            // Map IDs back to the graph nodes for reporting
+            for (const node of graph.modules) {
+              node.id = idMap.get(path.resolve(node.dirPath));
+            }
 
-          // Map IDs back to the graph nodes for reporting
-          for (const node of graph.modules) {
-            node.id = idMap.get(path.resolve(node.dirPath));
-          }
-
-          const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;
-          if (hasChanges && options.format !== 'json') {
-            const logger = createLogger(defaultLogHandler, 'info');
-            reportReconciliation(result, logger);
+            const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;
+            if (hasChanges && options.format !== 'json') {
+              const logger = createLogger(defaultLogHandler, 'info');
+              reportReconciliation(result, logger);
+            }
+          } catch (err: any) {
+            const logger = createLogger(defaultLogHandler, 'warn');
+            logger.warn(`NITS reconciliation failed: ${err.message}. Analysis will continue...`);
           }
         }
 

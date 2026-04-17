@@ -130,7 +130,9 @@ export async function createApp(
 
       const cwd = process.cwd();
       const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
-      const nitsResult = await reconcile(discovered, oldRegistry, cwd);
+      const nitsResult = await reconcile(discovered, oldRegistry, cwd, {
+        similarityThreshold: config.nits?.similarityThreshold
+      });
       
       reportReconciliation(nitsResult, log);
       

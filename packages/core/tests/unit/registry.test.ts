@@ -73,7 +73,7 @@ describe('Registry', () => {
     });
   });
 
-  it('allows duplicate names if paths and NITS IDs are different', async () => {
+  it('throws DUPLICATE_MODULE for duplicate names if paths and NITS IDs are different', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
       // Module 1: users in root
@@ -86,21 +86,15 @@ describe('Registry', () => {
       );
 
       // Module 2: users in a domain folder (pre-preparing v2.0.0)
-      getActiveRegistry().registerModule(
-        'users', 
-        { imports: [] }, 
-        '/src/domains/billing/modules/users', 
-        '/src/domains/billing/modules/users/index.ts', 
-        'mod_users_billing'
-      );
-
-      expect(getActiveRegistry().hasModule('users')).toBe(true);
-      
-      // In v1.4.0, getModule(name) returns the LAST one registered (modulesByName index behavior)
-      const mod = getActiveRegistry().getModule('users');
-      expect(mod?.id).toBe('mod_users_billing');
-      
-      expect(getActiveRegistry().getAllModules()).toHaveLength(2);
+      expect(() => {
+        getActiveRegistry().registerModule(
+          'users', 
+          { imports: [] }, 
+          '/src/domains/billing/modules/users', 
+          '/src/domains/billing/modules/users/index.ts', 
+          'mod_users_billing'
+        );
+      }).toThrowError(NodulusError);
     });
   });
 

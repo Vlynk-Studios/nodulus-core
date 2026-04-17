@@ -131,9 +131,9 @@ describe("CLI: create-module", () => {
 
     const schemaContent = fs.readFileSync(schemaFile, 'utf8');
 
-    // Test: el schema generado NO contiene import { z } from 'zod' (activado)
+    // Test: the generated schema does NOT contain import { z } from 'zod' (enabled)
     expect(schemaContent).not.toMatch(/^import\s+\{\s*z\s*\}\s+from\s+['"]zod['"]/m);
-    // Test: el schema generado SÍ contiene Schema(' call
+    // Test: the generated schema does contain Schema(' call
     expect(schemaContent).toMatch(/Schema\('TestmoduleSchema'/);
     // Ensure the zod import is commented out safely behind a suggestion
     expect(schemaContent).toMatch(/\/\/\s*import\s+\{\s*z\s*\}\s+from\s+['"]zod['"]/);
