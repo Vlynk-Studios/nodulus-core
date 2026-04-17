@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **CLI Analyzer Exceptions** [N-46]: Reconciled an architectural flaw where pipeline structural checks (`nodulus check`) would abruptly crash processes facing transient file-locking incidents.
 - **checkCommand Graph ID Mapping** [N-34]: Addressed a legacy lookup failure in the CLI command improperly trying to attach IDs using names over exact absolute path mapping constraints.
+- **Unifying Identifier Extraction** [N-47]: Replaced duplicate tracking mechanisms in `extractInternalIdentifiers` with an integrated Regex fallback, properly matching non-native TS descriptors sequentially ensuring unified AST tracking.
+- **Candidate Persistence Stability** [N-48]: Remedied registry discrepancies dragging abandoned 'candidates' into indefinite identity limbo; unconfirmed candidates systematically downgrade to 'stale' during registry generation.
 
 ## [1.3.1] - 2026-04-12
 
