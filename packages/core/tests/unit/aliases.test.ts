@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { resetGlobalState } from '../../src/core/state.js';
-import { updateAliasCache } from '../../src/aliases/cache.js';
+import { updateAliasCache, getAliasCache } from '../../src/aliases/cache.js';
 import { getAliases } from '../../src/aliases/getAliases.js';
 import * as resolver from '../../src/aliases/resolver.js';
 import { register } from 'node:module';
 import path from 'node:path';
+import { createRegistry, registryContext } from '../../src/core/registry.js';
 
 vi.mock('node:module', () => ({
   register: vi.fn()
@@ -37,6 +38,19 @@ describe('Aliases API', () => {
     resetGlobalState();
     const result = await getAliases();
     expect(result).toEqual({});
+  });
+
+  it('getAliasCache() returns from active registry context when one is running', async () => {
+    const r = createRegistry();
+    // Seed an alias directly in the global cache first
+    updateAliasCache({ '@modules/foo': '/abs/foo' });
+
+    await registryContext.run(r, async () => {
+      // Inside a registry context, getAliasCache() delegates to the registry
+      const cache = getAliasCache();
+      // The registry was just created and has no aliases registered yet
+      expect(cache).toEqual({});
+    });
   });
 
   it('getAliases() returns entries for all seeded aliases', async () => {

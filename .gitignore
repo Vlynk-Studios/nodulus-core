@@ -6,4 +6,4 @@ dist
 Rules-API.md
 Backlog.md
 coverage
-types/
+# types/ (Removed to allow packages/core/src/types to be tracked)

@@ -1,10 +1,15 @@
 import { Command } from 'commander';
+import path from 'node:path';
 import pc from 'picocolors';
 import { loadConfig } from '../../core/config.js';
 import { buildModuleGraph } from '../lib/graph-builder.js';
 import { detectViolations, ViolationType } from '../lib/violations.js';
-import { loadNitsRegistry, saveNitsRegistry } from '../../nits/nits-store.js';
-import { reconcile } from '../../nits/nits-reconciler.js';
+import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../../nits/nits-store.js';
+import { createLogger, defaultLogHandler } from '../../core/logger.js';
+import { reconcile, buildUpdatedNitsRegistry, buildNitsIdMap } from '../../nits/nits-reconciler.js';
+import { reportReconciliation } from '../../nits/nits-reporter.js';
+import { computeModuleHash } from '../../nits/nits-hash.js';
+import type { DiscoveredModule } from '../../types/nits.js';
 
 export function checkCommand(): Command {
   const check = new Command('check');
@@ -23,23 +28,42 @@ export function checkCommand(): Command {
         
         // NITS Reconciliation (Identity Tracking)
         if (config.nits.enabled) {
-          const oldRegistry = loadNitsRegistry(cwd, config.nits.registryPath);
-          const { registry: updatedRegistry, summary } = reconcile(
-            graph, 
-            oldRegistry, 
-            cwd, 
-            config.nits.similarityThreshold
-          );
-          
-          saveNitsRegistry(cwd, updatedRegistry, config.nits.registryPath);
+          try {
+            const discovered: DiscoveredModule[] = [];
+            for (const node of graph.modules) {
+              const { hash, identifiers } = await computeModuleHash(node.dirPath);
+              discovered.push({
+                name: node.name,
+                dirPath: node.dirPath,
+                domain: undefined,
+                identifiers,
+                hash
+              });
+            }
 
-          // Map IDs back to the graph nodes for reporting
-          for (const node of graph.modules) {
-            node.id = updatedRegistry.modules[node.name]?.id;
-          }
+            const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
+            const result = await reconcile(discovered, oldRegistry, cwd, {
+              similarityThreshold: config.nits.similarityThreshold
+            });
+            const updatedRegistry = buildUpdatedNitsRegistry(result, oldRegistry.project);
+            
+            await saveNitsRegistry(updatedRegistry, cwd);
+            
+            const idMap = buildNitsIdMap(result, cwd);
 
-          if (summary.healedConflicts > 0 && options.format !== 'json') {
-            console.log(pc.yellow(`⚠ NITS: Healed ${summary.healedConflicts} ID conflict(s) in registry.`));
+            // Map IDs back to the graph nodes for reporting
+            for (const node of graph.modules) {
+              node.id = idMap.get(path.resolve(node.dirPath));
+            }
+
+            const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;
+            if (hasChanges && options.format !== 'json') {
+              const logger = createLogger(defaultLogHandler, 'info');
+              reportReconciliation(result, logger);
+            }
+          } catch (err: any) {
+            const logger = createLogger(defaultLogHandler, 'warn');
+            logger.warn(`NITS reconciliation failed: ${err.message}. Analysis will continue...`);
           }
         }
 

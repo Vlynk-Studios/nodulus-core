@@ -14,6 +14,7 @@ export interface ControllerEntry {
 }
 
 export interface ModuleEntry {
+  nitsId: string;     // NITS specific assigned ID
   name: string;
   path: string;       // absolute path to the module directory
   indexPath: string;  // absolute path to the module's index.ts / index.js
@@ -126,8 +127,6 @@ export interface NitsConfig {
   similarityThreshold?: number;
   /** Whether to enable NITS identity tracking. Default: true. */
   enabled?: boolean;
-  /** Custom path to the NITS registry file. Default: '.nodulus/registry.json'. */
-  registryPath?: string;
 }
 
 export interface CreateAppOptions {
@@ -181,12 +180,12 @@ export interface ResolvedConfig {
   nits: {
     enabled: boolean;
     similarityThreshold?: number;
-    registryPath: string;
   };
 }
 
 /** A module as it appears in the NodularApp result after bootstrap. */
 export interface RegisteredModule {
+  id: string;
   name: string;
   path: string;         // absolute path to the module directory
   imports: string[];    // names of modules this module depends on

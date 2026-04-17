@@ -64,4 +64,32 @@ describe('ast-parser tests', () => {
       expect(res).toBeNull();
     });
   });
+
+  it('identifies call expressions via fallback regex for unsupported syntaxes (e.g. decorators, pure TS)', () => {
+    runWithTempFile(`
+      @Controller('/api')
+      export class MyController {
+        constructor() {
+          Controller('UserController');
+        }
+      }
+    `, (filePath) => {
+      const res = extractIdentifierCall(filePath, 'Controller');
+      expect(res).not.toBeNull();
+      expect(res?.name).toBe('UserController');
+    });
+  });
+
+  it('identifies call expressions via fallback regex even if code is malformed for acorn', () => {
+    runWithTempFile(`
+      import type { SomeType } from "./types";
+      // bad syntax that throws acorn parser Error
+      @@@
+      Service('TestService');
+    `, (filePath) => {
+      const res = extractIdentifierCall(filePath, 'Service');
+      expect(res).not.toBeNull();
+      expect(res?.name).toBe('TestService');
+    });
+  });
 });

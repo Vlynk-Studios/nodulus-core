@@ -3,13 +3,17 @@ import request from 'supertest';
 import path from 'node:path';
 import type { NodulusApp } from '../../src/types/index.js';
 
+import { fileURLToPath } from 'node:url';
+
 describe('E2E Integration', () => {
   let appServer: any;
   let nodulusInfo: NodulusApp;
 
   beforeAll(async () => {
-    // Pivot CWD into the fixture to mimic a real project running locally
-    const fixtureDir = path.join(process.cwd(), 'tests/fixtures/basic-app');
+    // Pivot CWD into the fixture to mimic a real project running locally.
+    // We use a relative path from this file to stay root-agnostic.
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const fixtureDir = path.resolve(__dirname, '../fixtures/basic-app');
     vi.spyOn(process, 'cwd').mockReturnValue(fixtureDir);
 
     // Dynamically import the fixture

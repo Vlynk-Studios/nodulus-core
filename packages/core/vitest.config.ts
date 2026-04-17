@@ -19,12 +19,15 @@ export default defineConfig({
         functions: 90,
         statements: 85,
       }
-    },
+    }
+  },
+  resolve: {
     alias: {
       '@modules': path.resolve(__dirname, 'tests/fixtures/basic-app/src/modules'),
       '@config': path.resolve(__dirname, 'tests/fixtures/basic-app/src/config'),
       '@middleware': path.resolve(__dirname, 'tests/fixtures/basic-app/src/middleware')
-    }
+    },
+    extensions: ['.ts', '.js', '.mts', '.mjs', '.json']
   }
 });
 

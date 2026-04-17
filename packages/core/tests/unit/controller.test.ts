@@ -10,7 +10,7 @@ describe('Controller()', () => {
 
       const controllers = getActiveRegistry().getAllControllersMetadata();
       // The name should be derived from the current filename: 'controller.test'
-      const entry = controllers.find(c => c.name === 'controller.test');
+      const entry = controllers.find((c: any) => c.name === 'controller.test');
 
       expect(entry).toBeDefined();
       expect(entry?.name).toBe('controller.test');
@@ -38,6 +38,14 @@ describe('Controller()', () => {
     await registryContext.run(r, async () => {
       Controller('/first');
       expect(() => Controller('/second')).toThrowError(/once in the same file/);
+    });
+  });
+
+  it('throws TypeError when prefix is not a string', async () => {
+    const r = createRegistry();
+    await registryContext.run(r, async () => {
+      expect(() => Controller(42 as any)).toThrow(TypeError);
+      expect(() => Controller(42 as any)).toThrow(/must be a string/);
     });
   });
 });

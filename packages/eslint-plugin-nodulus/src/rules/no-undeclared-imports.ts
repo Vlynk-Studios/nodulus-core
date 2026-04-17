@@ -22,8 +22,8 @@ function getRecognizedAliases(cwd: string): string[] {
         });
       }
     }
-  } catch (e) {
-    // Fallback silencioso a default
+  } catch (_e) {
+    // Silent fallback to default
   }
   cachedAliases = Array.from(scopes);
   return cachedAliases;

@@ -1,0 +1,17 @@
+{
+  "project": "nits-app",
+  "version": "1.0.0",
+  "lastCheck": "2024-01-01T00:00:00.000Z",
+  "modules": {
+    "mod_users_legacy": {
+      "id": "mod_users_legacy",
+      "name": "users",
+      "path": "src/legacy/users",
+      "hash": "legacy_hash_abc",
+      "status": "active",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "lastSeen": "2024-01-01T00:00:00.000Z",
+      "identifiers": ["UserService"]
+    }
+  }
+}
