@@ -116,19 +116,14 @@ describe('Registry', () => {
     });
   });
 
-  it('throws DUPLICATE_ALIAS when registering the same alias with a different target', async () => {
+  it('allows overwriting an existing alias with a different target', async () => {
     const r = createRegistry();
     await registryContext.run(r, async () => {
       getActiveRegistry().registerAlias('@utils', '/src/utils');
+      // Overwrite
+      getActiveRegistry().registerAlias('@utils', '/src/other-utils');
 
-      expect(() => getActiveRegistry().registerAlias('@utils', '/src/utils')).not.toThrow();
-
-      expect(() => getActiveRegistry().registerAlias('@utils', '/src/other-utils')).toThrowError(NodulusError);
-      try {
-        getActiveRegistry().registerAlias('@utils', '/src/other-utils');
-      } catch (e: any) {
-        expect(e.code).toBe('DUPLICATE_ALIAS');
-      }
+      expect(getActiveRegistry().resolveAlias('@utils')).toBe('/src/other-utils');
     });
   });
 

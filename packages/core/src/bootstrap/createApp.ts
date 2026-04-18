@@ -164,6 +164,10 @@ export async function createApp(
 
     const normalizedConfigAliases: Record<string, string> = {};
     for (const [alias, target] of Object.entries(config.aliases)) {
+      if (pureModuleAliases[alias]) {
+        log.warn(`Alias collision: User alias "${alias}" overrides an auto-generated module alias. Configuration will take precedence.`, { alias, target });
+      }
+
       const targetPath = path.isAbsolute(target) ? target : path.resolve(process.cwd(), target);
       if (!fs.existsSync(targetPath)) {
         throw new NodulusError(
@@ -173,8 +177,19 @@ export async function createApp(
         );
       }
 
+      const stats = fs.statSync(targetPath);
+      if (!stats.isDirectory() && alias.endsWith('/*')) {
+        const msg = `Invalid alias: Alias "${alias}" uses a wildcard "/*" but points to a file: ${targetPath}. Wildcards should only point to directories.`;
+        if (config.strict) {
+          throw new NodulusError('ALIAS_INVALID', msg);
+        } else {
+          log.warn(msg);
+        }
+      }
+
       registry.registerAlias(alias, targetPath);
       normalizedConfigAliases[alias] = targetPath;
+      log.debug(`Alias registered: ${alias} → ${targetPath}`, { alias, targetPath, source: 'config' });
     }
 
     await activateAliasResolver(pureModuleAliases, normalizedConfigAliases, log);

@@ -201,14 +201,6 @@ export function createRegistry(): InternalRegistry {
     },
 
     registerAlias(alias: string, targetPath: string): void {
-      const existing = aliases.get(alias);
-      if (existing && existing !== targetPath) {
-        throw new NodulusError(
-          'DUPLICATE_ALIAS',
-          `An alias with this name is already registered to a different target path.`,
-          `Alias: ${alias}, Existing: ${existing}, New: ${targetPath}`
-        );
-      }
       aliases.set(alias, targetPath);
     },
 
