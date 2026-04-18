@@ -84,28 +84,37 @@ export async function generatePathAliases(config: NodulusConfig, cwd: string): P
   // 3. Register manual custom aliases 
   if (config.aliases) {
     for (const [alias, target] of Object.entries(config.aliases)) {
-      // 3.1 Normalize target path to posix relative
-      let normalizedTarget = path.isAbsolute(target) ? path.relative(cwd, target) : target;
-      normalizedTarget = normalizedTarget.replace(/\\/g, '/');
-      if (!normalizedTarget.startsWith('./') && !normalizedTarget.startsWith('../')) {
-        normalizedTarget = './' + normalizedTarget;
+      const absoluteTarget = path.isAbsolute(target) ? target : path.resolve(cwd, target);
+      const cleanAlias = alias.replace(/\/\*$/, '');
+      
+      let relativeTarget = path.relative(cwd, absoluteTarget).replace(/\\/g, '/');
+      if (!relativeTarget.startsWith('./') && !relativeTarget.startsWith('../')) {
+        relativeTarget = './' + relativeTarget;
       }
 
-      // 3.2 Determine if target is a file or directory
-      // We check for extensions and for physical existence if possible
-      const isExplicitFile = /\.(ts|js|mts|mjs|cts|cjs|json)$/.test(normalizedTarget);
-      
-      const cleanAlias = alias.replace(/\/\*$/, '');
-      const cleanTarget = normalizedTarget.replace(/\/\*$/, '');
+      const exists = fs.existsSync(absoluteTarget);
+      const isDir = exists ? fs.statSync(absoluteTarget).isDirectory() : !path.extname(absoluteTarget);
 
-      if (isExplicitFile) {
-        // For files, only use the exact mapping
-        pathsObj[cleanAlias] = [cleanTarget];
+      if (isDir) {
+        const tsIndex = path.join(absoluteTarget, 'index.ts');
+        const jsIndex = path.join(absoluteTarget, 'index.js');
+        
+        // Base mapping: prioritize index file for better IDE resolution
+        if (fs.existsSync(tsIndex)) {
+            const relIndex = path.relative(cwd, tsIndex).replace(/\\/g, '/');
+            pathsObj[cleanAlias] = [relIndex.startsWith('.') ? relIndex : './' + relIndex];
+        } else if (fs.existsSync(jsIndex)) {
+            const relIndex = path.relative(cwd, jsIndex).replace(/\\/g, '/');
+            pathsObj[cleanAlias] = [relIndex.startsWith('.') ? relIndex : './' + relIndex];
+        } else {
+            pathsObj[cleanAlias] = [relativeTarget];
+        }
+        
+        // Wildcard mapping for sub-path resolution
+        pathsObj[`${cleanAlias}/*`] = [`${relativeTarget}/*`];
       } else {
-        // For directories, provide dual mapping (N-09)
-        // Base mapping points to the directory/index if it looks like a folder
-        pathsObj[cleanAlias] = [cleanTarget];
-        pathsObj[`${cleanAlias}/*`] = [`${cleanTarget}/*`];
+        // It's a file or doesn't exist yet (we still map it for TS)
+        pathsObj[cleanAlias] = [relativeTarget];
       }
     }
   }

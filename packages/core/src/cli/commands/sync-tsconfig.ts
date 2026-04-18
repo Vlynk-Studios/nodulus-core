@@ -45,23 +45,30 @@ export function syncTsconfigCommand() {
         }
         const paths = compilerOptions.paths;
 
-        // 4a. Clean up stale Nodulus managed modules that were deleted
+        // 4a. Clean up stale Nodulus managed aliases
+        const currentKeys = new Set(Object.keys(pathsObj));
+
         for (const key of Object.keys(paths)) {
+          if (currentKeys.has(key)) continue;
+
           const val = paths[key];
+          const isNodulusModule = key.startsWith('@modules/');
           
-          if (key.startsWith('@modules/') && !pathsObj[key]) {
-            delete paths[key];
-          } 
-          // Check for stale config aliases using the Nodulus signature format
-          else if (
-            !pathsObj[key] &&
-            key.endsWith('/*') &&
-            Array.isArray(val) &&
-            val.length === 1 &&
-            typeof val[0] === 'string' &&
-            (val[0].startsWith('./') || val[0].startsWith('../')) &&
-            val[0].endsWith('/*')
-          ) {
+          // Heuristic for custom folder aliases: 
+          // If it starts with @ and follows the dual mapping pattern (key and key/* exist)
+          // or is a wildcard entry pointing to a relative path.
+          const isStaleFolderAlias = 
+            key.startsWith('@') && 
+            Array.isArray(val) && 
+            val.length === 1 && 
+            typeof val[0] === 'string' && 
+            (val[0].startsWith('./') || val[0].startsWith('../')) && // Only clean relative mappings
+            (
+              (key.endsWith('/*') && val[0].endsWith('/*')) || 
+              (paths[`${key}/*`] !== undefined) // It has a corresponding wildcard entry
+            );
+
+          if (isNodulusModule || isStaleFolderAlias) {
             delete paths[key];
           }
         }
