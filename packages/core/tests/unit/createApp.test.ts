@@ -172,4 +172,21 @@ describe('createApp', () => {
       });
     });
   });
+  it('should register custom aliases in the registry', async () => {
+    const appWithAliases = {
+      ...validAppStructure,
+      'shared/utils.ts': 'export const foo = 1;'
+    };
+    
+    await runInTmpApp(appWithAliases, async (tmpDir, app) => {
+      const nodulusApp = await createApp(app as any, {
+        aliases: {
+          '@shared': './shared'
+        }
+      });
+      
+      const aliases = nodulusApp.registry.getAllAliases();
+      expect(aliases['@shared']).toBe(path.resolve(tmpDir, 'shared'));
+    });
+  });
 });

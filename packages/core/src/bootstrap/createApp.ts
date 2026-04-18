@@ -162,6 +162,7 @@ export async function createApp(
       registry.registerAlias(`${aliasKey}/*`, `${mod.dirPath}/*`);
     }
 
+    const normalizedConfigAliases: Record<string, string> = {};
     for (const [alias, target] of Object.entries(config.aliases)) {
       const targetPath = path.isAbsolute(target) ? target : path.resolve(process.cwd(), target);
       if (!fs.existsSync(targetPath)) {
@@ -171,9 +172,12 @@ export async function createApp(
           `Alias: ${alias}, Target Path: ${targetPath}`
         );
       }
+
+      registry.registerAlias(alias, targetPath);
+      normalizedConfigAliases[alias] = targetPath;
     }
 
-    await activateAliasResolver(pureModuleAliases, config.aliases, log);
+    await activateAliasResolver(pureModuleAliases, normalizedConfigAliases, log);
     updateAliasCache(registry.getAllAliases());
   }
 
