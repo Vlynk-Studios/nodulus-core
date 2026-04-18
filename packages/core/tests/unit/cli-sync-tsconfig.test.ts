@@ -51,7 +51,7 @@ describe("CLI: sync-tsconfig", () => {
       modules: "src/modules/*",
       aliases: { "@config": "./src/config" },
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
-      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+      nits: { enabled: false }
     });
     vi.mocked(fg).mockResolvedValue([
       path.resolve(process.cwd(), "src/modules/auth"),
@@ -96,7 +96,7 @@ describe("CLI: sync-tsconfig", () => {
       modules: "src/modules/*",
       aliases: {},
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
-      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+      nits: { enabled: false }
     });
     vi.mocked(fg).mockResolvedValue([path.resolve(process.cwd(), "src/modules/new")]);
     fs.mkdirSync(path.resolve(process.cwd(), "src/modules/new"), { recursive: true });
@@ -121,7 +121,7 @@ describe("CLI: sync-tsconfig", () => {
       modules: "src/modules/*",
       aliases: {},
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
-      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+      nits: { enabled: false }
     });
     vi.mocked(fg).mockResolvedValue([path.resolve(process.cwd(), "src/modules/auth")]);
     fs.mkdirSync(path.resolve(process.cwd(), "src/modules/auth"), { recursive: true });
@@ -157,7 +157,7 @@ describe("CLI: sync-tsconfig", () => {
       modules: "src/modules/*",
       aliases: {}, // @config exists no more!
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
-      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+      nits: { enabled: false }
     });
     // Returning NO active modules -> Should trigger garbage collection of @modules/stale
     vi.mocked(fg).mockResolvedValue([]);
@@ -183,7 +183,7 @@ describe("CLI: sync-tsconfig", () => {
       domains: "src/domains/*",
       aliases: {},
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
-      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+      nits: { enabled: false }
     });
 
     vi.mocked(fg).mockImplementation((glob) => {
@@ -229,7 +229,7 @@ describe("CLI: sync-tsconfig", () => {
         "@styles": "./src/assets/theme.json"
       },
       prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
-      nits: { enabled: false, registryPath: '.nodulus/registry.json' }
+      nits: { enabled: false }
     });
     vi.mocked(fg).mockResolvedValue([]);
 
@@ -246,5 +246,34 @@ describe("CLI: sync-tsconfig", () => {
 
     expect(paths["@styles"]).toEqual(["./src/assets/theme.json"]);
     expect(paths["@styles/*"]).toBeUndefined();
+  });
+
+  it('generates paths for common aliases (@config, @middleware, @shared) correctly (P5/P6)', async () => {
+    const initialConfig = { compilerOptions: { paths: {} } };
+    fs.writeFileSync(tsconfigPath, JSON.stringify(initialConfig, null, 2), "utf8");
+
+    vi.mocked(loadConfig).mockResolvedValue({
+      modules: "src/modules/*",
+      aliases: { 
+        "@config": "./src/config",
+        "@middleware": "./src/middleware",
+        "@shared": "./src/shared"
+      },
+      prefix: "", strict: true, resolveAliases: true, logger: {} as any, logLevel: "info",
+      nits: { enabled: false }
+    });
+    vi.mocked(fg).mockResolvedValue([]);
+
+    await runCommand(["--tsconfig", tsconfigPath]);
+
+    const result = JSON.parse(fs.readFileSync(tsconfigPath, "utf8"));
+    const paths = result.compilerOptions.paths;
+
+    expect(paths["@config"]).toBeDefined();
+    expect(paths["@config/*"]).toBeDefined();
+    expect(paths["@middleware"]).toBeDefined();
+    expect(paths["@middleware/*"]).toBeDefined();
+    expect(paths["@shared"]).toBeDefined();
+    expect(paths["@shared/*"]).toBeDefined();
   });
 });
