@@ -50,6 +50,9 @@ export async function activateAliasResolver(moduleAliases: Record<string, string
 
   if (registeredHashes.has(serialisedAliases)) return;
 
+  // Optimistic registration to prevent race conditions
+  registeredHashes.add(serialisedAliases);
+
   try {
     if (Object.keys(combinedAliases).length === 0) {
       log.debug('No aliases to register, skipping ESM hook activation');
@@ -96,7 +99,6 @@ export async function resolve(specifier, context, nextResolve) {
 
     if (typeof register === 'function') {
       register(dataUrl, { parentURL: parentUrl });
-      registeredHashes.add(serialisedAliases);
       log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
         aliasCount: Object.keys(combinedAliases).length,
       });
@@ -104,8 +106,12 @@ export async function resolve(specifier, context, nextResolve) {
       log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
         nodeVersion: process.version
       });
+      // If not supported, we should probably remove the hash so we can try again if the environment somehow changes (though unlikely)
+      registeredHashes.delete(serialisedAliases);
     }
   } catch (err) {
+    // If registration fails, remove the hash so it can be retried
+    registeredHashes.delete(serialisedAliases);
     log.warn('ESM alias hook registration threw an unexpected error', {
       error: (err as any)?.message ?? String(err)
     });
