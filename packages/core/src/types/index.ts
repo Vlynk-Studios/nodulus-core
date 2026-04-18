@@ -233,10 +233,17 @@ export type NodulusConfig = CreateAppOptions;
 export interface GetAliasesOptions {
   /**
    * If false, only returns auto-generated @modules/* aliases.
-   * Config-defined folder aliases (from nodulus.config.ts `aliases`) are excluded.
+   * Config-defined aliases (from nodulus.config.ts `aliases`) are excluded.
    * Default: true (returns all aliases).
    */
   includeFolders?: boolean;
+  /**
+   * If false, config-defined aliases are excluded.
+   * Identical to `includeFolders` but with a more descriptive name.
+   * If both are present, `includeConfigAliases` takes precedence.
+   * Default: true.
+   */
+  includeConfigAliases?: boolean;
   /** If true, returns absolute paths. Default: false. */
   absolute?: boolean;
 }

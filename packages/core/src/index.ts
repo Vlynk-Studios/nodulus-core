@@ -9,6 +9,7 @@ export * from './identifiers/schema.js';
 
 export * from './bootstrap/createApp.js';
 export * from './aliases/getAliases.js';
+export { resolveAlias } from './aliases/cache.js';
 
 export type {
   CreateAppOptions,
