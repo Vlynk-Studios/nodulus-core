@@ -5,32 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - 2026-04-16
+## [1.4.0] - 2026-04-18
 
-> **Prerequisite for v2.0.0:** This release establishes the foundational **Nodulus Integrated Tracking System (NITS)**. While it introduces no new commands, it replaces the fragile name-based module resolution with a robust persistent identity system, paving the way for the upcoming unified Domain-Driven architecture.
+> **Prerequisite for v2.0.0:** This release establishes the foundational **Nodulus Integrated Tracking System (NITS)** and a completely overhauled **Alias Robustness** engine. It replaces fragile name-based module resolution with a robust persistent identity system and first-class custom aliases, paving the way for the upcoming unified Domain-Driven architecture.
 
 ### Added
+- **Alias Robustness Engine**: Completed a comprehensive overhaul of the alias resolution system (P1-P7).
+- **Custom Aliases Support**: User-defined aliases in `createApp({ aliases: { ... } })` are now first-class citizens:
+  - **Auto-Subpaths**: Directory aliases now automatically resolve their children without needing wildcards (e.g., `@shared/utils` works if `@shared` points to a folder).
+  - **File-based Aliases**: Support for pointing aliases directly to individual files (e.g., `"@db": "./src/config/database.ts"`).
+  - **Dual Mapping for IDE**: `sync-tsconfig` now generates both exact and wildcard mappings for directories, ensuring accurate IntelliSense.
+- **Improved public API**: New `resolveAlias(alias)` utility and enhanced `getAliases({ includeConfigAliases })` filtering.
 - **Nodulus Integrated Tracking System (NITS)**: A complete reconciliation layer assigning persistent unique `mod_{hex}` IDs to modules, flawlessly tracking them across git branches, file renames, and folder restructurings (`registry.json`).
-- **Verification Triangle Reconciler**: NITS intelligently resolves changing identities through a 3-step confidence algorithm:
-  1. Absolute Path matching (Maximum confidence).
-  2. AST Semantic Hash similarity (High confidence - tracks moved modules).
-  3. Unique Node Name fallback (Medium confidence - generates "candidate" suggestions).
-- **Semantic AST Hashing**: Computes module hashes strictly via semantic domain identifiers (Services, Controllers, Repositories). Meaningful code refactors are honored regardless of internal comments or whitespace.
-- **Interactive Clone Detection** [N-29] & [N-44]: Incorporates strict state policies (`clonePolicy`) and dynamic `activeHashes` to definitively protect the project graph from split-brain scenarios when codebase branches mistakenly deploy copy-pasted active modules.
-- **Outdated Import Scanner**: The engine natively parses cross-module dependencies to detect and emit targeted console warnings (`reportReconciliation`) when aliases import routes from previously `moved` modules.
+- **Verification Triangle Reconciler**: NITS intelligently resolves changing identities through a 3-step confidence algorithm matching absolute paths, AST semantic hashes, and unique node names.
+- **Semantic AST Hashing**: Computes module hashes strictly via semantic domain identifiers (Services, Controllers, Repositories), honoring refactors regardless of whitespace or comments.
+- **Interactive Clone Detection** [N-29] & [N-44]: Incorporates strict state policies (`clonePolicy`) and dynamic `activeHashes` to definitively protect the project graph from split-brain scenarios.
+- **Outdated Import Scanner**: The engine natively parses cross-module dependencies to detect and emit targeted console warnings when aliases import routes from previously `moved` modules.
 - **Immutable Timestamp Persistence** [N-30]: Registry payloads permanently track `createdAt` lifecycles shielding origins. 
 
 ### Changed
 - **Identity-First Core** [N-28]: Completely standardized the underlying runtime memory Maps (`registry.ts`) to anchor architecture via `nitsId`, deprecating string-name keys.
-- **Duplicate Directory Policies** [N-43]: System actively prevents generic module-name collisions by emitting safe `DUPLICATE_MODULE` errors upon `modulesByName` overwrites, enforcing directory isolation conventions.
+- **Duplicate Directory Policies** [N-43]: System actively prevents generic module-name collisions by emitting safe `DUPLICATE_MODULE` errors upon `modulesByName` overwrites.
 - **Dynamic Reconcile Options** [N-45]: Allows customized integration hooks overriding the Jaccard similarity threshold arrays (`similarityThreshold`).
-- **Enhanced Bootstrap Resilience**: Integrated NITS strictly as an audit layer in `createApp`. Total disk I/O, corrupted registries, or JSON permission errors will gracefully report warnings without critically disrupting backend initializations.
+- **Enhanced Bootstrap Resilience**: Integrated NITS strictly as an audit layer in `createApp`. Total disk I/O or corrupted registries will gracefully report warnings without disrupting backend initializations.
 
 ### Fixed
-- **CLI Analyzer Exceptions** [N-46]: Reconciled an architectural flaw where pipeline structural checks (`nodulus check`) would abruptly crash processes facing transient file-locking incidents.
-- **checkCommand Graph ID Mapping** [N-34]: Addressed a legacy lookup failure in the CLI command improperly trying to attach IDs using names over exact absolute path mapping constraints.
-- **Unifying Identifier Extraction** [N-47]: Replaced duplicate tracking mechanisms in `extractInternalIdentifiers` with an integrated Regex fallback, properly matching non-native TS descriptors sequentially ensuring unified AST tracking.
-- **Candidate Persistence Stability** [N-48]: Remedied registry discrepancies dragging abandoned 'candidates' into indefinite identity limbo; unconfirmed candidates systematically downgrade to 'stale' during registry generation.
+- **Absolute Path Normalization**: All aliases are now normalized to absolute paths during registration, eliminating `cwd`-dependency issues.
+- **Validation Hints**: `ALIAS_NOT_FOUND` now suggests probable paths if an `index.ts/js` is missing (e.g., checking for index.ts helper).
+- **Idempotent Registry**: Refactored ESM hook registration to be content-addressable, allowing safe multiple calls to `createApp()` without race conditions.
+- **CLI Analyzer Exceptions** [N-46]: Reconciled an architectural flaw where pipeline structural checks (`nodulus check`) would abruptly crash facing transient file-locking incidents.
+- **checkCommand Graph ID Mapping** [N-34]: Addressed a legacy lookup failure in the CLI command improperly trying to attach IDs using names.
+- **Unifying Identifier Extraction** [N-47]: Replaced duplicate tracking mechanisms in `extractInternalIdentifiers` with an integrated Regex fallback.
+- **Candidate Persistence Stability** [N-48]: Remedied registry discrepancies dragging abandoned 'candidates' into indefinite identity limbo.
+
+### Custom Aliases Usage
+Internal Nodulus resolution:
+```typescript
+createApp(app, {
+  aliases: {
+    "@config": "./src/config",        // Directory alias (supports subpaths)
+    "@shared": "./src/shared/index.ts" // File alias
+  }
+});
+```
+
+Integration with Vite/esbuild:
+```typescript
+import { getAliases } from "@vlynk-studios/nodulus-core";
+
+export default {
+  resolve: {
+    alias: await getAliases({ absolute: true }) // Returns all aliases as absolute paths
+  }
+};
+```
 
 ## [1.3.1] - 2026-04-12
 

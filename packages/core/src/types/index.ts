@@ -138,7 +138,15 @@ export interface CreateAppOptions {
   shared?: string;
   /** Global route prefix. Example: '/api/v1'. Default: ''. */
   prefix?: string;
-  /** Folder aliases beyond the auto-generated @modules/* entries. Default: {}. */
+  /** 
+   * Custom folder or file aliases beyond the auto-generated @modules/* entries.
+   * 
+   * - **File Aliases**: e.g., `"@db": "./src/db.ts"`. Resolves exactly to that file.
+   * - **Directory Aliases**: e.g., `"@shared": "./src/shared"`. Resolves to the folder 
+   *   and automatically supports subpaths (e.g., `@shared/utils` -> `./src/shared/utils`).
+   * 
+   * Default: {}. 
+   */
   aliases?: Record<string, string>;
   /**
    * Enables circular dependency detection and undeclared import errors.

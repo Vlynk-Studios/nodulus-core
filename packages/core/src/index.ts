@@ -1,4 +1,4 @@
-export { getRegistry, type ModuleRegistration, type FeatureRegistration } from './core/registry.js';
+export * from './core/registry.js';
 export * from './core/errors.js';
 
 export * from './identifiers/module.js';
@@ -9,7 +9,10 @@ export * from './identifiers/schema.js';
 
 export * from './bootstrap/createApp.js';
 export * from './aliases/getAliases.js';
-export { resolveAlias } from './aliases/cache.js';
+export * from './aliases/cache.js';
+export * from './aliases/resolver.js';
+export * from './core/config.js';
+export * from './core/logger.js';
 
 export type {
   CreateAppOptions,

@@ -27,11 +27,22 @@ export function clearAliasResolverOptions(): void {
 }
 
 /**
- * Activates the ESM Alias Resolver using Node.js module.register.
+ * Activates the runtime ESM alias resolver hook.
+ * 
+ * This hook handles:
+ * 1. **Exact aliases**: e.g. `@config` -> `/abs/path/config.ts`.
+ * 2. **Directory subpaths**: e.g. `@shared/utils` -> `/abs/path/shared/utils` (if `@shared` points to a directory).
+ * 3. **Classic wildcards**: e.g. `@modules/*` -> `/abs/path/modules/*`.
+ * 
+ * User-defined aliases take precedence over auto-generated module aliases.
  * 
  * Limitation: This ESM hook is strictly for Node ESM pipelines (Node >= 20.6.0).
- * It will not function effectively in pure CJS pipelines without a transpiler or loader.
  * For CJS and bundlers (Vite, esbuild), use getAliases() to configure their specific resolvers.
+ * 
+ * @param moduleAliases  - Auto-generated aliases starting with @modules/
+ * @param folderAliases  - Custom user-defined aliases from config
+ * @param log            - Logger instance
+ * @returns Promise that resolves when the hook is registered
  */
 export async function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): Promise<void> {
   // Normalize paths before merging and hashing to ensure absolute paths are used in the loader
@@ -77,16 +88,18 @@ export async function resolve(specifier, context, nextResolve) {
     if (alias.endsWith('/*')) {
       const baseAlias = alias.slice(0, -2);
       if (specifier === baseAlias || specifier.startsWith(baseAlias + '/')) {
-        const baseTarget = target.slice(0, -2);
+        const baseTarget = target.endsWith('/*') ? target.slice(0, -2) : target;
         const subPath = specifier.slice(baseAlias.length);
         const resolvedPath = path.resolve(baseTarget, subPath.startsWith('/') ? subPath.slice(1) : subPath);
         return nextResolve(pathToFileURL(resolvedPath).href, context);
       }
     } else if (specifier === alias) {
-      return nextResolve(pathToFileURL(target).href, context);
+      const exactTarget = target.endsWith('/*') ? target.slice(0, -2) : target;
+      return nextResolve(pathToFileURL(exactTarget).href, context);
     } else if (specifier.startsWith(alias + '/')) {
+      const baseTarget = target.endsWith('/*') ? target.slice(0, -2) : target;
       const subPath = specifier.slice(alias.length + 1);
-      const resolvedPath = path.resolve(target, subPath);
+      const resolvedPath = path.resolve(baseTarget, subPath);
       return nextResolve(pathToFileURL(resolvedPath).href, context);
     }
   }

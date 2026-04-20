@@ -168,16 +168,32 @@ export async function createApp(
         log.warn(`Alias collision: User alias "${alias}" overrides an auto-generated module alias. Configuration will take precedence.`, { alias, target });
       }
 
-      const targetPath = path.isAbsolute(target) ? target : path.resolve(process.cwd(), target);
+      const isWildcard = target.endsWith('/*');
+      const cleanTarget = isWildcard ? target.slice(0, -2) : target;
+      const targetPath = path.isAbsolute(cleanTarget) ? cleanTarget : path.resolve(process.cwd(), cleanTarget);
+      
       if (!fs.existsSync(targetPath)) {
+        let details = `Alias: ${alias}, Target Path: ${targetPath}`;
+        
+        // Suggestion hint: if the path doesn't exist, check for index files
+        const tsIndex = path.join(targetPath, 'index.ts');
+        const jsIndex = path.join(targetPath, 'index.js');
+        if (fs.existsSync(tsIndex) || fs.existsSync(jsIndex)) {
+            const hintPath = fs.existsSync(tsIndex) ? 'index.ts' : 'index.js';
+            details += `\nHint: The directory was not found but it contains an "${hintPath}". Did you mean "${target.endsWith('/') ? target : target + '/'}${hintPath}"?`;
+        }
+
         throw new NodulusError(
           'ALIAS_NOT_FOUND',
           `The target path for alias "${alias}" does not exist.`,
-          `Alias: ${alias}, Target Path: ${targetPath}`
+          details
         );
       }
 
       const stats = fs.statSync(targetPath);
+      // Re-add wildcard to the absolute path if it was originally present
+      const finalTargetPath = isWildcard ? targetPath + '/*' : targetPath;
+
       if (!stats.isDirectory() && alias.endsWith('/*')) {
         const msg = `Invalid alias: Alias "${alias}" uses a wildcard "/*" but points to a file: ${targetPath}. Wildcards should only point to directories.`;
         if (config.strict) {
@@ -187,9 +203,9 @@ export async function createApp(
         }
       }
 
-      registry.registerAlias(alias, targetPath);
-      normalizedConfigAliases[alias] = targetPath;
-      log.debug(`Alias registered: ${alias} → ${targetPath}`, { alias, targetPath, source: 'config' });
+      registry.registerAlias(alias, finalTargetPath);
+      normalizedConfigAliases[alias] = finalTargetPath;
+      log.debug(`Alias registered: ${alias} → ${finalTargetPath}`, { alias, finalTargetPath, source: 'config' });
     }
 
     await activateAliasResolver(pureModuleAliases, normalizedConfigAliases, log);
