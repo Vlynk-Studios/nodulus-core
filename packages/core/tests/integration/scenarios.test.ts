@@ -601,7 +601,9 @@ describe("Integration Tests", () => {
               id: existingId, 
               name: 'users', 
               path: 'src/modules/users', 
+              hash: 'abc1234567',
               status: 'active', 
+              createdAt: '2024-01-01T00:00:00.000Z',
               lastSeen: '', 
               identifiers: [] 
             }
