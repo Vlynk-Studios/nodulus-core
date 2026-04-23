@@ -76,17 +76,39 @@ export async function loadNitsRegistry(cwd: string): Promise<NitsRegistry | null
 
 /**
  * Validates the basic structure of a NITS registry object.
+ * Also checks each module record for required fields (CODE-2).
  */
 function isValidRegistry(data: any): data is NitsRegistry {
-  return (
-    data &&
-    typeof data === 'object' &&
-    typeof data.project === 'string' &&
-    typeof data.version === 'string' &&
-    typeof data.lastCheck === 'string' &&
-    data.modules &&
-    typeof data.modules === 'object'
-  );
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    typeof data.project !== 'string' ||
+    typeof data.version !== 'string' ||
+    typeof data.lastCheck !== 'string' ||
+    !data.modules ||
+    typeof data.modules !== 'object'
+  ) {
+    return false;
+  }
+
+  // Validate required fields on every NitsModuleRecord.
+  // A partial record (e.g. missing hash or createdAt) would reach reconcile()
+  // with undefined values, causing activeHashes to store "undefined" as a key
+  // and createRecord to propagate undefined into createdAt (see BUG-3).
+  for (const [id, mod] of Object.entries(data.modules)) {
+    const m = mod as any;
+    const missing = ['name', 'path', 'hash', 'status', 'createdAt', 'lastSeen', 'identifiers']
+      .filter(f => m[f] === undefined || m[f] === null);
+
+    if (missing.length > 0) {
+      console.warn(
+        `[Nodulus] Warning: Module record "${id}" is missing required fields: ${missing.join(', ')}. Registry considered invalid.`
+      );
+      return false;
+    }
+  }
+
+  return true;
 }
 
 

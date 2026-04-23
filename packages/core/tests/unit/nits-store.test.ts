@@ -311,3 +311,68 @@ describe('Metadata Helpers', () => {
     expect(registry.project).toBe('unknown');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CODE-2: isValidRegistry per-record field validation
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('CODE-2: loadNitsRegistry — per-record field validation', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const makeValidRecord = (overrides: Record<string, any> = {}) => ({
+    id: 'mod_a1b2c3d4',
+    name: 'users',
+    path: 'src/modules/users',
+    hash: 'abc1234567',
+    status: 'active',
+    createdAt: '2024-01-01T00:00:00.000Z',
+    lastSeen: '2024-01-01T00:00:00.000Z',
+    identifiers: [],
+    ...overrides,
+  });
+
+  it('returns null when a module record is missing hash (BUG-3 scenario)', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify({
+      project: 'test', version: NITS_REGISTRY_VERSION, lastCheck: '2024-01-01T00:00:00.000Z',
+      modules: { 'mod_a1b2c3d4': makeValidRecord({ hash: undefined }) }
+    }));
+
+    const result = await loadNitsRegistry('/mock/project');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when a module record is missing createdAt (BUG-3 scenario)', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify({
+      project: 'test', version: NITS_REGISTRY_VERSION, lastCheck: '2024-01-01T00:00:00.000Z',
+      modules: { 'mod_a1b2c3d4': makeValidRecord({ createdAt: undefined }) }
+    }));
+
+    const result = await loadNitsRegistry('/mock/project');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when a module record is missing status', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify({
+      project: 'test', version: NITS_REGISTRY_VERSION, lastCheck: '2024-01-01T00:00:00.000Z',
+      modules: { 'mod_a1b2c3d4': makeValidRecord({ status: undefined }) }
+    }));
+
+    const result = await loadNitsRegistry('/mock/project');
+    expect(result).toBeNull();
+  });
+
+  it('returns the registry when all required fields are present', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify({
+      project: 'test', version: NITS_REGISTRY_VERSION, lastCheck: '2024-01-01T00:00:00.000Z',
+      modules: { 'mod_a1b2c3d4': makeValidRecord() }
+    }));
+
+    const result = await loadNitsRegistry('/mock/project');
+    expect(result).not.toBeNull();
+    expect(result?.modules['mod_a1b2c3d4'].name).toBe('users');
+  });
+});
