@@ -18,7 +18,24 @@ import type {
  * 
  * Step 1 — Match by Path     (maximum confidence)
  * Step 2 — Match by Hash     (high confidence, similarity >= 0.9)
- * Step 3 — Match by Name     (medium confidence, previous record 'stale')
+ * Step 3 — Match by Name     (medium confidence, only 'stale' records)
+ *
+ * NOTE — Why Step 3 only considers 'stale' records (DESIGN-1):
+ *
+ * A module that fails Steps 1 and 2 in the SAME reconciliation cycle means its
+ * path changed AND its identifier similarity dropped below the threshold. At that
+ * point, the only evidence left is a shared name — a very weak signal. Allowing
+ * Step 3 to match 'active' records here would mean silently merging two different
+ * modules just because they have the same Module() name, which is error-prone.
+ *
+ * The intentional design is a "stale-first" grace cycle:
+ *   Run N   → active module fails Step 1 & 2  → goes to `stale` bucket
+ *   Run N+1 → now `stale`, Step 3 can rescue it by name as a `candidate`
+ *
+ * This introduces a one-cycle delay that forces human review (via the `candidate`
+ * status) before identity is re-assigned. If this behavior ever needs to change,
+ * update the test "Step 3 does NOT rescue an 'active' module that failed Steps 1&2"
+ * in nits-reconciler.test.ts as the canonical contract guard.
  */
 export async function reconcile(
   discovered: DiscoveredModule[],
@@ -140,7 +157,10 @@ export async function reconcile(
   for (let i = unmatchedDiscovered.length - 1; i >= 0; i--) {
     const disc = unmatchedDiscovered[i];
     
-    // We look for a unique name match in remaining 'stale' records (Step 3 Requirement)
+    // DESIGN-1: We deliberately restrict Step 3 to 'stale' records only.
+    // Matching an 'active' record by name alone (after failing path + hash) is
+    // too weak a signal — it could silently merge unrelated modules that share a
+    // Module() name. See the JSDoc above for the full "stale-first" rationale.
     const matches = unmatchedPrev.filter(p => p.name === disc.name && p.status === 'stale');
     
     if (matches.length === 1) {
