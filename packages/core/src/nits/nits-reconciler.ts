@@ -227,7 +227,16 @@ export function buildUpdatedNitsRegistry(
   const allActive = [
     ...result.confirmed,
     ...result.moved.map(m => m.record),
-    ...result.candidates.map(m => ({ ...m.record, status: 'stale' as NitsStatus })),
+    // DESIGN-2 fix: persist candidates with status 'candidate', NOT 'stale'.
+    // Rationale: 'stale' implies the module is lost; 'candidate' means "needs human
+    // review — probably a move, identity preserved tentatively". Using the correct
+    // status makes the registry semantically honest and allows tooling to surface
+    // candidates distinctly from truly lost modules.
+    //
+    // Stabilization path (still works — Step 1 has no status filter):
+    //   Cycle N   → saved as { status: 'candidate', path: new-path, id: old-id }
+    //   Cycle N+1 → Step 1 matches by new-path → confirmed as 'active'
+    ...result.candidates.map(m => m.record),  // already has status: 'candidate'
     ...result.newModules,
     ...result.stale
   ];

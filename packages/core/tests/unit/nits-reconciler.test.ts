@@ -679,9 +679,43 @@ describe("buildUpdatedNitsRegistry()", () => {
     expect(Object.keys(registry.modules)).toHaveLength(5);
     expect(registry.modules["mod_c"]?.name).toBe("confirmed");
     expect(registry.modules["mod_m"]?.status).toBe("moved");
-    expect(registry.modules["mod_k"]?.status).toBe("stale");
+    expect(registry.modules["mod_k"]?.status).toBe("candidate"); // DESIGN-2: preserved, not downgraded to 'stale'
     expect(registry.modules["mod_n"]?.name).toBe("new");
     expect(registry.modules["mod_s"]?.status).toBe("stale");
+  });
+
+  it("candidate record is consistent between buildUpdatedNitsRegistry and buildNitsIdMap (DESIGN-2)", () => {
+    // Both functions must agree: candidate keeps its id and uses its actual 'candidate' status.
+    // Previously buildUpdatedNitsRegistry forced status:'stale' while buildNitsIdMap
+    // used the record as-is — making the two representations contradict each other.
+    const candidateRecord = {
+      id: "mod_k",
+      name: "payments",
+      path: "src/new-payments",
+      hash: "h_new",
+      status: "candidate" as const,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      lastSeen: "",
+      identifiers: [],
+    };
+    const result = {
+      confirmed: [],
+      moved: [],
+      candidates: [{ record: candidateRecord, oldPath: "src/old-payments", newPath: "src/new-payments", brokenImports: [] }],
+      newModules: [],
+      stale: [],
+    };
+
+    // Registry: must preserve 'candidate' status (not downgrade to 'stale')
+    const registry = buildUpdatedNitsRegistry(result as any, "test");
+    expect(registry.modules["mod_k"]?.status).toBe("candidate");
+    expect(registry.modules["mod_k"]?.id).toBe("mod_k");
+    expect(registry.modules["mod_k"]?.path).toBe("src/new-payments");
+
+    // IdMap: must include the candidate with the same id (no divergence)
+    const idMap = buildNitsIdMap(result as any, "/project");
+    const absPath = path.resolve("/project", "src/new-payments");
+    expect(idMap.get(absPath)).toBe("mod_k");
   });
 });
 

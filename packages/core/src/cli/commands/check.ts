@@ -56,7 +56,7 @@ export function checkCommand(): Command {
               node.id = idMap.get(path.resolve(node.dirPath));
             }
 
-            const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0;
+            const hasChanges = result.newModules.length > 0 || result.moved.length > 0 || result.stale.length > 0 || result.candidates.length > 0;
             if (hasChanges && options.format !== 'json') {
               const logger = createLogger(defaultLogHandler, 'info');
               reportReconciliation(result, logger);
