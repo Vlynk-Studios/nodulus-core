@@ -1,9 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { generatePathAliases } from '../../src/cli/lib/tsconfig-generator.js';
-import { parse } from 'comment-json';
 
 // Simple mock for sync logic since it's hard to trigger the full CLI command in unit tests without a lot of setup
 const simulateCleanup = (paths: Record<string, string[]>, pathsObj: Record<string, string[]>) => {

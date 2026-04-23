@@ -18,12 +18,12 @@ export type ResolveHook = (
 ) => Promise<{ shortCircuit?: boolean; url: string }>;
 
 const registeredHashes = new Set<string>();
-let registrationPromise: Promise<void> | null = null;
+let _registrationPromise: Promise<void> | null = null;
 
 /** @internal exclusively for tests */
 export function clearAliasResolverOptions(): void {
   registeredHashes.clear();
-  registrationPromise = null;
+  _registrationPromise = null;
 }
 
 /**
