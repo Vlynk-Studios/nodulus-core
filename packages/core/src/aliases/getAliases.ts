@@ -3,7 +3,7 @@ import { getAliasCache } from './cache.js';
 import type { GetAliasesOptions } from '../types/index.js';
 
 export async function getAliases(options: GetAliasesOptions = {}): Promise<Record<string, string>> {
-  const includeFolders = options.includeFolders ?? true;
+  const includeConfigAliases = options.includeConfigAliases ?? options.includeFolders ?? true;
   const absolute = options.absolute ?? false;
 
   const allAliases = getAliasCache();
@@ -11,7 +11,7 @@ export async function getAliases(options: GetAliasesOptions = {}): Promise<Recor
   const cwd = process.cwd();
   
   for (const [alias, target] of Object.entries(allAliases)) {
-    if (!includeFolders && !alias.startsWith('@modules/')) {
+    if (!includeConfigAliases && !alias.startsWith('@modules/')) {
       continue;
     }
     

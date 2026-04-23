@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { NodulusError } from './errors.js';
 import { findCircularDependencies } from './utils/cycle-detector.js';
+import { normalizePath } from './utils/paths.js';
 import type { 
   ModuleEntry, 
   RegisteredModule, 
@@ -17,6 +18,7 @@ export type ModuleRegistration = RegisteredModule;
 export type FeatureRegistration = FileEntry;
 
 const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
+  id: entry.nitsId,
   name: entry.name,
   path: entry.path,
   imports: entry.imports,
@@ -29,8 +31,18 @@ const toRegisteredModule = (entry: ModuleEntry): RegisteredModule => ({
  * @internal
  */
 export interface InternalRegistry extends NodulusRegistryAdvanced {
-  /** Registers an internal module and throws DUPLICATE_MODULE if it already exists */
-  registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void;
+  /** Seeds the registry with pre-calculated NITS IDs for specific directory paths */
+  seedNitsIds(mapping: Map<string, string>): void;
+  /** Retrieves a seeded NITS ID for a given absolute directory path */
+  getNitsIdForPath(dirPath: string): string | undefined;
+  /** Registers a module and throws DUPLICATE_MODULE if the nitsId already exists */
+  registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string, nitsId: string): void;
+  /** Checks if a module exists in the registry by its NITS ID */
+  hasModuleById(nitsId: string): boolean;
+  /** Returns a registered module by its NITS ID */
+  getModuleById(nitsId: string): RegisteredModule | undefined;
+  /** Returns a registered module by its absolute directory path */
+  getModuleByPath(dirPath: string): RegisteredModule | undefined;
   /** Adds an alias to the registry */
   registerAlias(alias: string, path: string): void;
   /** Stores temporary metadata for a recently evaluated controller */
@@ -63,11 +75,14 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
 
 /**
  * Creates a new independent registry instance.
- * Mainly used to build the singleton, but can be instantiated separately if needed.
  * @internal
  */
 export function createRegistry(): InternalRegistry {
-  const modules = new Map<string, ModuleEntry>();
+  const modules = new Map<string, ModuleEntry>();      // key: nitsId
+  const modulesByName = new Map<string, string>();     // key: name -> nitsId
+  const modulesByPath = new Map<string, string>();     // key: path -> nitsId
+  const seededNitsIds = new Map<string, string>();     // key: absolute path -> nitsId
+
   const aliases = new Map<string, string>();
   const controllers = new Map<string, ControllerEntry>();
   const services = new Map<string, ServiceEntry>();
@@ -76,98 +91,133 @@ export function createRegistry(): InternalRegistry {
 
   return {
     hasModule(name: string): boolean {
-      return modules.has(name);
+      return modulesByName.has(name);
     },
 
-  getModule(name: string): RegisteredModule | undefined {
-    const entry = modules.get(name);
-    return entry ? toRegisteredModule(entry) : undefined;
-  },
+    getModule(name: string): RegisteredModule | undefined {
+      const id = modulesByName.get(name);
+      if (!id) return undefined;
+      const entry = modules.get(id);
+      return entry ? toRegisteredModule(entry) : undefined;
+    },
 
-  getAllModules(): RegisteredModule[] {
-    return Array.from(modules.values()).map(toRegisteredModule);
-  },
+    getAllModules(): RegisteredModule[] {
+      return Array.from(modules.values()).map(toRegisteredModule);
+    },
 
-  resolveAlias(alias: string): string | undefined {
-    return aliases.get(alias);
-  },
+    hasModuleById(nitsId: string): boolean {
+      return modules.has(nitsId);
+    },
 
-  getAllAliases(): Record<string, string> {
-    return Object.fromEntries(aliases.entries());
-  },
+    getModuleById(nitsId: string): RegisteredModule | undefined {
+      const entry = modules.get(nitsId);
+      return entry ? toRegisteredModule(entry) : undefined;
+    },
 
-  getDependencyGraph(): Map<string, string[]> {
-    const graph = new Map<string, string[]>();
-    for (const [name, entry] of modules.entries()) {
-      graph.set(name, entry.imports);
-    }
-    return graph;
-  },
+    getModuleByPath(dirPath: string): RegisteredModule | undefined {
+      const nitsId = modulesByPath.get(normalizePath(dirPath));
+      if (!nitsId) return undefined;
+      const entry = modules.get(nitsId);
+      return entry ? toRegisteredModule(entry) : undefined;
+    },
+
+    resolveAlias(alias: string): string | undefined {
+      return aliases.get(alias);
+    },
+
+    getAllAliases(): Record<string, string> {
+      return Object.fromEntries(aliases.entries());
+    },
+
+    getDependencyGraph(): Map<string, string[]> {
+      const graph = new Map<string, string[]>();
+      for (const entry of modules.values()) {
+        graph.set(entry.name, entry.imports);
+      }
+      return graph;
+    },
 
     findCircularDependencies(): string[][] {
       const dependencyMap = new Map<string, string[]>();
-      for (const [name, entry] of modules.entries()) {
-        dependencyMap.set(name, entry.imports);
+      for (const entry of modules.values()) {
+        dependencyMap.set(entry.name, entry.imports);
       }
       return findCircularDependencies(dependencyMap);
     },
 
-  registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string): void {
-    if (modules.has(name)) {
-      throw new NodulusError(
-        'DUPLICATE_MODULE',
-        `A module with this name already exists. Each module must have a unique name.`,
-        `Module name: ${name}`
-      );
-    }
-    
-    // Check if this directory already has a module registered
-    const existing = Array.from(modules.values()).find(m => m.path === dirPath);
-    if (existing) {
-      throw new NodulusError(
-        'DUPLICATE_MODULE',
-        `A module is already registered for this folder. Call Module() only once per directory.`,
-        `Existing: ${existing.name}, New: ${name}, Folder: ${dirPath}`
-      );
-    }
-    
-    const entry: ModuleEntry = {
-      name,
-      path: dirPath,
-      indexPath,
-      imports: options.imports || [],
-      exports: options.exports || [],
-      controllers: []
-    };
-    
-    modules.set(name, entry);
-  },
+    seedNitsIds(mapping: Map<string, string>): void {
+      for (const [dirPath, id] of mapping.entries()) {
+        seededNitsIds.set(normalizePath(dirPath), id);
+      }
+    },
 
-    registerAlias(alias: string, targetPath: string): void {
-      const existing = aliases.get(alias);
-      if (existing && existing !== targetPath) {
+    getNitsIdForPath(dirPath: string): string | undefined {
+      return seededNitsIds.get(normalizePath(dirPath));
+    },
+
+    registerModule(name: string, options: ModuleOptions, dirPath: string, indexPath: string, nitsId: string): void {
+      if (modules.has(nitsId)) {
         throw new NodulusError(
-          'DUPLICATE_ALIAS',
-          `An alias with this name is already registered to a different target path.`,
-          `Alias: ${alias}, Existing: ${existing}, New: ${targetPath}`
+          'DUPLICATE_MODULE',
+          `A module with this NITS ID already exists. Identity must be unique.`,
+          `NITS ID: ${nitsId}, Name: ${name}, Path: ${dirPath}`
         );
       }
+      
+      const normalizedPath = normalizePath(dirPath);
+
+      if (modulesByPath.has(normalizedPath)) {
+        const existingId = modulesByPath.get(normalizedPath)!;
+        const existing = modules.get(existingId);
+        throw new NodulusError(
+          'DUPLICATE_MODULE',
+          `A module is already registered for this folder. Call Module() only once per directory.`,
+          `Existing: ${existing?.name}, New: ${name}, Folder: ${dirPath}`
+        );
+      }
+      
+      if (modulesByName.has(name) && modulesByName.get(name) !== nitsId) {
+        throw new NodulusError(
+          'DUPLICATE_MODULE',
+          `A module with the name "${name}" is already registered. Names must be unique unless domains are explicitly supported.`,
+          `Duplicate name: ${name}, Path: ${dirPath}`
+        );
+      }
+
+      const entry: ModuleEntry = {
+        nitsId,
+        name,
+        path: dirPath,
+        indexPath,
+        imports: options.imports || [],
+        exports: options.exports || [],
+        controllers: []
+      };
+      
+      modules.set(nitsId, entry);
+
+      modulesByName.set(name, nitsId);
+      modulesByPath.set(normalizedPath, nitsId);
+    },
+
+    registerAlias(alias: string, targetPath: string): void {
       aliases.set(alias, targetPath);
     },
 
     registerControllerMetadata(entry: ControllerEntry): void {
-      if (controllers.has(entry.path)) {
+      const normalizedPath = normalizePath(entry.path);
+      if (controllers.has(normalizedPath)) {
         throw new NodulusError(
           'INVALID_CONTROLLER',
           `Controller() was called more than once in the same file.`,
           `File: ${entry.path}`
         );
       }
-      controllers.set(entry.path, entry);
+      controllers.set(normalizedPath, entry);
     },
 
     getControllerMetadata(filePath: string): ControllerEntry | undefined {
-      return controllers.get(filePath);
+      return controllers.get(normalizePath(filePath));
     },
 
     getAllControllersMetadata(): ControllerEntry[] {
@@ -175,7 +225,8 @@ export function createRegistry(): InternalRegistry {
     },
 
     getRawModule(name: string): ModuleEntry | undefined {
-      return modules.get(name);
+      const id = modulesByName.get(name);
+      return id ? modules.get(id) : undefined;
     },
 
     registerFileMetadata(entry: FileEntry): void {
@@ -235,6 +286,9 @@ export function createRegistry(): InternalRegistry {
 
     clearRegistry(): void {
       modules.clear();
+      modulesByName.clear();
+      modulesByPath.clear();
+      seededNitsIds.clear();
       aliases.clear();
       controllers.clear();
       services.clear();
@@ -244,19 +298,8 @@ export function createRegistry(): InternalRegistry {
   };
 }
 
-/**
- * AsyncLocalStorage context that holds the active registry for the current execution scope.
- * Populated by createApp() — all code running within that scope can retrieve
- * the registry via getActiveRegistry().
- * @internal
- */
 export const registryContext = new AsyncLocalStorage<InternalRegistry>();
 
-/**
- * Returns the registry bound to the current async execution context.
- * Throws REGISTRY_MISSING_CONTEXT if called outside a createApp() scope.
- * @internal — not exported from index.ts
- */
 export function getActiveRegistry(): InternalRegistry {
   const store = registryContext.getStore();
   if (!store) {
@@ -268,11 +311,4 @@ export function getActiveRegistry(): InternalRegistry {
   return store;
 }
 
-/**
- * Returns a read-only view of the registry active in the current async context.
- * 
- * @unstable This function is intended for advanced framework integrations or 
- * internal debugging. The structure of the returned registry may change in future 
- * minor updates. For standard use cases, rely on the properties returned by `createApp()`.
- */
 export const getRegistry = (): NodulusRegistryAdvanced => getActiveRegistry();

@@ -172,4 +172,57 @@ describe('createApp', () => {
       });
     });
   });
+  it('should register custom aliases in the registry', async () => {
+    const appWithAliases = {
+      ...validAppStructure,
+      'shared/utils.ts': 'export const foo = 1;'
+    };
+    
+    await runInTmpApp(appWithAliases, async (tmpDir, app) => {
+      const nodulusApp = await createApp(app as any, {
+        aliases: {
+          '@shared': './shared'
+        }
+      });
+      
+      const aliases = nodulusApp.registry.getAllAliases();
+      expect(aliases['@shared']).toBe(path.resolve(tmpDir, 'shared'));
+    });
+  });
+
+  it('should expose custom aliases via getAliases() after createApp() (P1/P6)', async () => {
+    await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+      const configDir = path.join(tmpDir, 'src/config');
+      fs.mkdirSync(configDir, { recursive: true });
+
+      await createApp(app as any, {
+        aliases: { '@config': './src/config' }
+      });
+      
+      const { getAliases } = await import('../../src/aliases/getAliases.js');
+      const aliases = await getAliases({ absolute: true });
+      
+      expect(aliases['@config']).toBe(path.resolve(tmpDir, 'src/config'));
+    });
+  });
+
+  it('should support aliases pointing to individual files end-to-end (P3/P6)', async () => {
+    const appWithFileAlias = {
+      ...validAppStructure,
+      'src/shared/database.ts': 'export const db = {};'
+    };
+
+    await runInTmpApp(appWithFileAlias, async (tmpDir, app) => {
+      const nodulusApp = await createApp(app as any, {
+        aliases: { '@db': './src/shared/database.ts' }
+      });
+
+      const aliases = nodulusApp.registry.getAllAliases();
+      expect(aliases['@db']).toBe(path.resolve(tmpDir, 'src/shared/database.ts'));
+      
+      const { getAliases } = await import('../../src/aliases/getAliases.js');
+      const publicAliases = await getAliases();
+      expect(publicAliases['@db']).toBeDefined();
+    });
+  });
 });

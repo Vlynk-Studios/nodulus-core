@@ -12,7 +12,13 @@ import { updateAliasCache } from '../aliases/cache.js';
 import { createLogger } from '../core/logger.js';
 import { performance } from 'node:perf_hooks';
 import pc from 'picocolors';
-import { extractModuleImports } from '../cli/lib/ast-parser.js';
+import { extractModuleImports } from '../nits/import-scanner.js';
+import { loadNitsRegistry, saveNitsRegistry, initNitsRegistry, inferProjectName } from '../nits/nits-store.js';
+import { reconcile, buildUpdatedNitsRegistry, buildNitsIdMap } from '../nits/nits-reconciler.js';
+import { reportReconciliation } from '../nits/nits-reporter.js';
+import { computeModuleHash } from '../nits/nits-hash.js';
+import { normalizePath } from '../core/utils/paths.js';
+import type { DiscoveredModule } from '../types/nits.js';
 
 export async function createApp(
   app: Application,
@@ -37,7 +43,7 @@ export async function createApp(
       }
     }
   } catch (_e) {
-    // Failsafe, could not parse package.json, assume non-ESM to fail securely
+    // Failsafe
   }
 
   if (!isEsm) {
@@ -76,11 +82,9 @@ export async function createApp(
     cwd: process.cwd()
   });
 
-  // Ensure strict alphabetical ordering
   moduleDirs.sort();
 
-  // Store useful resolved paths for the upcoming steps
-  const resolvedModules: { dirPath: string, indexPath: string }[] = [];
+  const resolvedModules: { name: string, dirPath: string, indexPath: string }[] = [];
 
   for (const dirPath of moduleDirs) {
     log.debug(`Discovered module directory: ${dirPath}`, { dirPath });
@@ -88,7 +92,6 @@ export async function createApp(
     const jsPath = path.join(dirPath, 'index.js');
     
     let indexPath: string | null = null;
-    
     if (fs.existsSync(tsPath)) {
       indexPath = tsPath;
     } else if (fs.existsSync(jsPath)) {
@@ -103,20 +106,55 @@ export async function createApp(
       );
     }
     
-    resolvedModules.push({ dirPath, indexPath });
+    resolvedModules.push({ 
+      name: path.basename(dirPath), 
+      dirPath, 
+      indexPath 
+    });
+  }
+
+  // Step 2.5 — NITS Identity Reconciliation (Identity tracking audit layer)
+  if (config.nits?.enabled !== false) {
+    try {
+      const discovered: DiscoveredModule[] = [];
+      for (const mod of resolvedModules) {
+        const { hash, identifiers } = await computeModuleHash(mod.dirPath);
+        discovered.push({
+          name: mod.name,
+          dirPath: mod.dirPath,
+          domain: undefined, // Reserved for v2.0 (Domains are not supported in v1.x)
+          identifiers,
+          hash
+        });
+      }
+
+      const cwd = process.cwd();
+      const oldRegistry = await loadNitsRegistry(cwd) || initNitsRegistry(inferProjectName(cwd));
+      const nitsResult = await reconcile(discovered, oldRegistry, cwd, {
+        similarityThreshold: config.nits?.similarityThreshold
+      });
+      
+      reportReconciliation(nitsResult, log);
+      
+      const updatedNits = buildUpdatedNitsRegistry(nitsResult, oldRegistry.project);
+      await saveNitsRegistry(updatedNits, cwd);
+
+      // Seed the registry with the reconciled IDs
+      const nitsIdMap = buildNitsIdMap(nitsResult, cwd);
+      registry.seedNitsIds(nitsIdMap);
+      
+      log.debug('NITS identity reconciliation complete.');
+    } catch (err: any) {
+      log.warn(`NITS reconciliation failed: ${err.message}. Bootstrap will continue with temporary identities.`);
+      log.debug('NITS Error detail:', err);
+    }
   }
 
   // Step 3 — Activate runtime aliases
-  // Using pureModuleAliases to separate user configured folders vs magically generated modules
   if (config.resolveAliases !== false) {
     const pureModuleAliases: Record<string, string> = {};
-    
-    // Automatically resolve @modules/<name> for each module
     for (const mod of resolvedModules) {
-      const modName = path.basename(mod.dirPath);
-      const aliasKey = `@modules/${modName}`;
-      
-      // Dual mapping for runtime consistency (N-09)
+      const aliasKey = `@modules/${mod.name}`;
       pureModuleAliases[aliasKey] = mod.indexPath;
       pureModuleAliases[`${aliasKey}/*`] = `${mod.dirPath}/*`;
       
@@ -124,19 +162,53 @@ export async function createApp(
       registry.registerAlias(`${aliasKey}/*`, `${mod.dirPath}/*`);
     }
 
-    // Validate manual custom aliases before activation
+    const normalizedConfigAliases: Record<string, string> = {};
     for (const [alias, target] of Object.entries(config.aliases)) {
-      const targetPath = path.isAbsolute(target) ? target : path.resolve(process.cwd(), target);
+      if (pureModuleAliases[alias]) {
+        log.warn(`Alias collision: User alias "${alias}" overrides an auto-generated module alias. Configuration will take precedence.`, { alias, target });
+      }
+
+      const isWildcard = target.endsWith('/*');
+      const cleanTarget = isWildcard ? target.slice(0, -2) : target;
+      const targetPath = path.isAbsolute(cleanTarget) ? cleanTarget : path.resolve(process.cwd(), cleanTarget);
+      
       if (!fs.existsSync(targetPath)) {
+        let details = `Alias: ${alias}, Target Path: ${targetPath}`;
+        
+        // Suggestion hint: if the path doesn't exist, check for index files
+        const tsIndex = path.join(targetPath, 'index.ts');
+        const jsIndex = path.join(targetPath, 'index.js');
+        if (fs.existsSync(tsIndex) || fs.existsSync(jsIndex)) {
+            const hintPath = fs.existsSync(tsIndex) ? 'index.ts' : 'index.js';
+            details += `\nHint: The directory was not found but it contains an "${hintPath}". Did you mean "${target.endsWith('/') ? target : target + '/'}${hintPath}"?`;
+        }
+
         throw new NodulusError(
           'ALIAS_NOT_FOUND',
           `The target path for alias "${alias}" does not exist.`,
-          `Alias: ${alias}, Target Path: ${targetPath}`
+          details
         );
       }
+
+      const stats = fs.statSync(targetPath);
+      // Re-add wildcard to the absolute path if it was originally present
+      const finalTargetPath = isWildcard ? targetPath + '/*' : targetPath;
+
+      if (!stats.isDirectory() && alias.endsWith('/*')) {
+        const msg = `Invalid alias: Alias "${alias}" uses a wildcard "/*" but points to a file: ${targetPath}. Wildcards should only point to directories.`;
+        if (config.strict) {
+          throw new NodulusError('ALIAS_INVALID', msg);
+        } else {
+          log.warn(msg);
+        }
+      }
+
+      registry.registerAlias(alias, finalTargetPath);
+      normalizedConfigAliases[alias] = finalTargetPath;
+      log.debug(`Alias registered: ${alias} → ${finalTargetPath}`, { alias, finalTargetPath, source: 'config' });
     }
 
-    await activateAliasResolver(pureModuleAliases, config.aliases, log);
+    await activateAliasResolver(pureModuleAliases, normalizedConfigAliases, log);
     updateAliasCache(registry.getAllAliases());
   }
 
@@ -146,7 +218,7 @@ export async function createApp(
 
     // Correlate the imported module with the one added to the registry based on dirPath
     const allRegistered = registry.getAllModules();
-    const registeredMod = allRegistered.find(m => path.normalize(m.path) === path.normalize(mod.dirPath));
+    const registeredMod = allRegistered.find(m => normalizePath(m.path) === normalizePath(mod.dirPath));
 
     if (!registeredMod) {
       throw new NodulusError(
@@ -157,14 +229,13 @@ export async function createApp(
     }
 
     log.info(`Module loaded: ${pc.green(registeredMod.name)}`, {
+      id: registeredMod.id,
       name: registeredMod.name,
       imports: registeredMod.imports,
       exports: registeredMod.exports,
       path: registeredMod.path,
     });
 
-    // Validate Exports
-    // CJS/ESM behavior: on dynamic imports, named exports are mapped as object keys.
     const actualExports = Object.keys(imported).filter(key => key !== 'default');
     const declaredExports = registeredMod.exports || [];
 
@@ -193,7 +264,6 @@ export async function createApp(
   // Step 5 — Validate dependencies
   const allModules = registry.getAllModules();
   for (const mod of allModules) {
-    // Sanitize empty strings in the raw module directly
     const rawMod = registry.getRawModule(mod.name);
     if (rawMod) {
       rawMod.imports = rawMod.imports.filter((imp: string) => imp && imp.trim() !== '');
@@ -211,9 +281,7 @@ export async function createApp(
     }
   }
 
-  // Step 5.5 — Detect undeclared cross-module imports AND unused declared imports
-  // Reads actual @modules/* import specifiers from every non-index file and
-  // cross-checks them against the declared imports[] of that module.
+  // Step 5.5 — Detect undeclared cross-module imports
   for (const registeredMod of allModules) {
     const rawMod = registry.getRawModule(registeredMod.name);
     if (!rawMod) continue;
@@ -229,7 +297,6 @@ export async function createApp(
     for (const file of sourceFiles) {
       const actualImports = extractModuleImports(file);
       for (const imp of actualImports) {
-        // Extract "users" from "@modules/users" or "@modules/users/..."
         const parts = imp.specifier.split('/');
         const targetModule = imp.specifier.startsWith('@modules/') ? parts[1] : (parts[1] || parts[0]).replace(/^@/, '');
         if (!targetModule || targetModule === registeredMod.name) continue;
@@ -243,11 +310,7 @@ export async function createApp(
           const details = `File: ${path.normalize(file)}:${imp.line} — Add "${targetModule}" to Module() imports array for "${registeredMod.name}".`;
 
           if (config.strict) {
-            throw new NodulusError(
-              'UNDECLARED_IMPORT',
-              message,
-              details
-            );
+            throw new NodulusError('UNDECLARED_IMPORT', message, details);
           } else {
             log.warn(message, {
               module: registeredMod.name,
@@ -260,27 +323,18 @@ export async function createApp(
       }
     }
 
-    // Unused imports check
     for (const declared of registeredMod.imports) {
       if (!usedImports.has(declared)) {
         const message = `Module "${registeredMod.name}" declares import "${declared}" but never uses it.`;
         if (config.strict) {
-          throw new NodulusError(
-            'UNUSED_IMPORT',
-            message,
-            `Remove "${declared}" from imports[] in "${registeredMod.name}".`
-          );
+          throw new NodulusError('UNUSED_IMPORT', message, `Remove "${declared}" from imports[] in "${registeredMod.name}".`);
         } else {
-          log.warn(message, {
-            module: registeredMod.name,
-            unusedTarget: declared
-          });
+          log.warn(message, { module: registeredMod.name, unusedTarget: declared });
         }
       }
     }
   }
 
-  // Strict mode validations for circular dependencies
   if (config.strict) {
     const cycles = registry.findCircularDependencies();
     if (cycles.length > 0) {
@@ -296,18 +350,12 @@ export async function createApp(
   // Step 6 — Discover controllers
   for (const mod of allModules) {
     const rawMod = registry.getRawModule(mod.name);
-    if (!rawMod) continue; // Failsafe, should always exist
+    if (!rawMod) continue;
 
     const files = await fg('**/*.{ts,js,mts,mjs,cjs}', {
       cwd: mod.path,
       absolute: true,
-      ignore: [
-        '**/*.types.*',
-        '**/*.d.ts',
-        '**/*.spec.*',
-        '**/*.test.*',
-        'index.*' // Escapes root index.ts/js
-      ]
+      ignore: ['**/*.types.*', '**/*.d.ts', '**/*.spec.*', '**/*.test.*', 'index.*']
     });
 
     files.sort();
@@ -326,12 +374,10 @@ export async function createApp(
         );
       }
 
-      const resolvedFile = path.normalize(file);
-      const ctrlMeta = registry.getControllerMetadata(resolvedFile) || registry.getAllControllersMetadata().find(c => path.normalize(c.path) === resolvedFile);
+      const resolvedFile = normalizePath(file);
+      const ctrlMeta = registry.getControllerMetadata(resolvedFile);
       if (ctrlMeta) {
-        // Evaluate router validity (must be default export & resemble an Express router)
         const isRouter = imported.default && typeof imported.default === 'function' && typeof imported.default.use === 'function';
-        
         if (!isRouter) {
           throw new NodulusError(
             'INVALID_CONTROLLER',
@@ -339,26 +385,13 @@ export async function createApp(
             `File: ${file}`
           );
         }
-
-        log.debug(`Controller registered: ${pc.green(ctrlMeta.name)} → ${pc.cyan(ctrlMeta.prefix)}`, {
-          name: ctrlMeta.name,
-          prefix: ctrlMeta.prefix,
-          module: mod.name,
-          middlewareCount: ctrlMeta.middlewares.length,
-        });
-
-        // Bind the active Express Router instance directly to the internally saved metadata
         ctrlMeta.router = imported.default;
         rawMod.controllers.push(ctrlMeta);
       }
     }
 
-    if (rawMod.controllers.length === 0) {
-      log.warn(`Module "${mod.name}" has no controllers — no routes will be mounted from it`, {
-        name: mod.name,
-        path: mod.path,
-      });
-    }
+    // Note: modules with no controllers are valid (workers, email, listeners, etc.)
+    // REGLA-01: Nodulus does not require controllers — they are Express-specific.
   }
 
   // Step 7 — Mount routes
@@ -379,23 +412,18 @@ export async function createApp(
       }
 
       const fullPath = (config.prefix + ctrl.prefix).replace(/\/+/g, '/').replace(/\/$/, '') || '/';
-
       if (ctrl.router) {
-
         if (ctrl.middlewares && ctrl.middlewares.length > 0) {
            app.use(fullPath, ...ctrl.middlewares, ctrl.router);
         } else {
            app.use(fullPath, ctrl.router);
         }
 
-        // Try to extract individual routes from Express router stack
-        // If impossible, fallback to USE basepath.
         let foundRoutes = false;
         const extractedRoutes: { method: string, path: string }[] = [];
 
         if (ctrl.router.stack && Array.isArray(ctrl.router.stack)) {
           for (const layer of ctrl.router.stack) {
-            // Express v5 internal API — may change without semver notice
             const routeObj = (layer as any).route;
             if (routeObj && routeObj.methods) {
               foundRoutes = true;
@@ -427,12 +455,7 @@ export async function createApp(
         }
 
         const methodColors: Record<string, (msg: string) => string> = {
-          GET: pc.green,
-          POST: pc.yellow,
-          PUT: pc.cyan,
-          PATCH: pc.magenta,
-          DELETE: pc.red,
-          USE: pc.gray,
+          GET: pc.green, POST: pc.yellow, PUT: pc.cyan, PATCH: pc.magenta, DELETE: pc.red, USE: pc.gray
         };
 
         for (const route of extractedRoutes) {
@@ -448,12 +471,9 @@ export async function createApp(
     }
   }
 
-    // Tag Express app to prevent double boot
     (app as any).__nodulusBootstrapped = true;
 
-    // Step 8 — Return NodulusApp
     const safeRegisteredModules = allModules.map(m => registry.getModule(m.name)!);
-    
     const durationMs = Math.round(performance.now() - startTime);
     log.info(`${pc.green('Bootstrap complete')} — ${pc.cyan(allModules.length)} module(s), ${pc.cyan(mountedRoutes.length)} route(s) in ${pc.yellow(`${durationMs}ms`)}`, {
       moduleCount: allModules.length,
@@ -468,8 +488,6 @@ export async function createApp(
     };
 
     } catch (err) {
-      // Rollback: discard any partially registered state so a retry
-      // does not encounter leftover modules or aliases.
       registry.clearRegistry();
       throw err;
     }

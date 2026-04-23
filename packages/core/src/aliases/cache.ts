@@ -19,3 +19,11 @@ export function getAliasCache(): Record<string, string> {
 export function clearAliasCache(): void {
   globalAliasCache = {};
 }
+
+/**
+ * Resolves a single alias to its absolute path from the active registry or global cache.
+ */
+export function resolveAlias(alias: string): string | undefined {
+  const cache = getAliasCache();
+  return cache[alias];
+}

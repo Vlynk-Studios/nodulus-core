@@ -2,11 +2,13 @@ import fg from 'fast-glob';
 import path from 'node:path';
 import fs from 'node:fs';
 import { 
-  extractModuleDeclaration, 
-  extractModuleImports, 
-  extractInternalIdentifiers,
-  ImportFound 
+  extractModuleDeclaration,
+  extractIdentifierCall
 } from './ast-parser.js';
+import {
+  extractModuleImports, 
+  type ImportFound 
+} from '../../nits/import-scanner.js';
 import type { NodulusConfig } from '../../types/index.js';
 
 export interface BaseNode {
@@ -62,9 +64,15 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
 
     const actualImports: ImportFound[] = [];
     const internalIdentifiers: string[] = [];
+    // NOTE: 'Controller' excluded — its first arg is an HTTP route, not a semantic
+    // domain identifier. See BUG-1 in nits-hash.ts for full rationale.
+    const targetCallees = ['Service', 'Repository', 'Schema'];
 
     // Also check index file for identifiers
-    internalIdentifiers.push(...extractInternalIdentifiers(indexPath));
+    for (const callee of targetCallees) {
+      const result = extractIdentifierCall(indexPath, callee);
+      if (result) internalIdentifiers.push(result.name);
+    }
 
     const moduleFiles = await fg('**/*.{ts,js,mts,mjs}', {
       cwd: dirPath,
@@ -76,8 +84,10 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
       const fileImports = extractModuleImports(file);
       actualImports.push(...fileImports);
       
-      const fileIdentifiers = extractInternalIdentifiers(file);
-      internalIdentifiers.push(...fileIdentifiers);
+      for (const callee of targetCallees) {
+        const result = extractIdentifierCall(file, callee);
+        if (result) internalIdentifiers.push(result.name);
+      }
     }
 
     nodes.push({

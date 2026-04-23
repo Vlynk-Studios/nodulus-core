@@ -5,6 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-23
+
+> **Prerequisite for v2.0.0:** This release establishes the foundational **Nodulus Integrated Tracking System (NITS)** and a completely overhauled **Alias Robustness** engine. It replaces fragile name-based module resolution with a robust persistent identity system and first-class custom aliases, paving the way for the upcoming unified Domain-Driven architecture.
+
+### Added
+- **Alias Robustness Engine**: Completed a comprehensive overhaul of the alias resolution system (P1-P7).
+- **Custom Aliases Support**: User-defined aliases in `createApp({ aliases: { ... } })` are now first-class citizens:
+  - **Auto-Subpaths**: Directory aliases now automatically resolve their children without needing wildcards (e.g., `@shared/utils` works if `@shared` points to a folder).
+  - **File-based Aliases**: Support for pointing aliases directly to individual files (e.g., `"@db": "./src/config/database.ts"`).
+  - **Dual Mapping for IDE**: `sync-tsconfig` now generates both exact and wildcard mappings for directories, ensuring accurate IntelliSense.
+- **Improved public API**: New `resolveAlias(alias)` utility and enhanced `getAliases({ includeConfigAliases })` filtering.
+- **Nodulus Integrated Tracking System (NITS)**: A complete reconciliation layer assigning persistent unique `mod_{hex}` IDs to modules, flawlessly tracking them across git branches, file renames, and folder restructurings (`registry.json`).
+- **Verification Triangle Reconciler**: NITS intelligently resolves changing identities through a 3-step confidence algorithm matching absolute paths, AST semantic hashes, and unique node names.
+- **Semantic AST Hashing**: Computes module hashes strictly via semantic domain identifiers (Services, Controllers, Repositories), honoring refactors regardless of whitespace or comments.
+- **Interactive Clone Detection** [N-29] & [N-44]: Incorporates strict state policies (`clonePolicy`) and dynamic `activeHashes` to definitively protect the project graph from split-brain scenarios.
+- **Outdated Import Scanner**: The engine natively parses cross-module dependencies to detect and emit targeted console warnings when aliases import routes from previously `moved` modules.
+- **Immutable Timestamp Persistence** [N-30]: Registry payloads permanently track `createdAt` lifecycles shielding origins. 
+
+### Changed
+- **Identity-First Core** [N-28]: Completely standardized the underlying runtime memory Maps (`registry.ts`) to anchor architecture via `nitsId`, deprecating string-name keys.
+- **Duplicate Directory Policies** [N-43]: System actively prevents generic module-name collisions by emitting safe `DUPLICATE_MODULE` errors upon `modulesByName` overwrites.
+- **Dynamic Reconcile Options** [N-45]: Allows customized integration hooks overriding the Jaccard similarity threshold arrays (`similarityThreshold`).
+- **Enhanced Bootstrap Resilience**: Integrated NITS strictly as an audit layer in `createApp`. Total disk I/O or corrupted registries will gracefully report warnings without disrupting backend initializations.
+
+### Fixed
+- **Absolute Path Normalization**: All aliases are now normalized to absolute paths during registration, eliminating `cwd`-dependency issues.
+- **Validation Hints**: `ALIAS_NOT_FOUND` now suggests probable paths if an `index.ts/js` is missing (e.g., checking for index.ts helper).
+- **Idempotent Registry**: Refactored ESM hook registration to be content-addressable, allowing safe multiple calls to `createApp()` without race conditions.
+- **CLI Analyzer Exceptions** [N-46]: Reconciled an architectural flaw where pipeline structural checks (`nodulus check`) would abruptly crash facing transient file-locking incidents.
+- **checkCommand Graph ID Mapping** [N-34]: Addressed a legacy lookup failure in the CLI command improperly trying to attach IDs using names.
+- **Unifying Identifier Extraction** [N-47]: Replaced duplicate tracking mechanisms in `extractInternalIdentifiers` with an integrated Regex fallback.
+- **Candidate Persistence Stability** [N-48]: Remedied registry discrepancies dragging abandoned 'candidates' into indefinite identity limbo.
+- **[BUG-1] `Controller` removed from NITS identifier extraction** (`src/nits/nits-hash.ts`, `src/cli/lib/graph-builder.ts`): `Controller('/users')` takes an HTTP route path as its first argument, not a semantic domain name. Including `'Controller'` in `targetCallees` caused route strings like `"/users"` to be stored as module identifiers in `.nodulus/registry.json`, producing Jaccard = 1.0 false positives between any two modules sharing the same route prefix and losing identity when a route prefix changed. Fixed by removing `'Controller'` from `targetCallees` in both files; only `Service`, `Repository`, and `Schema` are semantic identity carriers.
+- **[BUG-2] Invalid module ID in `nits-app` fixture and orphaned registry snapshot** (`tests/fixtures/nits-app/.nodulus/registry-snapshot-moved.json`): The fixture used `"mod_users_legacy"` as a module ID, which fails the `/^mod_[0-9a-f]{8}$/` regex in `isValidModuleId`, causing `loadNitsRegistry` to silently return `null`. The fixture was also unreferenced by any test. Fixed by correcting the ID to `"mod_a1b2c3d4"` and adding two integration tests in `scenarios.test.ts`: one asserting the corrected fixture loads successfully, and one pinning the regression (invalid IDs must return `null` with a warning).
+- **[BUG-3] Missing `hash` and `createdAt` fields in test registry object** (`tests/integration/scenarios.test.ts`): The registry entry in the "picks up existing identities" test omitted `hash` and `createdAt`. In `reconcile()` Step 0, `activeHashes.set(mod.hash, mod.path)` stored `"undefined"` as the map key, and `createRecord` received `prev.createdAt = undefined`. The test still passed via path-based confirmation (Step 1), masking the latent hash-map collision risk. Fixed by completing the object with `hash: 'abc1234567'` and `createdAt: '2024-01-01T00:00:00.000Z'`.
+- **[DESIGN-1] Step 3 of reconciler lacked documentation for `status === 'stale'` guard** (`src/nits/nits-reconciler.ts`): The filter restricting Step 3 name-matching to `stale` records only was undocumented, risking future removal by maintainers. The intent is a deliberate "stale-first" grace cycle: a module whose path and hash both changed in the same run goes `stale` first, then Step 3 can rescue it by name on the next run as a `candidate`. Added comprehensive JSDoc and inline comments explaining this design, plus a canonical contract test `"Step 3 does NOT rescue an 'active' module that failed Steps 1&2 (DESIGN-1 contract)"` in `nits-reconciler.test.ts`.
+- **[DESIGN-2] `candidates` persisted as `'stale'` in registry while receiving active IDs at runtime** (`src/nits/nits-reconciler.ts`): `buildUpdatedNitsRegistry` forced `status: 'stale'` on candidates while `buildNitsIdMap` used the record as-is (`status: 'candidate'`), creating a semantic contradiction between the persisted registry and the runtime ID map. Fixed by removing the status override — candidates now persist with their correct `'candidate'` status. The 2-cycle stabilization path is preserved: next run, Step 1 matches the candidate by path (no status filter) and confirms it as `'active'`. Also fixed `hasChanges` in `check.ts` to include `result.candidates.length > 0`, ensuring the reporter surfaces candidate warnings to the user.
+- **[CODE-1] `nits-app` fixture `src/modules/` was completely orphaned** (`tests/unit/nits-hash-fixture.test.ts`): The fixture's module directories (`users/`, `orders/`) had no test coverage. Added a dedicated test file `nits-hash-fixture.test.ts` (isolated from the `vi.mock('node:fs')` context of `nits-store.test.ts`) exercising `computeModuleHash` against the real fixture files, verifying `UserService`/`OrderService` identifier extraction, distinct hashes per module, and a BUG-1 regression guard (no identifier may start with `/`).
+- **[CODE-2] `isValidRegistry` did not validate `NitsModuleRecord` fields** (`src/nits/nits-store.ts`): The function only verified that `modules` was an object, allowing records with missing `hash`, `createdAt`, `status`, etc. to pass validation and reach `reconcile()` with `undefined` values (root cause of BUG-3). Fixed by adding per-record validation: any record missing one of the 7 required fields (`name`, `path`, `hash`, `status`, `createdAt`, `lastSeen`, `identifiers`) causes `loadNitsRegistry` to return `null` with a descriptive warning identifying the offending record and missing fields.
+- **[REGLA-01] Spurious warning for modules without controllers** (`src/bootstrap/createApp.ts`): Nodulus is a structural layer, not an opinionated Express framework. Modules of pure infrastructure (workers, email senders, event listeners) do not need controllers. Fixed by removing the `log.warn` for empty `controllers` array in Step 6, honoring the principle that a module with no controllers is perfectly valid.
+- **[REGLA-14] Silent overwrite of modules with duplicate names** (`src/core/registry.ts`): The `registerModule` function checked for name uniqueness *after* the `modules.set` operation, leading to a silent overwrite in `modulesByName` and an inconsistent registry state. Fixed by moving the validation check before the map mutation, ensuring early termination (`DUPLICATE_MODULE`) before any state corruption.
+- **[REGLA-31] Inconsistent path normalization causing ID reassignment** (`src/nits/nits-reconciler.ts`): The internal `normalize` regex in the reconciler did not handle relative paths with backslashes on Windows properly (`src\modules\users`), causing comparisons to fail and IDs to be unnecessarily reassigned on every bootstrap. Fixed by importing and using the global `normalizePath` utility from `paths.ts`.
+
+### Custom Aliases Usage
+Internal Nodulus resolution:
+```typescript
+createApp(app, {
+  aliases: {
+    "@config": "./src/config",        // Directory alias (supports subpaths)
+    "@shared": "./src/shared/index.ts" // File alias
+  }
+});
+```
+
+Integration with Vite/esbuild:
+```typescript
+import { getAliases } from "@vlynk-studios/nodulus-core";
+
+export default {
+  resolve: {
+    alias: await getAliases({ absolute: true }) // Returns all aliases as absolute paths
+  }
+};
+```
+
 ## [1.3.1] - 2026-04-12
 
 ### Fixed

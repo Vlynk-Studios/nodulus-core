@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { resetGlobalState } from '../../src/core/state.js';
-import { updateAliasCache } from '../../src/aliases/cache.js';
+import { updateAliasCache, getAliasCache } from '../../src/aliases/cache.js';
 import { getAliases } from '../../src/aliases/getAliases.js';
 import * as resolver from '../../src/aliases/resolver.js';
 import { register } from 'node:module';
 import path from 'node:path';
+import { createRegistry, registryContext } from '../../src/core/registry.js';
 
 vi.mock('node:module', () => ({
   register: vi.fn()
@@ -39,6 +40,19 @@ describe('Aliases API', () => {
     expect(result).toEqual({});
   });
 
+  it('getAliasCache() returns from active registry context when one is running', async () => {
+    const r = createRegistry();
+    // Seed an alias directly in the global cache first
+    updateAliasCache({ '@modules/foo': '/abs/foo' });
+
+    await registryContext.run(r, async () => {
+      // Inside a registry context, getAliasCache() delegates to the registry
+      const cache = getAliasCache();
+      // The registry was just created and has no aliases registered yet
+      expect(cache).toEqual({});
+    });
+  });
+
   it('getAliases() returns entries for all seeded aliases', async () => {
     seedCache();
     const result = await getAliases();
@@ -55,11 +69,12 @@ describe('Aliases API', () => {
     expect(result['@config/database']).toBeUndefined();
   });
 
-  it('getAliases({ absolute: true }) returns the exact stored paths', async () => {
-    seedCache();
+  it('getAliases({ absolute: true }) returns the exact stored paths for modules and config aliases', async () => {
+    seedCache({ '@shared': path.join(process.cwd(), 'src/shared') });
     const result = await getAliases({ absolute: true });
     expect(result['@modules/users']).toBe(path.join(process.cwd(), 'modules/users'));
     expect(result['@config/database']).toBe(path.join(process.cwd(), 'config/db'));
+    expect(result['@shared']).toBe(path.join(process.cwd(), 'src/shared'));
   });
 
   it('getAliases({ absolute: false }) returns POSIX-relative paths starting with ./', async () => {
@@ -114,5 +129,17 @@ describe('Aliases API', () => {
     // The literal object string should contain the configured target, not the auto one
     const expectedAliasEntry = '"@modules/auth":"/path/configured"';
     expect(decoded).toContain(expectedAliasEntry);
+  });
+
+  it('ESM hook contains logic to resolve subpaths correctly (P2/P6)', async () => {
+    await resolver.activateAliasResolver({}, { '@config': '/abs/config' }, mockLogger as any);
+    
+    const [dataUrl] = (register as any).mock.calls[0];
+    const decoded = decodeURIComponent(dataUrl.replace('data:text/javascript,', ''));
+    
+    // Verify that the subpath resolution logic is baked into the hook
+    expect(decoded).toContain("specifier.startsWith(alias + '/')");
+    // Verify our alias is correctly serialized
+    expect(decoded).toContain('"@config":"/abs/config"');
   });
 });

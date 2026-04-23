@@ -14,6 +14,7 @@ export interface ControllerEntry {
 }
 
 export interface ModuleEntry {
+  nitsId: string;     // NITS specific assigned ID
   name: string;
   path: string;       // absolute path to the module directory
   indexPath: string;  // absolute path to the module's index.ts / index.js
@@ -126,8 +127,6 @@ export interface NitsConfig {
   similarityThreshold?: number;
   /** Whether to enable NITS identity tracking. Default: true. */
   enabled?: boolean;
-  /** Custom path to the NITS registry file. Default: '.nodulus/registry.json'. */
-  registryPath?: string;
 }
 
 export interface CreateAppOptions {
@@ -139,7 +138,15 @@ export interface CreateAppOptions {
   shared?: string;
   /** Global route prefix. Example: '/api/v1'. Default: ''. */
   prefix?: string;
-  /** Folder aliases beyond the auto-generated @modules/* entries. Default: {}. */
+  /** 
+   * Custom folder or file aliases beyond the auto-generated @modules/* entries.
+   * 
+   * - **File Aliases**: e.g., `"@db": "./src/db.ts"`. Resolves exactly to that file.
+   * - **Directory Aliases**: e.g., `"@shared": "./src/shared"`. Resolves to the folder 
+   *   and automatically supports subpaths (e.g., `@shared/utils` -> `./src/shared/utils`).
+   * 
+   * Default: {}. 
+   */
   aliases?: Record<string, string>;
   /**
    * Enables circular dependency detection and undeclared import errors.
@@ -181,12 +188,12 @@ export interface ResolvedConfig {
   nits: {
     enabled: boolean;
     similarityThreshold?: number;
-    registryPath: string;
   };
 }
 
 /** A module as it appears in the NodularApp result after bootstrap. */
 export interface RegisteredModule {
+  id: string;
   name: string;
   path: string;         // absolute path to the module directory
   imports: string[];    // names of modules this module depends on
@@ -234,10 +241,17 @@ export type NodulusConfig = CreateAppOptions;
 export interface GetAliasesOptions {
   /**
    * If false, only returns auto-generated @modules/* aliases.
-   * Config-defined folder aliases (from nodulus.config.ts `aliases`) are excluded.
+   * Config-defined aliases (from nodulus.config.ts `aliases`) are excluded.
    * Default: true (returns all aliases).
    */
   includeFolders?: boolean;
+  /**
+   * If false, config-defined aliases are excluded.
+   * Identical to `includeFolders` but with a more descriptive name.
+   * If both are present, `includeConfigAliases` takes precedence.
+   * Default: true.
+   */
+  includeConfigAliases?: boolean;
   /** If true, returns absolute paths. Default: false. */
   absolute?: boolean;
 }

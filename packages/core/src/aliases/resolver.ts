@@ -1,5 +1,5 @@
+import path from 'node:path';
 import { register } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import type { Logger } from '../core/logger.js';
 
 // Node.js Customization Hooks types
@@ -17,89 +17,116 @@ export type ResolveHook = (
   nextResolve: NextResolve
 ) => Promise<{ shortCircuit?: boolean; url: string }>;
 
-let isHookRegistered = false;
-let registrationPromise: Promise<void> | null = null;
+const registeredHashes = new Set<string>();
+let _registrationPromise: Promise<void> | null = null;
 
 /** @internal exclusively for tests */
 export function clearAliasResolverOptions(): void {
-  isHookRegistered = false;
-  registrationPromise = null;
+  registeredHashes.clear();
+  _registrationPromise = null;
 }
 
 /**
- * Activates the ESM Alias Resolver using Node.js module.register.
+ * Activates the runtime ESM alias resolver hook.
+ * 
+ * This hook handles:
+ * 1. **Exact aliases**: e.g. `@config` -> `/abs/path/config.ts`.
+ * 2. **Directory subpaths**: e.g. `@shared/utils` -> `/abs/path/shared/utils` (if `@shared` points to a directory).
+ * 3. **Classic wildcards**: e.g. `@modules/*` -> `/abs/path/modules/*`.
+ * 
+ * User-defined aliases take precedence over auto-generated module aliases.
  * 
  * Limitation: This ESM hook is strictly for Node ESM pipelines (Node >= 20.6.0).
- * It will not function effectively in pure CJS pipelines without a transpiler or loader.
  * For CJS and bundlers (Vite, esbuild), use getAliases() to configure their specific resolvers.
+ * 
+ * @param moduleAliases  - Auto-generated aliases starting with @modules/
+ * @param folderAliases  - Custom user-defined aliases from config
+ * @param log            - Logger instance
+ * @returns Promise that resolves when the hook is registered
  */
 export async function activateAliasResolver(moduleAliases: Record<string, string>, folderAliases: Record<string, string>, log: Logger): Promise<void> {
-  if (isHookRegistered) return;
-  if (registrationPromise) return registrationPromise;
+  // Normalize paths before merging and hashing to ensure absolute paths are used in the loader
+  const normalizedModuleAliases: Record<string, string> = {};
+  for (const [alias, target] of Object.entries(moduleAliases)) {
+    normalizedModuleAliases[alias] = path.isAbsolute(target) ? target : path.resolve(process.cwd(), target);
+  }
 
-  registrationPromise = (async () => {
-    try {
-      const combinedAliases = { ...moduleAliases, ...folderAliases };
+  const normalizedFolderAliases: Record<string, string> = {};
+  for (const [alias, target] of Object.entries(folderAliases)) {
+    normalizedFolderAliases[alias] = path.isAbsolute(target) ? target : path.resolve(process.cwd(), target);
+  }
 
-      for (const [alias, target] of Object.entries(folderAliases)) {
-        log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
-      }
-      for (const [alias, target] of Object.entries(moduleAliases)) {
-        log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'module' });
-      }
+  const combinedAliases = { ...normalizedModuleAliases, ...normalizedFolderAliases };
+  const serialisedAliases = JSON.stringify(combinedAliases);
 
-      // Aliases are serialised directly into the hook source so they are available
-      // in the hook's closure regardless of whether Node.js propagates context.data
-      // across all resolution chains (not guaranteed in every Node 20.6+ build).
-      const serialisedAliases = JSON.stringify(combinedAliases);
+  if (registeredHashes.has(serialisedAliases)) return;
 
-      const loaderCode = `
+  // Optimistic registration to prevent race conditions
+  registeredHashes.add(serialisedAliases);
+
+  try {
+    if (Object.keys(combinedAliases).length === 0) {
+      log.debug('No aliases to register, skipping ESM hook activation');
+      return;
+    }
+
+    for (const [alias, target] of Object.entries(normalizedFolderAliases)) {
+      log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'config' });
+    }
+    for (const [alias, target] of Object.entries(normalizedModuleAliases)) {
+      log.debug(`Alias registered: ${alias} → ${target}`, { alias, target, source: 'module' });
+    }
+
+    const loaderCode = `
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const aliases = ${serialisedAliases};
 
 export async function resolve(specifier, context, nextResolve) {
-  for (const alias of Object.keys(aliases)) {
+  for (const [alias, target] of Object.entries(aliases)) {
     if (alias.endsWith('/*')) {
       const baseAlias = alias.slice(0, -2);
-      if (specifier.startsWith(baseAlias + '/')) {
-        const baseTarget = aliases[alias].slice(0, -2);
-        const subPath = specifier.slice(baseAlias.length + 1);
-        const resolvedPath = path.resolve(baseTarget, subPath);
+      if (specifier === baseAlias || specifier.startsWith(baseAlias + '/')) {
+        const baseTarget = target.endsWith('/*') ? target.slice(0, -2) : target;
+        const subPath = specifier.slice(baseAlias.length);
+        const resolvedPath = path.resolve(baseTarget, subPath.startsWith('/') ? subPath.slice(1) : subPath);
         return nextResolve(pathToFileURL(resolvedPath).href, context);
       }
     } else if (specifier === alias) {
-      const target = aliases[alias];
-      return nextResolve(pathToFileURL(path.resolve(target)).href, context);
+      const exactTarget = target.endsWith('/*') ? target.slice(0, -2) : target;
+      return nextResolve(pathToFileURL(exactTarget).href, context);
+    } else if (specifier.startsWith(alias + '/')) {
+      const baseTarget = target.endsWith('/*') ? target.slice(0, -2) : target;
+      const subPath = specifier.slice(alias.length + 1);
+      const resolvedPath = path.resolve(baseTarget, subPath);
+      return nextResolve(pathToFileURL(resolvedPath).href, context);
     }
   }
   return nextResolve(specifier, context);
 }
 `;
 
-      const dataUrl = `data:text/javascript,${encodeURIComponent(loaderCode)}`;
-      const parentUrl = import.meta.url;
-      
-      if (typeof register === 'function') {
-        register(dataUrl, { parentURL: parentUrl });
-        isHookRegistered = true;
-        log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
-          aliasCount: Object.keys(combinedAliases).length
-        });
-      } else {
-        log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
-          nodeVersion: process.version
-        });
-      }
-    } catch (err) {
-      log.warn('ESM alias hook registration threw an unexpected error — aliases may not resolve at runtime', {
-        error: (err as any)?.message ?? String(err)
-      });
-    } finally {
-      registrationPromise = null;
-    }
-  })();
+    const dataUrl = `data:text/javascript,${encodeURIComponent(loaderCode)}`;
+    const parentUrl = import.meta.url;
 
-  return registrationPromise;
+    if (typeof register === 'function') {
+      register(dataUrl, { parentURL: parentUrl });
+      log.info(`ESM alias hook activated (${Object.keys(combinedAliases).length} alias(es))`, {
+        aliasCount: Object.keys(combinedAliases).length,
+      });
+    } else {
+      log.warn('ESM alias hook could not be registered — upgrade to Node.js >= 20.6.0 for runtime alias support', {
+        nodeVersion: process.version
+      });
+      // If not supported, we should probably remove the hash so we can try again if the environment somehow changes (though unlikely)
+      registeredHashes.delete(serialisedAliases);
+    }
+  } catch (err) {
+    // If registration fails, remove the hash so it can be retried
+    registeredHashes.delete(serialisedAliases);
+    log.warn('ESM alias hook registration threw an unexpected error', {
+      error: (err as any)?.message ?? String(err)
+    });
+  }
 }

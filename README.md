@@ -6,7 +6,7 @@
 
 A lightweight structural layer for Express. Nodulus lets you organise your Node.js application into self-contained modules — handling discovery, route mounting, import aliases, and dependency validation at bootstrap time, with zero overhead at runtime.
 
-> **Node.js ≥ 20.6** · **Express 4.x / 5.x** · **ESM Only** · **TypeScript included**
+> **Node.js ≥ 20.6** · **Express 5.x** · **ESM Only** · **TypeScript included**
 
 ---
 
@@ -29,7 +29,7 @@ Nodulus ships as two focused packages from the same repository:
 | Package | Description | npm |
 |---|---|---|
 | `@vlynk-studios/nodulus-core` | Core framework — module discovery, routing, aliases, validation | [![npm](https://img.shields.io/npm/v/@vlynk-studios/nodulus-core.svg)](https://www.npmjs.com/package/@vlynk-studios/nodulus-core) |
-| `@vlynk-studios/eslint-plugin-nodulus` | ESLint rules | [![npm](https://img.shields.io/npm/v/@vlynk-studios/eslint-plugin-nodulus.svg)](https://www.npmjs.com/package/@vlynk-studios/eslint-plugin-nodulus) |
+| `@vlynk-studios/eslint-plugin-nodulus` | ESLint plugin — static enforcement of Nodulus module boundaries in your editor and CI | [![npm](https://img.shields.io/npm/v/@vlynk-studios/eslint-plugin-nodulus.svg)](https://www.npmjs.com/package/@vlynk-studios/eslint-plugin-nodulus) |
 
 Both packages are independent installs — use one or both depending on your setup. The ESLint plugin is a companion, not a dependency of the core.
 
@@ -41,7 +41,7 @@ Both packages are independent installs — use one or both depending on your set
 npm install @vlynk-studios/nodulus-core
 ```
 
-Express is a peer dependency:
+Express 5 is a peer dependency:
 
 ```bash
 npm install express
@@ -77,13 +77,7 @@ console.log(`Mounted routes: ${routes.length}`)
 export default app
 ```
 
-Then run your app with the `--import` flag so that aliases work at runtime:
-
-```bash
-node --import @vlynk-studios/nodulus-core/register src/app.ts
-```
-
-> This registers the ESM Hook that enables runtime alias resolution. Without this flag, `@modules/*` and folder aliases will not resolve at runtime.
+> **Note:** Alias resolution runs through the Node.js ESM Hooks API, which activates inside `createApp()` at bootstrap time. Aliases are available to any file that Nodulus imports dynamically during bootstrap (your modules). They are **not** available to static imports in your entry point file (`app.ts`, `server.ts`) before `createApp()` is called. For bundler-based setups, see [Alias resolution with bundlers](#alias-resolution-with-bundlers).
 
 ---
 
@@ -117,12 +111,22 @@ createApp(app: Application, options?: CreateAppOptions): Promise<NodulusApp>
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `modules` | `string` | `'src/modules/*'` | Glob pointing to module folders |
+| `domains` | `string` | `undefined` | _(v2.0.0+, not yet active)_ Glob pointing to domain folders |
+| `shared` | `string` | `undefined` | _(v2.0.0+, not yet active)_ Glob pointing to shared global folders |
 | `prefix` | `string` | `''` | Global route prefix (e.g. `'/api/v1'`) |
-| `aliases` | `Record<string, string>` | `{}` | Folder aliases beyond the auto-generated `@modules/*` |
+| `aliases` | `Record<string, string>` | `{}` | Folder or file aliases beyond the auto-generated `@modules/*` |
 | `strict` | `boolean` | `true` in dev | Enables circular-dependency detection and undeclared-import errors |
 | `resolveAliases` | `boolean` | `true` | Disable if you resolve aliases with a bundler |
-| `logger` | `LogHandler` | `defaultLogHandler` | Custom log handler (supports Pino, Winston, etc.) |
+| `logger` | `LogHandler` | built-in | Custom log handler (supports Pino, Winston, etc.) |
 | `logLevel` | `LogLevel` | `'info'` | Minimum severity for log events |
+| `nits` | `NitsConfig` | `{ enabled: true }` | NITS identity tracking configuration |
+
+**`NitsConfig`:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | Whether to run NITS identity tracking at bootstrap |
+| `similarityThreshold` | `number` | dynamic | Jaccard similarity threshold (0.0–1.0) for module movement detection. If omitted, a dynamic value based on module size is used |
 
 Returns `NodulusApp`:
 
@@ -216,7 +220,7 @@ app.use(globalPrefix + controllerPrefix, ...middlewares, router)
 
 ### Domain Identifiers
 
-To guarantee accurate error-tracing, structured logs, and framework-level validation, label your business logic with domain identifiers. They capture stack metadata to bind exports effectively to their parent module without any extra configuration.
+Label your business logic with domain identifiers to register them in the Nodulus registry for tracing, tooling, and future framework features. Identifiers are **entirely optional** — a module with no identifiers is completely valid.
 
 ```ts
 import { Service, Repository, Schema } from '@vlynk-studios/nodulus-core'
@@ -227,7 +231,32 @@ Repository('UserRepository', { source: 'database' })
 Schema('UserSchema', { library: 'zod' })
 ```
 
-Unlike `Controller` or `Module`, these identifiers do not alter runtime execution traces or wrap payloads—they simply announce presence and ownership into the `NodulusRegistry`.
+Each identifier accepts an optional options object:
+
+**`Service(name, options?)`**
+
+| Option | Type | Description |
+|---|---|---|
+| `module` | `string` | Module this service belongs to. Inferred from parent folder if omitted |
+| `description` | `string` | Documentation |
+
+**`Repository(name, options?)`**
+
+| Option | Type | Description |
+|---|---|---|
+| `module` | `string` | Module this repository belongs to. Inferred from parent folder if omitted |
+| `description` | `string` | Documentation |
+| `source` | `'database' \| 'api' \| 'cache' \| 'file' \| string` | Data source type |
+
+**`Schema(name, options?)`**
+
+| Option | Type | Description |
+|---|---|---|
+| `module` | `string` | Module this schema belongs to. Inferred from parent folder if omitted |
+| `description` | `string` | Documentation |
+| `library` | `'zod' \| 'joi' \| 'yup' \| 'ajv' \| string` | Validation library used |
+
+Unlike `Controller` or `Module`, these identifiers do not alter runtime execution — they simply register presence and ownership into the `NodulusRegistry`, which is accessible after bootstrap via `result.registry`.
 
 > **Note:** Nodulus is validation-agnostic. While examples use Zod, you can use Joi, TypeBox, or any other library.
 
@@ -239,15 +268,15 @@ Nodulus registers two kinds of aliases:
 
 - **Module aliases** — auto-generated for every discovered module:
   ```
-  @modules/<n> → src/modules/<n>/index.ts
+  @modules/<name> → src/modules/<name>/index.ts
   ```
-- **Folder aliases** — configured in `createApp()` or `nodulus.config.ts`:
+- **Folder or file aliases** — configured in `createApp()` or `nodulus.config.ts`:
   ```
-  @config     → src/config/
-  @middleware → src/middleware/
+  @config     → src/config/          (directory — supports subpaths automatically)
+  @db         → src/config/db.ts     (file — resolves exactly to that file)
   ```
 
-Use them anywhere in your code:
+Use them anywhere inside your modules:
 
 ```ts
 import { UserService } from '@modules/users'
@@ -255,10 +284,12 @@ import { db }          from '@config/database.js'
 ```
 
 > [!IMPORTANT]
-> Nodulus is an **ESM-only** framework. It requires `"type": "module"` in your `package.json`. 
-> Dynamic runtime alias resolution relies on the Node.js ESM Hooks API (`--import` or `register`).
+> Nodulus is an **ESM-only** framework. It requires `"type": "module"` in your `package.json`.
+> Runtime alias resolution uses the Node.js ESM Hooks API and activates inside `createApp()`. Aliases are **not** available in your entry point before `createApp()` is called.
 
-For bundler-based projects (Vite, Esbuild, etc.), you can disable the runtime hook and inject `getAliases()` directly into your config:
+#### Alias resolution with bundlers
+
+For bundler-based projects (Vite, esbuild, etc.), you can disable the runtime hook and inject `getAliases()` directly into your config:
 
 ```ts
 // vite.config.ts
@@ -290,7 +321,8 @@ await esbuild.build({
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `includeFolders` | `boolean` | `true` | If `false`, config-defined folder aliases are excluded (returns only auto-generated `@modules/*` aliases) |
+| `includeFolders` | `boolean` | `true` | If `false`, config-defined folder aliases are excluded (returns only `@modules/*` aliases) |
+| `includeConfigAliases` | `boolean` | `true` | Same as `includeFolders`, takes precedence when both are present |
 | `absolute` | `boolean` | `false` | If `true`, returned paths are absolute |
 
 ---
@@ -312,6 +344,10 @@ const config: NodulusConfig = {
     '@middleware': './src/middleware',
     '@shared':     './src/shared',
   },
+  nits: {
+    enabled: true,
+    similarityThreshold: 0.85  // optional — defaults to dynamic
+  }
 }
 
 export default config
@@ -319,18 +355,20 @@ export default config
 
 Config file loading order (first match wins):
 
-1. `nodulus.config.ts` — development only
+1. `nodulus.config.ts` — development only (requires a TypeScript loader such as `tsx`)
 2. `nodulus.config.js` — always
+
+> **Note:** `nodulus.config.ts` cannot be loaded in production unless your build step compiles it to `.js`. Use `nodulus.config.js` for production deployments, or build it as part of your pipeline.
 
 ---
 
 ## CLI Tools
 
-Nodulus provides a built-in CLI to enforce conventions effortlessly and improve developer experience without memorizing boilerplate.
+Nodulus provides a built-in CLI to enforce conventions and improve developer experience.
 
-### `nodulus create-module <n>`
+### `nodulus create-module <name>`
 
-Scaffolds a perfectly structured module conforming to the framework constraints instantaneously.
+Scaffolds a perfectly structured module conforming to the framework constraints.
 
 ```bash
 npx nodulus create-module payments
@@ -350,10 +388,16 @@ npx nodulus create-module payments
 | `--path <path>` | Sets a custom absolute or relative destination |
 | `--no-repository` | Omits the repository file |
 | `--no-schema` | Omits the schema file |
+| `--ts` | Force TypeScript output (`.ts` files) |
+| `--js` | Force JavaScript output (`.js` files) |
+
+> Language is auto-detected from the presence of `tsconfig.json` in the project root when neither `--ts` nor `--js` is specified.
+
+---
 
 ### `nodulus sync-tsconfig`
 
-Because nodulus dynamically discovers modules and configures `@modules/*` ES Hooks aliases, Node.js can recognize your code immediately. However, IDEs and TypeScript demand static assertions. This command bridges the gap by injecting your dynamic nodulus module aliases safely onto `compilerOptions.paths`.
+Syncs Nodulus aliases into `tsconfig.json` paths so IDEs and TypeScript recognise `@modules/*` and any folder aliases you've configured.
 
 ```bash
 npx nodulus sync-tsconfig
@@ -367,11 +411,17 @@ Added paths:
   @config/*           → ./src/config/*
 ```
 
-Run this command initially, and whenever you create, rename, or drop modules in the project. It behaves idempotently and automatically purges references to modules that were deleted.
+Run this command initially, and whenever you create, rename, or drop modules. It behaves idempotently and automatically purges references to modules that no longer exist.
+
+| Option | Description |
+|---|---|
+| `--tsconfig <path>` | Path to `tsconfig.json`. Default: `tsconfig.json` in the project root |
+
+---
 
 ### `nodulus check`
 
-Performs static code architecture analysis by inspecting raw Abstract Syntax Trees (AST) across your module structures without mutating or evaluating your application code.
+Performs static architecture analysis by inspecting raw ASTs across your module structure without evaluating your application code.
 
 ```bash
 npx nodulus check
@@ -389,46 +439,59 @@ Nodulus Architecture Analysis
 2 problem(s) found.
 ```
 
-| Option                 | Description                                                                              |
-|------------------------|------------------------------------------------------------------------------------------|
-| `--strict`             | Gracefully halts pipelines (`exit 1`) if architectural violations are mapped. Ideal for CI/CD gates. |
-| `--module <name>` | Narrow the analysis exclusively to a specific module scope within your system.           |
-| `--format <json,text>` | Exposes structural violations as digestible JSON payloads for external pipelines.        |
-| `--no-circular`        | Disables heavy Depth-First Search cycle logic detections (`A → B → A`).             |
+| Option | Description |
+|---|---|
+| `--strict` | Exit with code 1 if any violation is found. Ideal for CI gates |
+| `--module <name>` | Narrow the analysis to a specific module |
+| `--format <json\|text>` | Output format. Use `json` for external pipeline consumption |
+| `--no-circular` | Disables cycle detection (`A → B → A`) |
 
 ---
 
 ## ESLint Plugin
 
-> **Available from v1.3.0** · Package: `eslint-plugin-nodulus`
+> **Available from v1.3.0** · Package: `@vlynk-studios/eslint-plugin-nodulus`
 
-`nodulus check` validates your architecture at the command line. `eslint-plugin-nodulus` brings the same rules into your editor and CI pipeline as ESLint violations — so you catch problems the moment you write the import, not when you run a separate command.
+`nodulus check` validates your architecture on demand or in CI. `@vlynk-studios/eslint-plugin-nodulus` brings the same rules into your editor — so you catch boundary violations the moment you write the import.
 
 ```bash
-npm install --save-dev eslint-plugin-nodulus
+npm install --save-dev @vlynk-studios/eslint-plugin-nodulus
 ```
 
 ### Setup
 
 ```js
 // eslint.config.js
-import nodulus from 'eslint-plugin-nodulus'
+import nodulus from '@vlynk-studios/eslint-plugin-nodulus'
 
 export default [nodulus.configs.recommended]
 ```
 
-That's all. The `recommended` config activates both rules with their default severities.
+To configure rules individually:
+
+```js
+// eslint.config.js
+import nodulus from '@vlynk-studios/eslint-plugin-nodulus'
+
+export default [
+  {
+    plugins: { nodulus },
+    rules: {
+      'nodulus/no-private-imports':    'error',
+      'nodulus/no-undeclared-imports': 'warn',
+    }
+  }
+]
+```
 
 ### Rules
 
 | Rule | Severity (recommended) | Description |
 |---|---|---|
-| `nodulus/no-private-imports` | `error` | Prevents importing internal files from another module directly. Only the public index (`@modules/<name>`) is a valid cross-module import target. |
-| `nodulus/no-undeclared-imports` | `warn` | Flags cross-module imports from modules not listed in the consuming module's `imports` array inside `Module()`. |
+| `nodulus/no-private-imports` | `error` | Prevents importing internal files from another module directly. Only the public index (`@modules/<name>`) is a valid cross-module import target |
+| `nodulus/no-undeclared-imports` | `warn` | Flags cross-module imports from modules not listed in the consuming module's `imports` array |
 
 #### `nodulus/no-private-imports`
-
-Enforces encapsulation at the import level. A module's internal files are an implementation detail — only its `index.ts` is part of its public contract.
 
 ```ts
 // ✗ error — accessing a private file directly
@@ -439,8 +502,6 @@ import { UserService } from '@modules/users'
 ```
 
 #### `nodulus/no-undeclared-imports`
-
-Keeps the dependency graph declared in `Module()` in sync with what the code actually imports. When a cross-module import is used but the target isn't listed in `imports`, the rule warns.
 
 ```ts
 // src/modules/orders/index.ts
@@ -453,33 +514,46 @@ import { PaymentService } from '@modules/payments'  // ✗ warn — undeclared i
 import { UserService }    from '@modules/users'      // ✓ correct
 ```
 
-To fix, add the missing module to the `imports` array:
-
-```ts
-Module('orders', {
-  imports: ['users', 'payments'],
-})
-```
-
 ### Relationship to `nodulus check`
-
-Both tools catch the same class of violations, but they operate differently and complement each other:
 
 | | `nodulus check` | `eslint-plugin-nodulus` |
 |---|---|---|
 | When it runs | On demand / CI step | On save / pre-commit / CI lint step |
 | How it works | Full AST analysis across the whole project | Per-file ESLint rule evaluation |
 | Circular dependency detection | ✓ | — |
-| Editor integration | — | ✓ |
-| CI gate (`--strict` / `--max-warnings`) | ✓ | ✓ |
+| Editor integration (inline errors) | — | ✓ |
+| CI gate | `--strict` flag | `--max-warnings` flag |
 
-Use `nodulus check --strict` as an architecture gate and `eslint-plugin-nodulus` as the fast feedback loop while writing code.
+---
+
+## NITS Identity Tracking
+
+Nodulus 1.2.5+ includes **NITS (Nodulus Integrated Tracking System)**, which assigns a stable, unique `mod_{hex}` ID to every module. This allows the framework to track modules across renames, moves, and git branch switches — preventing identity loss during refactors.
+
+NITS maintains a state file at `.nodulus/registry.json` in your project root. **This file should be committed to version control.**
+
+### How NITS assigns identities
+
+NITS uses a three-step Verification Triangle algorithm:
+
+1. **Match by path** (maximum confidence) — same directory = same module.
+2. **Match by semantic hash** (high confidence, similarity ≥ 0.9) — same `Service`, `Repository`, and `Schema` names across locations = moved module.
+3. **Match by name** (medium confidence) — a previously `stale` module with the same name found at a new location = candidate for manual review.
+
+### Resolving merge conflicts
+
+Because `registry.json` tracks project-level state, parallel branches may occasionally produce Git merge conflicts. To resolve them:
+
+1. Accept either side of the conflict to make the JSON valid again.
+2. Run `npx nodulus check`.
+3. NITS will automatically detect and heal the registry.
+4. Commit the updated `.nodulus/registry.json`.
 
 ---
 
 ## Logging
 
-Nodulus emits structured, color-coded log events throughout the bootstrap pipeline using [picocolors](https://github.com/alexeyraspopov/picocolors).
+Nodulus emits structured, color-coded log events throughout the bootstrap pipeline.
 
 ### Default behavior
 
@@ -487,11 +561,18 @@ Nodulus emits structured, color-coded log events throughout the bootstrap pipeli
 |---|---|---|
 | Development | `info` | Modules loading, routes mounting, startup duration |
 | Any | `warn` / `error` | Written to `stderr`; everything else to `stdout` |
-| Debug | `debug` | Set `NODE_DEBUG=nodulus` to see file scans and alias registrations |
+| Debug | `debug` | Set `logLevel: 'debug'` in options or `NODE_DEBUG=nodulus` |
+
+### Semantic levels
+
+| Level | When Nodulus uses it |
+|---|---|
+| `debug` | Internal bootstrap state, paths resolved, files scanned |
+| `info` | Module loaded, route mounted, bootstrap complete |
+| `warn` | Undeclared import (non-strict), unused import (non-strict), NITS fallback warning |
+| `error` | Never — Nodulus uses `throw NodulusError` instead |
 
 ### Using a custom logger (Pino)
-
-The `LogHandler` signature is compatible with most modern loggers:
 
 ```ts
 import pino from 'pino'
@@ -508,7 +589,7 @@ await createApp(app, {
 
 ```ts
 await createApp(app, {
-  logger: () => {} // Silences all output regardless of level
+  logger: () => {}
 })
 ```
 
@@ -516,7 +597,7 @@ await createApp(app, {
 
 ## Error handling
 
-All Nodulus errors are instances of `NodulusError` and carry a machine-readable `code`:
+All Nodulus errors are instances of `NodulusError` with a machine-readable `code`:
 
 ```ts
 import { NodulusError } from '@vlynk-studios/nodulus-core'
@@ -536,18 +617,24 @@ try {
 | Code | When it's thrown |
 |---|---|
 | `MODULE_NOT_FOUND` | Discovered folder has no `index.ts` / `index.js`, or `index.ts` does not call `Module()` |
-| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or an Identifier (Service, Schema, etc) is declared incorrectly or fails to detect caller bounds |
-| `DUPLICATE_MODULE` | Two modules share the same name |
+| `INVALID_MODULE_DECLARATION` | `Module()` name doesn't match folder name, or an identifier is declared incorrectly or outside a `createApp()` context |
+| `DUPLICATE_MODULE` | Two modules share the same name or NITS ID |
+| `DUPLICATE_SERVICE` | Two `Service()` calls share the same name |
+| `DUPLICATE_REPOSITORY` | Two `Repository()` calls share the same name |
+| `DUPLICATE_SCHEMA` | Two `Schema()` calls share the same name |
 | `MISSING_IMPORT` | Module listed in `imports` does not exist in the registry |
 | `UNDECLARED_IMPORT` | Module imports from another not listed in `imports` (strict only) |
+| `UNUSED_IMPORT` | Module declares an import it never actually uses (strict only) |
 | `CIRCULAR_DEPENDENCY` | A dependency cycle was detected (strict only) |
 | `EXPORT_MISMATCH` | Name declared in `exports` is not an actual export of `index.ts` |
 | `INVALID_CONTROLLER` | Controller file has no `default export` of an Express `Router` |
-| `ALIAS_NOT_FOUND` | Configured alias points to a directory that does not exist |
+| `ALIAS_NOT_FOUND` | Configured alias points to a path that does not exist |
+| `ALIAS_INVALID` | Wildcard alias (`/*`) points to a file instead of a directory (strict only) |
 | `DUPLICATE_ALIAS` | Two aliases resolve to the same name but different paths |
 | `DUPLICATE_BOOTSTRAP` | `createApp()` called more than once with the same Express instance |
 | `REGISTRY_MISSING_CONTEXT` | A Nodulus API was called outside of a `createApp()` async context |
 | `INVALID_ESM_ENV` | `createApp()` called in a non-ESM environment (missing `"type": "module"` in `package.json`) |
+| `CLI_ERROR` | A CLI command failed with a validation or runtime error |
 
 ---
 
@@ -564,11 +651,12 @@ Returns the read-only registry bound to the current async execution context. Onl
 import { getRegistry } from '@vlynk-studios/nodulus-core'
 
 const registry = getRegistry()
-const allModules = registry.getAllModules()  // RegisteredModule[]
-const alias      = registry.resolveAlias('@modules/users')
+const allModules   = registry.getAllModules()            // RegisteredModule[]
+const alias        = registry.resolveAlias('@modules/users')
+const allAliases   = registry.getAllAliases()            // Record<string, string>
 ```
 
-`NodulusRegistry` interface:
+`NodulusRegistry` interface (stable):
 
 ```ts
 interface NodulusRegistry {
@@ -577,6 +665,15 @@ interface NodulusRegistry {
   getAllModules(): RegisteredModule[]
   resolveAlias(alias: string): string | undefined
   getAllAliases(): Record<string, string>
+}
+```
+
+`NodulusRegistryAdvanced` interface (@unstable):
+
+```ts
+interface NodulusRegistryAdvanced extends NodulusRegistry {
+  getDependencyGraph(): Map<string, string[]>
+  findCircularDependencies(): string[][]
 }
 ```
 
@@ -600,11 +697,11 @@ Scaffold a new feature by creating a folder and an `index.ts`. Nodulus handles a
 | | Minimum |
 |---|---|
 | Node.js | 20.6.0 |
-| Express | 4.x or 5.x |
+| Express | 5.x |
 | TypeScript | 5.0+ (optional) |
 | ESLint | 8.0+ (optional, for `eslint-plugin-nodulus`) |
 
-> **Why 20.6?** Nodulus uses the Node.js [ESM Hooks API](https://nodejs.org/api/module.html#customization-hooks) (`--import` / `register`) for runtime alias resolution. Native support without `--experimental-loader` requires Node 20.6+.
+> **Why 20.6?** Nodulus uses the Node.js [ESM Hooks API](https://nodejs.org/api/module.html#customization-hooks) (`register`) for runtime alias resolution. Native support without `--experimental-loader` requires Node 20.6+.
 
 ---
 
@@ -616,7 +713,7 @@ Nodulus is built as a pure ESM package. It does not support CommonJS (`require()
 import { createApp, Module, Controller } from '@vlynk-studios/nodulus-core'
 ```
 
-> **Note:** Runtime alias resolution uses the ESM Hooks API. Ensure your `package.json` contains `"type": "module"`.
+Your project must have `"type": "module"` in `package.json`. Nodulus validates this at bootstrap and throws `INVALID_ESM_ENV` if it is missing.
 
 ---
 
@@ -629,13 +726,19 @@ import type {
   CreateAppOptions,
   NodulusApp,
   NodulusRegistry,
+  NodulusRegistryAdvanced,
   NodulusConfig,
-  NodulusError,
+  NitsConfig,
   ModuleOptions,
   ControllerOptions,
+  ServiceOptions,
+  RepositoryOptions,
+  SchemaOptions,
   RegisteredModule,
   MountedRoute,
   GetAliasesOptions,
+  ModuleRegistration,
+  FeatureRegistration,
   LogLevel,
   LogHandler,
 } from '@vlynk-studios/nodulus-core'
