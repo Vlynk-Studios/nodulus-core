@@ -314,6 +314,54 @@ describe("NITS Reconciler (Verification Triangle)", () => {
     expect(result.newModules.length).toBe(0);
   });
 
+  it("Step 3 does NOT rescue an 'active' module that failed Steps 1&2 (DESIGN-1 contract)", async () => {
+    // Scenario: a module is 'active' in the registry but its path changed AND
+    // its identifier similarity is below threshold. Step 3 must NOT match it
+    // by name — the module must go stale for one cycle first (stale-first grace).
+    const previous: NitsRegistry = {
+      ...createEmptyRegistry(),
+      modules: {
+        mod_active: {
+          id: "mod_active",
+          name: "payments",
+          path: "src/old-payments",   // Different from discovered → Step 1 fails
+          hash: "h_old",
+          status: "active",           // ← NOT stale → Step 3 must ignore this
+          createdAt: timestamp,
+          lastSeen: "",
+          identifiers: ["OldService"],
+        },
+      },
+    };
+
+    const discovered: DiscoveredModule[] = [
+      {
+        name: "payments",             // Same name as the active record
+        dirPath: "/project/src/new-payments", // Different path → Step 1 fails
+        identifiers: [],              // Near-zero similarity → Step 2 fails
+        hash: "h_new",
+      },
+    ];
+
+    // Very low similarity → Step 2 skipped
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.05);
+
+    const result = await reconcile(discovered, previous, cwd);
+
+    // Step 3 must NOT produce a candidate — the 'active' record is not eligible
+    expect(result.candidates.length).toBe(0);
+
+    // The discovered module gets a brand-new ID (newModule)
+    expect(result.newModules.length).toBe(1);
+    expect(result.newModules[0].name).toBe("payments");
+    expect(result.newModules[0].id).not.toBe("mod_active");
+
+    // The old active record becomes stale for this cycle
+    expect(result.stale.length).toBe(1);
+    expect(result.stale[0].id).toBe("mod_active");
+    expect(result.stale[0].status).toBe("stale");
+  });
+
   describe("Clone Detection & Identity Conflicts", () => {
     it("Test: identical hash + original in its path + CI environment → throws DUPLICATE_MODULE", async () => {
       const previous: NitsRegistry = {
