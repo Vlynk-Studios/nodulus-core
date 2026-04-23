@@ -390,12 +390,8 @@ export async function createApp(
       }
     }
 
-    if (rawMod.controllers.length === 0) {
-      log.warn(`Module "${mod.name}" has no controllers — no routes will be mounted from it`, {
-        name: mod.name,
-        path: mod.path,
-      });
-    }
+    // Note: modules with no controllers are valid (workers, email, listeners, etc.)
+    // REGLA-01: Nodulus does not require controllers — they are Express-specific.
   }
 
   // Step 7 — Mount routes

@@ -3,6 +3,7 @@ import { NITS_REGISTRY_VERSION } from './constants.js';
 import { hashSimilarity } from './nits-hash.js';
 import { generateModuleId } from './nits-id.js';
 import { NodulusError } from '../core/errors.js';
+import { normalizePath } from '../core/utils/paths.js';
 import type { 
   NitsRegistry, 
   NitsModuleRecord, 
@@ -57,7 +58,7 @@ export async function reconcile(
   const usedIds = new Set<string>(prevModules.map(m => m.id));
   const timestamp = new Date().toISOString();
   
-  const normalize = (p: string) => (path.isAbsolute(p) ? path.relative(cwd, p) : p).replace(/\\/g, '/');
+  const normalize = (p: string) => normalizePath(path.isAbsolute(p) ? path.relative(cwd, p) : p);
   const isCi = options.isCi ?? !!process.env.CI;
   const clonePolicy = options.clonePolicy || (isCi ? 'error' : 'new');
   
