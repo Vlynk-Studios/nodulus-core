@@ -64,7 +64,9 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
 
     const actualImports: ImportFound[] = [];
     const internalIdentifiers: string[] = [];
-    const targetCallees = ['Service', 'Controller', 'Repository', 'Schema'];
+    // NOTE: 'Controller' excluded — its first arg is an HTTP route, not a semantic
+    // domain identifier. See BUG-1 in nits-hash.ts for full rationale.
+    const targetCallees = ['Service', 'Repository', 'Schema'];
 
     // Also check index file for identifiers
     for (const callee of targetCallees) {

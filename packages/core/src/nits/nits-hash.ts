@@ -68,7 +68,7 @@ export function areIdentitiesSimilar(
  * Computes a semantic SHA-1 hash for a module based on its 
  * declared identifiers (Services, Controllers, etc.).
  * 
- * Target keywords: Service, Controller, Repository, Schema.
+ * Target keywords: Service, Repository, Schema.
  * 
  * @param dirPath Absolute path to the module directory
  * @returns Object with truncated SHA-1 hash (10 characters) and the list of identifiers
@@ -82,7 +82,11 @@ export async function computeModuleHash(dirPath: string): Promise<{ hash: string
     ignore: ['**/*.test.*', '**/*.spec.*', '**/*.d.ts', 'index.*']
   });
   
-  const targetCallees = ['Service', 'Controller', 'Repository', 'Schema'];
+  // NOTE: 'Controller' is intentionally excluded — its first argument is an HTTP route
+  // path (e.g. '/users'), not a semantic domain name. Including it would store route
+  // strings as module identifiers, causing false-positive Jaccard matches between any
+  // two modules sharing the same prefix (BUG-1).
+  const targetCallees = ['Service', 'Repository', 'Schema'];
   const allIdentifiers: string[] = [];
   
   for (const file of files) {

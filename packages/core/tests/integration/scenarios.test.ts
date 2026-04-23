@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createApp } from "../../src/bootstrap/createApp.js";
 import { NodulusError } from "../../src/core/errors.js";
+import { loadNitsRegistry } from "../../src/nits/nits-store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -646,6 +647,74 @@ describe("Integration Tests", () => {
           undefined
         );
       });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // BUG-2: registry-snapshot-moved fixture — ID format validation
+  // -----------------------------------------------------------------------
+  describe('NITS Registry — ID format validation (BUG-2)', () => {
+    const FIXTURE_DIR = path.resolve(
+      __dirname,
+      '../fixtures/nits-app'
+    );
+
+    it('loads registry-snapshot-moved.json when all IDs are valid hex format', async () => {
+      // The fixture is named registry-snapshot-moved.json (not registry.json),
+      // so we copy it into a tmp dir that loadNitsRegistry can resolve.
+      const fixtureFile = path.join(FIXTURE_DIR, '.nodulus', 'registry-snapshot-moved.json');
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nodulus-bug2-valid-'));
+      const nodulusDir = path.join(tmpDir, '.nodulus');
+      fs.mkdirSync(nodulusDir, { recursive: true });
+      fs.copyFileSync(fixtureFile, path.join(nodulusDir, 'registry.json'));
+
+      try {
+        const registry = await loadNitsRegistry(tmpDir);
+        // The fixture has mod_a1b2c3d4 which satisfies /^mod_[0-9a-f]{8}$/
+        expect(registry).not.toBeNull();
+        expect(registry!.modules['mod_a1b2c3d4']).toBeDefined();
+        expect(registry!.modules['mod_a1b2c3d4'].name).toBe('users');
+        expect(registry!.modules['mod_a1b2c3d4'].identifiers).toContain('UserService');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('returns null when the registry contains an invalid module ID (regression: mod_users_legacy)', async () => {
+      // Write a temporary registry with the originally broken ID to a tmp dir
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nodulus-bug2-'));
+      const nitulusDir = path.join(tmpDir, '.nodulus');
+      fs.mkdirSync(nitulusDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(nitulusDir, 'registry.json'),
+        JSON.stringify({
+          project: 'nits-app',
+          version: '1.0.0',
+          lastCheck: '2024-01-01T00:00:00.000Z',
+          modules: {
+            // ❌ This ID would have caused a silent null return (BUG-2)
+            'mod_users_legacy': {
+              id: 'mod_users_legacy',
+              name: 'users',
+              path: 'src/legacy/users',
+              hash: 'legacy_hash_abc',
+              status: 'active',
+              createdAt: '2024-01-01T00:00:00.000Z',
+              lastSeen: '2024-01-01T00:00:00.000Z',
+              identifiers: ['UserService']
+            }
+          }
+        }),
+        'utf-8'
+      );
+
+      try {
+        const registry = await loadNitsRegistry(tmpDir);
+        // loadNitsRegistry must reject registries with non-hex IDs
+        expect(registry).toBeNull();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 });
