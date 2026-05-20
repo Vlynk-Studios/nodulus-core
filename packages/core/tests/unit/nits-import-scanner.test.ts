@@ -443,4 +443,14 @@ describe('§1.3 [BLOCKER]: extractModuleImports — dynamic import resilience', 
     expect(specifiers).toContain('@modules/users');
     expect(specifiers).not.toContain('./lazy.js');
   });
+
+  it('extractModuleImports against a real fixture file (nits-app notifications) with alias @modules', () => {
+    const fixtureFile = path.resolve(__dirname, '../fixtures/nits-app/src/modules/notifications/service.ts');
+    const result = extractModuleImports(fixtureFile);
+    
+    expect(result).toHaveLength(2);
+    const specifiers = result.map(r => r.specifier);
+    expect(specifiers).toContain('@modules/users');
+    expect(specifiers).toContain('@vlynk-studios/nodulus-core');
+  });
 });

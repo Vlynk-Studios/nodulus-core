@@ -264,4 +264,12 @@ describe('computeModuleHash', () => {
     const { hash } = await computeModuleHash(tmpDir);
     expect(hash).toHaveLength(10);
   });
+
+  it('computes hash for nits-app payments fixture extracting multiple identifier types', async () => {
+    const fixtureDir = path.resolve(__dirname, '../fixtures/nits-app/src/modules/payments');
+    const { hash, identifiers } = await computeModuleHash(fixtureDir);
+    expect(hash).toHaveLength(10);
+    expect(identifiers).toContain('PaymentService');
+    expect(identifiers).toContain('PaymentRepository');
+  });
 });

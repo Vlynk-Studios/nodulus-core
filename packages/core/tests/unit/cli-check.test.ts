@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('nodulus check', () => {
-  const fixturePath = path.resolve(__dirname, '../fixtures/check-app');
+  const fixturePath = path.resolve(__dirname, '../fixtures/check-app-violations');
 
   describe('detectViolations() with Fixture', () => {
     it('detects private import in fixture (payments module)', async () => {

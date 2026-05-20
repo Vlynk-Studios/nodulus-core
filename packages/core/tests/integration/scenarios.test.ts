@@ -1060,4 +1060,51 @@ describe("Integration Tests", () => {
       );
     });
   });
+  // -----------------------------------------------------------------------
+  // SubModule & INVALID_ESM_ENV tests
+  // -----------------------------------------------------------------------
+  describe("SubModule and INVALID_ESM_ENV (Blockers)", () => {
+    it("processes SubModule() without crash if it exists (reserved for v2.0.0)", async () => {
+      await runInTmpApp(
+        {
+          "nodulus.config.js": "export default { strict: false };",
+          "src/modules/parent/index.ts": `
+          import * as api from '{{SOURCE}}';
+          api.Module('parent');
+          if ('SubModule' in api) {
+            (api as any).SubModule('parent', 'child');
+          }
+        `,
+        },
+        async (_, app) => {
+          const result = await createApp(app as any);
+          expect(result.modules).toHaveLength(1);
+          expect(result.modules[0].name).toBe("parent");
+        },
+      );
+    });
+
+    it("throws INVALID_ESM_ENV when package.json is missing type: module", async () => {
+      await runInTmpApp(
+        {
+          "nodulus.config.js": "export default { strict: false };",
+          "src/modules/cjs/index.ts": `
+          import { Module } from '{{SOURCE}}';
+          Module('cjs');
+        `,
+        },
+        async (tmpDir, app) => {
+          // Overwrite package.json to remove type: module
+          fs.writeFileSync(
+            path.join(tmpDir, "package.json"),
+            JSON.stringify({ name: "test-app" }),
+          );
+
+          await expect(createApp(app as any)).rejects.toMatchObject({
+            code: "INVALID_ESM_ENV",
+          });
+        },
+      );
+    });
+  });
 });
