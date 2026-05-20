@@ -30,10 +30,10 @@ describe('E2E Integration', () => {
 
   it('should successfully boot without errors and resolve all modules', () => {
     expect(nodulusInfo).toBeDefined();
-    expect(nodulusInfo.modules).toHaveLength(3); // auth, notifications, users
+    expect(nodulusInfo.modules).toHaveLength(4); // auth, core, notifications, users
     
     const moduleNames = nodulusInfo.modules.map(m => m.name).sort();
-    expect(moduleNames).toEqual(['auth', 'notifications', 'users']);
+    expect(moduleNames).toEqual(['auth', 'core', 'notifications', 'users']);
   });
 
   it('should correctly register and resolve the global prefix and child prefixes', async () => {
@@ -84,9 +84,9 @@ describe('E2E Integration', () => {
   it('T-03c: registry.getAllModules() returns the correct set of module names', () => {
     const allModules = nodulusInfo.registry.getAllModules();
     expect(Array.isArray(allModules)).toBe(true);
-    expect(allModules.length).toBe(3);
+    expect(allModules.length).toBe(4);
     const names = allModules.map((m: any) => m.name).sort();
-    expect(names).toEqual(['auth', 'notifications', 'users']);
+    expect(names).toEqual(['auth', 'core', 'notifications', 'users']);
   });
 
   it('T-03d: GET /api/users returns 200 with the expected user array shape', async () => {
