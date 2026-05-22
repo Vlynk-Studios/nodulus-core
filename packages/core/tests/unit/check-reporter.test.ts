@@ -52,9 +52,9 @@ describe('check-reporter', () => {
 
   describe('printHeader()', () => {
     it('Output contiene la versión pasada como argumento y nombre del proyecto', () => {
-      printHeader({ version: '1.5.8', projectName: 'my-project' } as any);
+      printHeader({ version: '1.6.0', projectName: 'my-project' } as any);
       const output = getOutput();
-      expect(output).toContain('v1.5.8');
+      expect(output).toContain('v1.6.0');
       expect(output).toContain('my-project');
     });
 
