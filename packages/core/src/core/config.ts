@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { CreateAppOptions, ResolvedConfig, NodulusConfig } from '../types/index.js';
+import type { CreateAppOptions, ResolvedConfig } from '../types/index.js';
+import type { NodulusConfig } from '../config/nodulus-config.types.js';
 import { defaultLogHandler, resolveLogLevel } from './logger.js';
 
 const defaultStrict = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';

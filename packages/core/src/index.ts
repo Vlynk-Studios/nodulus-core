@@ -15,6 +15,9 @@ export * from './core/config.js';
 export * from './core/logger.js';
 export * from './preload/index.js';
 
+export { defineConfig, isValidAliasKey, RESERVED_ALIASES } from './config/nodulus-config.types.js';
+export type { NodulusConfig, AliasMap } from './config/nodulus-config.types.js';
+
 export type {
   CreateAppOptions,
   NodulusApp,
@@ -27,7 +30,6 @@ export type {
   ServiceOptions,
   RepositoryOptions,
   SchemaOptions,
-  NodulusConfig,
   GetAliasesOptions,
   LogLevel,
   LogHandler,

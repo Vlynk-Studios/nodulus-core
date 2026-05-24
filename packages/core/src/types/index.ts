@@ -334,20 +334,6 @@ export interface NodulusApp {
   listen(server: import('node:http').Server): ShutdownHook;
 }
 
-/** Shape of nodulus.config.ts. Options passed directly to createApp() take priority. */
-export interface NodulusConfig extends CreateAppOptions {
-  /** 
-   * Custom folder or file aliases beyond the auto-generated @modules/* entries.
-   * 
-   * - **File Aliases**: e.g., `"@db": "./src/db.ts"`. Resolves exactly to that file.
-   * - **Directory Aliases**: e.g., `"@shared": "./src/shared"`. Resolves to the folder 
-   *   and automatically supports subpaths (e.g., `@shared/utils` -> `./src/shared/utils`).
-   * 
-   * Default: {}. 
-   */
-  aliases?: Record<string, string>;
-}
-
 export interface GetAliasesOptions {
   /**
    * If false, only returns auto-generated @modules/* aliases.

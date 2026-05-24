@@ -9,7 +9,7 @@ import {
   extractModuleImports, 
   type ImportFound 
 } from '../../nits/import-scanner.js';
-import type { NodulusConfig } from '../../types/index.js';
+import type { NodulusConfig } from '../../config/nodulus-config.types.js';
 
 export interface BaseNode {
   name: string;
