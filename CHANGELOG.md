@@ -8,7 +8,7 @@ For full technical details, see the individual package changelogs:
 → [`packages/core/CHANGELOG.md`](./packages/core/CHANGELOG.md)
 → [`packages/eslint-plugin-nodulus/CHANGELOG.md`](./packages/eslint-plugin-nodulus/CHANGELOG.md)
 
-## [1.6.0] — 2026-05-20
+## [1.6.0] — 2026-05-24
 
 ### nodulus-core
 - **Verification Triangle & Reconciler Unit Testing (0 & 1.1)**: Added robust unit tests to `nits-reconciler.test.ts` covering edge cases: explicit `similarityThreshold` option, same-cycle module path swapping (`mod_a` <-> `mod_b`), single-identifier dynamic Jaccard threshold evaluation, candidate-to-active stabilization (DESIGN-2 contract), name change tracking on moved modules, stale transition for undiscovered modules, and Jaccard-identical modules cloning prevention under `clonePolicy: 'new'`.
