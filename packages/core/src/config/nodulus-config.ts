@@ -1,0 +1,131 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import type { LogHandler } from '../types/index.js';
+import {
+  type NodulusConfig,
+  type AliasMap,
+  isValidAliasKey,
+  RESERVED_ALIASES,
+} from './nodulus-config.types.js';
+import { NodulusError } from '../core/errors.js';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Internal config with all aliases resolved to absolute paths.
+ * Produced by `loadNodulusConfig()` — consumed by the bootstrap pipeline.
+ */
+export interface ResolvedNodulusConfig extends NodulusConfig {
+  /**
+   * Aliases with their values resolved to absolute paths from `cwd`.
+   * e.g. `@config` → `/abs/path/to/src/config`
+   */
+  resolvedAliases: Map<string, string>;
+}
+
+// ─── Config candidate search order ───────────────────────────────────────────
+
+const CONFIG_CANDIDATES = [
+  'nodulus.config.ts',
+  'nodulus.config.js',
+  'nodulus.config.mjs',
+] as const;
+
+// ─── Main loader ──────────────────────────────────────────────────────────────
+
+/**
+ * Loads and validates `nodulus.config.ts|js|mjs` from `cwd`.
+ *
+ * - If no config file is found, returns defaults with an empty alias map.
+ * - Validates every alias key with `isValidAliasKey()` → throws `INVALID_ALIAS_KEY`.
+ * - Rejects reserved aliases (`@modules`, `@shared`) → throws `ALIAS_RESERVED`.
+ * - Emits a `warn` log for aliases whose target path does not exist on disk.
+ */
+export async function loadNodulusConfig(
+  cwd: string,
+  log?: LogHandler,
+): Promise<ResolvedNodulusConfig> {
+  const logger = log ?? (() => { /* noop */ });
+
+  // ── 1. Locate config file ──────────────────────────────────────────────────
+  let configPath: string | null = null;
+
+  for (const candidate of CONFIG_CANDIDATES) {
+    const full = path.join(cwd, candidate);
+    if (fs.existsSync(full)) {
+      configPath = full;
+      break;
+    }
+  }
+
+  // ── 2. Load or use empty defaults ─────────────────────────────────────────
+  let fileConfig: NodulusConfig = {};
+
+  if (!configPath) {
+    logger('debug', '[config] No nodulus.config found, using defaults', { _module: 'config' });
+  } else {
+    try {
+      const importUrl = pathToFileURL(configPath).href;
+      const mod = await import(importUrl);
+      fileConfig = mod.default ?? mod.config ?? mod;
+    } catch (error: any) {
+      if (configPath.endsWith('.ts') && error.code === 'ERR_UNKNOWN_FILE_EXTENSION') {
+        throw new Error(
+          `[System] Found "${path.basename(configPath)}" but your environment cannot load raw TypeScript files.\n` +
+          `  - In production: Run "npm run build" OR use nodulus.config.js.\n` +
+          `  - In development: Ensure you are running with a loader like "tsx" or "ts-node".`,
+          { cause: error },
+        );
+      }
+      throw new Error(
+        `[System] Failed to parse config at "${configPath}": ${error.message}`,
+        { cause: error },
+      );
+    }
+  }
+
+  // ── 3. Validate and resolve aliases ───────────────────────────────────────
+  const rawAliases: AliasMap = fileConfig.aliases ?? {};
+  const resolvedAliases = new Map<string, string>();
+
+  for (const [key, value] of Object.entries(rawAliases)) {
+    // 3a. Reserved alias check (takes priority over format validation)
+    if ((RESERVED_ALIASES as readonly string[]).includes(key)) {
+      throw new NodulusError(
+        'ALIAS_RESERVED',
+        `[nodulus] El alias "${key}" está reservado por Nodulus y no puede redefinirse en nodulus.config.ts.`,
+        key,
+      );
+    }
+
+    // 3b. Key format validation
+    if (!isValidAliasKey(key)) {
+      throw new NodulusError(
+        'INVALID_ALIAS_KEY',
+        `[nodulus] El alias "${key}" no es una clave válida. ` +
+        `Las claves deben comenzar con "@" seguido de al menos una letra (ej. "@config", "@db"). ` +
+        `Alias inválido detectado en nodulus.config.`,
+        key,
+      );
+    }
+
+    // 3c. Existence check (warn, don't throw)
+    const absolutePath = path.resolve(cwd, value);
+    if (!fs.existsSync(absolutePath)) {
+      logger('warn', `[nodulus] El alias "${key}" apunta a "${value}" pero ese path no existe.`, {
+        _module: 'config',
+        alias: key,
+        target: value,
+        resolved: absolutePath,
+      });
+    }
+
+    resolvedAliases.set(key, absolutePath);
+  }
+
+  return {
+    ...fileConfig,
+    resolvedAliases,
+  };
+}
