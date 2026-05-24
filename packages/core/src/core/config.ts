@@ -70,8 +70,7 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<Resolv
     prefix: options.prefix ?? fileConfig.prefix ?? DEFAULTS.prefix,
     aliases: {
       ...DEFAULTS.aliases,
-      ...(fileConfig.aliases || {}),
-      ...(options.aliases || {}) // Options override file aliases
+      ...(fileConfig.aliases || {})
     },
     strict: options.strict ?? fileConfig.strict ?? DEFAULTS.strict,
     resolveAliases: options.resolveAliases ?? fileConfig.resolveAliases ?? DEFAULTS.resolveAliases,

@@ -196,7 +196,9 @@ export function checkCommand(): Command {
           }
         }
 
-        if (options.strict && violations.length > 0) {
+        const hasBoundaryViolation = violations.some(v => v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION);
+
+        if (hasBoundaryViolation || (options.strict && violations.length > 0)) {
           throw new Error('Structural integrity violations found.');
         }
     });

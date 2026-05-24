@@ -180,11 +180,8 @@ describe('createApp', () => {
     };
     
     await runInTmpApp(appWithAliases, async (tmpDir, app) => {
-      const nodulusApp = await createApp(app as any, {
-        aliases: {
-          '@shared': './shared'
-        }
-      });
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@shared": "./shared" } };');
+      const nodulusApp = await createApp(app as any);
       
       const aliases = nodulusApp.registry.getAllAliases();
       expect(aliases['@shared']).toBe(path.resolve(tmpDir, 'shared'));
@@ -192,13 +189,12 @@ describe('createApp', () => {
   });
 
   it('should expose custom aliases via getAliases() after createApp() (P1/P6)', async () => {
-    await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+      await runInTmpApp(validAppStructure, async (tmpDir, app) => {
       const configDir = path.join(tmpDir, 'src/config');
       fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@config": "./src/config" } };');
 
-      await createApp(app as any, {
-        aliases: { '@config': './src/config' }
-      });
+      await createApp(app as any);
       
       const { getAliases } = await import('../../src/aliases/getAliases.js');
       const aliases = await getAliases({ absolute: true });
@@ -214,9 +210,8 @@ describe('createApp', () => {
     };
 
     await runInTmpApp(appWithFileAlias, async (tmpDir, app) => {
-      const nodulusApp = await createApp(app as any, {
-        aliases: { '@db': './src/shared/database.ts' }
-      });
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@db": "./src/shared/database.ts" } };');
+      const nodulusApp = await createApp(app as any);
 
       const aliases = nodulusApp.registry.getAllAliases();
       expect(aliases['@db']).toBe(path.resolve(tmpDir, 'src/shared/database.ts'));
@@ -324,12 +319,9 @@ describe('createApp', () => {
       };
       
       // Strict: false -> warning
-      await runInTmpApp(appWithFile, async (_, app) => {
-        await createApp(app as any, {
-          aliases: { '@utils/*': './src/utils.ts' },
-          strict: false,
-          logger
-        } as any);
+      await runInTmpApp(appWithFile, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@utils/*": "./src/utils.ts" }, strict: false };');
+        await createApp(app as any, { logger } as any);
         expect(logger).toHaveBeenCalledWith(
           'warn',
           expect.stringContaining('Wildcards should only point to directories'),
@@ -338,12 +330,9 @@ describe('createApp', () => {
       });
 
       // Strict: true -> throw
-      await runInTmpApp(appWithFile, async (_, app) => {
-        await expect(createApp(app as any, {
-          aliases: { '@utils/*': './src/utils.ts' },
-          strict: true,
-          logger
-        } as any)).rejects.toMatchObject({ code: 'ALIAS_INVALID' });
+      await runInTmpApp(appWithFile, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@utils/*": "./src/utils.ts" }, strict: true };');
+        await expect(createApp(app as any, { logger } as any)).rejects.toMatchObject({ code: 'ALIAS_INVALID' });
       });
     });
 
@@ -401,10 +390,9 @@ describe('createApp', () => {
     });
 
     it('§1.4-6: throws ALIAS_NOT_FOUND if the target path does not exist', async () => {
-      await runInTmpApp(validAppStructure, async (_, app) => {
-        await expect(createApp(app as any, {
-          aliases: { '@notfound': './does-not-exist' },
-        } as any)).rejects.toMatchObject({ code: 'ALIAS_NOT_FOUND' });
+      await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@notfound": "./does-not-exist" } };');
+        await expect(createApp(app as any)).rejects.toMatchObject({ code: 'ALIAS_NOT_FOUND' });
       });
     });
 

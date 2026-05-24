@@ -46,14 +46,14 @@ export function extractModuleImports(filePath: string): ImportFound[] {
     let match;
     while ((match = importRegex.exec(code)) !== null) {
       const specifier = match[1];
-      if (specifier.startsWith("@")) {
+      if (specifier.startsWith("@") || specifier.startsWith("../")) {
         const excludedScopes = [
           "@types", "@typescript-eslint", "@vitest", "@eslint", "@nestjs", 
           "@angular", "@babel", "@jest", "@testing-library", "@vitejs", 
           "@swc", "@puppeteer", "@playwright"
         ];
         
-        const isExcluded = excludedScopes.some(scope => specifier.startsWith(scope + "/") || specifier === scope);
+        const isExcluded = specifier.startsWith("@") && excludedScopes.some(scope => specifier.startsWith(scope + "/") || specifier === scope);
         
         if (!isExcluded) {
           // Calculate line number by counting newlines before the match

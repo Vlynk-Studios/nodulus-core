@@ -154,16 +154,6 @@ export interface CreateAppOptions {
   shared?: string;
   /** Global route prefix. Example: '/api/v1'. Default: ''. */
   prefix?: string;
-  /** 
-   * Custom folder or file aliases beyond the auto-generated @modules/* entries.
-   * 
-   * - **File Aliases**: e.g., `"@db": "./src/db.ts"`. Resolves exactly to that file.
-   * - **Directory Aliases**: e.g., `"@shared": "./src/shared"`. Resolves to the folder 
-   *   and automatically supports subpaths (e.g., `@shared/utils` -> `./src/shared/utils`).
-   * 
-   * Default: {}. 
-   */
-  aliases?: Record<string, string>;
   /**
    * Enables circular dependency detection and undeclared import errors.
    * Default: true in development, false in production.
@@ -345,7 +335,18 @@ export interface NodulusApp {
 }
 
 /** Shape of nodulus.config.ts. Options passed directly to createApp() take priority. */
-export type NodulusConfig = CreateAppOptions;
+export interface NodulusConfig extends CreateAppOptions {
+  /** 
+   * Custom folder or file aliases beyond the auto-generated @modules/* entries.
+   * 
+   * - **File Aliases**: e.g., `"@db": "./src/db.ts"`. Resolves exactly to that file.
+   * - **Directory Aliases**: e.g., `"@shared": "./src/shared"`. Resolves to the folder 
+   *   and automatically supports subpaths (e.g., `@shared/utils` -> `./src/shared/utils`).
+   * 
+   * Default: {}. 
+   */
+  aliases?: Record<string, string>;
+}
 
 export interface GetAliasesOptions {
   /**

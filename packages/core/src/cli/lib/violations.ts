@@ -5,6 +5,7 @@ export const ViolationType = {
   PRIVATE_IMPORT: 'private-import',
   UNDECLARED_IMPORT: 'undeclared-import',
   CIRCULAR_DEPENDENCY: 'circular-dependency',
+  RELATIVE_BOUNDARY_VIOLATION: 'relative-boundary-violation',
 } as const;
 
 export type ViolationType = typeof ViolationType[keyof typeof ViolationType];
@@ -62,6 +63,22 @@ export function detectViolations(graph: ModuleGraph): Violation[] {
 
   for (const node of nodes) {
     for (const imp of node.actualImports) {
+      if (imp.specifier.startsWith('../')) {
+        const path = require('node:path');
+        const resolvedPath = path.resolve(path.dirname(imp.file), imp.specifier);
+        // Check if resolved path is strictly inside the module directory
+        if (!resolvedPath.startsWith(node.dirPath + path.sep) && resolvedPath !== node.dirPath) {
+          violations.push({
+            type: ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+            module: node.name,
+            message: `Relative boundary violation: module "${node.name}" uses "${imp.specifier}" to escape its directory.`,
+            suggestion: 'Use absolute alias "@modules/..." to import from other modules.',
+            location: { file: imp.file, line: imp.line }
+          });
+        }
+        continue;
+      }
+
       const { isPrivate, suggestion, target } = analyzeImport(imp.specifier);
       
       if (isPrivate) {

@@ -25,7 +25,8 @@ const testerTs = new RuleTester({
 const validCases = [
   { code: "import { UserService } from '@modules/users';" },
   { code: "import express from 'express';" },
-  { code: "import { something } from './local-file.js';" },
+  { code: "import { something } from './local-file.js';", filename: 'src/modules/users/service.ts' },
+  { code: "import { utils } from '../utils.js';", filename: 'src/modules/users/sub/service.ts' },
 ];
 
 const invalidCases = [
@@ -40,6 +41,16 @@ const invalidCases = [
   {
     code: "import helper from '@modules/payments/internal/utils/helper.js';",
     errors: [{ messageId: 'privateImport', data: { module: 'payments' } }],
+  },
+  {
+    code: "import { users } from '../../users/service.ts';",
+    filename: 'src/modules/orders/services/order.service.ts',
+    errors: [{ messageId: 'boundaryViolation', data: { specifier: '../../users/service.ts' } }],
+  },
+  {
+    code: "import { core } from '../../../core/index.ts';",
+    filename: 'packages/modules/payments/src/api/handler.ts',
+    errors: [{ messageId: 'boundaryViolation', data: { specifier: '../../../core/index.ts' } }],
   },
 ];
 

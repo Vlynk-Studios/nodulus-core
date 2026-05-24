@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@modules/*": [
+        "src/modules/*"
+      ]
+    }
+  }
+}
