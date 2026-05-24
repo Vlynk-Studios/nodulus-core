@@ -23,7 +23,7 @@ const rule: Rule.RuleModule = {
         const specifier = node.source.value;
 
         if (specifier.startsWith('../')) {
-          const filepath = context.filename || (context.getFilename && context.getFilename());
+          const filepath = context.filename || (context as any).physicalFilename || (context as any).getFilename?.();
           if (filepath) {
             const normalizedPath = filepath.replace(/\\/g, '/');
             // Support both standard 'modules' and 'src/modules' or 'packages'
