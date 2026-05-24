@@ -27,9 +27,9 @@ export interface ShutdownManagerOptions {
  *  2. Runs the optional `onShutdown` hook.
  *  3. Calls `process.exit(0)`.
  *
- * @returns A `shutdown()` function you can call programmatically (e.g. in tests).
+ * @returns A `shutdown()` function you can call programmatically (e.g. in tests) which also contains an `.unregister()` method to remove the listeners.
  */
-export function registerShutdown(options: ShutdownManagerOptions): () => Promise<void> {
+export function registerShutdown(options: ShutdownManagerOptions): import('../types/index.js').ShutdownHook {
   const { server, onShutdown, logger } = options;
   let isShuttingDown = false;
 
@@ -76,15 +76,24 @@ export function registerShutdown(options: ShutdownManagerOptions): () => Promise
   // ─── Signal & IPC registration ────────────────────────────────────────────
   // Both signals call the same `shutdown` function.
   // The guard ensures only one invocation actually runs.
-  process.on('SIGINT',  shutdown);
-  process.on('SIGTERM', shutdown);
+  process.once('SIGINT',  shutdown);
+  process.once('SIGTERM', shutdown);
   
-  // Windows-compatible IPC shutdown (used by nodulus dev watcher)
-  process.on('message', (msg) => {
+  const messageHandler = (msg: any) => {
     if (msg === 'nodulus:shutdown') {
       shutdown();
     }
-  });
+  };
 
-  return shutdown;
+  // Windows-compatible IPC shutdown (used by nodulus dev watcher)
+  process.on('message', messageHandler);
+
+  const hook = shutdown as import('../types/index.js').ShutdownHook;
+  hook.unregister = () => {
+    process.removeListener('SIGINT', shutdown);
+    process.removeListener('SIGTERM', shutdown);
+    process.removeListener('message', messageHandler);
+  };
+
+  return hook;
 }

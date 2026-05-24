@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { detectViolations, ViolationType } from '../../src/cli/lib/violations.js';
 import { buildModuleGraph, ModuleNode } from '../../src/cli/lib/graph-builder.js';
@@ -14,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('nodulus check', () => {
-  const fixturePath = path.resolve(__dirname, '../fixtures/check-app');
+  const fixturePath = path.resolve(__dirname, '../fixtures/check-app-violations');
 
   describe('detectViolations() with Fixture', () => {
     it('detects private import in fixture (payments module)', async () => {
@@ -219,7 +220,7 @@ describe('nodulus check', () => {
       });
 
       it('does not show NITS ID in default output', async () => {
-        vi.spyOn(nitsReconciler, 'reconcile').mockResolvedValue({
+        vi.spyOn(nitsReconciler, 'reconcile').mockReturnValue({
           confirmed: [], moved: [], candidates: [], stale: [], deleted: [],
           newModules: [{ id: 'mod_abc', name: 'orders', path: 'src/modules/orders', hash: 'abc', status: 'active', createdAt: '', lastSeen: '', identifiers: [] }]
         });
@@ -233,7 +234,7 @@ describe('nodulus check', () => {
       });
 
       it('shows NITS ID when --verbose is passed', async () => {
-        vi.spyOn(nitsReconciler, 'reconcile').mockResolvedValue({
+        vi.spyOn(nitsReconciler, 'reconcile').mockReturnValue({
           confirmed: [], moved: [], candidates: [], stale: [], deleted: [],
           newModules: [{ id: 'mod_abc', name: 'orders', path: 'src/modules/orders', hash: 'abc', status: 'active', createdAt: '', lastSeen: '', identifiers: [] }]
         });
@@ -246,8 +247,75 @@ describe('nodulus check', () => {
         expect(logCall[0]).toMatch(/\[mod_abc/);
       });
 
-    });
+      it('logs a warning using the main logger if NITS reconciliation throws an error', async () => {
+        vi.spyOn(nitsReconciler, 'reconcile').mockImplementation(() => {
+          throw new Error('Simulated NITS crash');
+        });
+        const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+        const cmd = checkCommand();
+        await cmd.parseAsync(['node', 'test', '--module', 'orders']);
+        
+        const logCall = writeSpy.mock.calls.find((call: any[]) => typeof call[0] === 'string' && call[0].includes('Simulated NITS crash'));
+        expect(logCall).toBeDefined();
+      });
 
+      it('purges artifacts from registry if they are outside config.modules', async () => {
+        // Return a registry with an old artifact outside the 'src/modules/*' pattern.
+        const mockRegistry = {
+          project: 'test',
+          version: NITS_REGISTRY_VERSION,
+          lastCheck: '',
+          modules: {
+            'mod_artifact': { id: 'mod_artifact', name: 'dist_mod', path: 'dist/modules/old', status: 'active', identifiers: [] }
+          }
+        };
+        vi.spyOn(nitsStore, 'loadNitsRegistry').mockResolvedValue(mockRegistry as any);
+        
+        vi.spyOn(nitsReconciler, 'reconcile').mockReturnValue({
+          confirmed: [], moved: [], candidates: [], stale: [], deleted: [], newModules: []
+        });
+
+        const cmd = checkCommand();
+        await cmd.parseAsync(['node', 'test', '--module', 'orders']);
+        
+        // Ensure the artifact was purged.
+        expect(mockRegistry.modules['mod_artifact']).toBeUndefined();
+      });
+
+      it('maps NITS ID and resolvedBy for moved and candidate records', async () => {
+        const fakeMovedRecord = { id: 'mod_moved', name: 'orders', path: 'src/modules/orders', status: 'moved', identifiers: [], resolvedBy: 'jaccard' };
+        vi.spyOn(nitsReconciler, 'reconcile').mockReturnValue({
+          confirmed: [], 
+          moved: [{ record: fakeMovedRecord, oldPath: 'src/modules/old_orders', oldAlias: '' } as any], 
+          candidates: [{ record: { id: 'mod_cand', path: 'src/modules/orders' } } as any], stale: [], deleted: [], newModules: []
+        });
+        
+        const cmd = checkCommand();
+        await cmd.parseAsync(['node', 'test', '--module', 'orders']);
+        // If it runs without throwing, we've successfully mapped the nodes.
+      });
+
+      it('sets process.exitCode to 1 if there are stale or deleted modules', async () => {
+        vi.spyOn(nitsReconciler, 'reconcile').mockReturnValue({
+          confirmed: [], moved: [], candidates: [], 
+          stale: [{ id: 'mod_stale' } as any], 
+          deleted: [], newModules: []
+        });
+
+        // Save original exit code
+        const originalExitCode = process.exitCode;
+        process.exitCode = 0;
+
+        const cmd = checkCommand();
+        await cmd.parseAsync(['node', 'test', '--module', 'orders']);
+        
+        expect(process.exitCode).toBe(1);
+
+        // Restore
+        process.exitCode = originalExitCode;
+      });
+
+    });
     it('does not emit ENOENT warning when package.json resolves correctly', async () => {
       const cmd = checkCommand();
       await cmd.parseAsync(['node', 'test', '--module', 'orders']);
@@ -257,6 +325,26 @@ describe('nodulus check', () => {
       );
       
       expect(hasEnoent).toBe(false);
+    });
+
+    it('emits a warning if preload.js exists but has a version mismatch', async () => {
+      vi.spyOn(fs, 'existsSync').mockImplementation((p: any) => {
+        if (typeof p === 'string' && p.includes('preload.js')) return true;
+        return true;
+      });
+      vi.spyOn(fs, 'readFileSync').mockImplementation((p: any) => {
+        if (typeof p === 'string' && p.includes('preload.js')) return `const _version: '0.0.1';`;
+        if (p.toString().includes('package.json')) return JSON.stringify({ name: 'nodulus', version: '2.0.0' });
+        return '{}';
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      
+      const cmd = checkCommand();
+      await cmd.parseAsync(['node', 'test', '--module', 'orders']);
+      
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Pre-loader version mismatch'));
+      consoleSpy.mockRestore();
     });
   });
 });

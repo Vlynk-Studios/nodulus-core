@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] — 2026-05-24
+
+### Added
+- **Verification Triangle unit tests**:
+  - `similarityThreshold` option coverage mapping.
+  - Same-cycle path swaps matching for multiple moved modules.
+  - Single-identifier Jaccard evaluation under dynamic threshold constraints.
+  - Empty previous registry fallback handling in `reconcile()`.
+  - Stale transition logic for missing/undiscovered modules.
+  - Clone prevention strategies under `clonePolicy: 'new'` for identical modules.
+- **Robust Integration Testing**:
+  - Verified internal `SubModule` (reserved for v2.0.0) compatibility safeguards.
+  - `INVALID_ESM_ENV` throwing validation for non-ESM environments.
+  - Route boundary 404 verification to prevent internal stack leakages.
+  - Complete integration testing for static CLI check commands via `cli-check-fixture.test.ts`.
+
+### Fixed
+- **Candidate-to-Active transition**: Fully validated candidate module stabilization in subsequent bootstrap runs (DESIGN-2).
+- **Registry Record Validation**: Enhanced validation in `loadNitsRegistry()` to safely catch malformed records (null identifiers or invalid status) with descriptive warnings.
+- **Dynamic Imports Extraction**: Expanded `extractModuleImports()` to gracefully handle dynamic `import()` statements alongside static imports.
+- **NITS toggle flag**: Verified that `createApp()` strictly avoids registry operations when `nits.enabled: false`.
+
 ## [1.5.8] — 2026-05-17
 
 ### Added

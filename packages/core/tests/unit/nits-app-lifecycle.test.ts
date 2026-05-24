@@ -32,7 +32,7 @@ function rewriteImportsSync(dir: string, srcUrl: string) {
       rewriteImportsSync(fullPath, srcUrl);
     } else if (file.name.endsWith('.ts')) {
       let content = fs.readFileSync(fullPath, 'utf8');
-      content = content.replace(/from\s+['"].*?src\/index\.js['"]/g, `from '${srcUrl}'`);
+      content = content.replace(/from\s+['"](?:.*?src\/index\.js|@vlynk-studios\/nodulus-core)['"]/g, `from '${srcUrl}'`);
       fs.writeFileSync(fullPath, content);
     }
   }
