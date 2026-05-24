@@ -34,7 +34,6 @@ describe('loadConfig', () => {
       expect(config.domains).toBeUndefined();
       expect(config.shared).toBeUndefined();
       expect(config.prefix).toBe(DEFAULTS.prefix);
-      expect(config.aliases).toEqual(DEFAULTS.aliases);
       expect(config.strict).toBe(DEFAULTS.strict);
       expect(config.resolveAliases).toBe(DEFAULTS.resolveAliases);
       expect(typeof config.logger).toBe('function');
@@ -80,7 +79,7 @@ describe('loadConfig', () => {
     await runInTmpDir({
       'nodulus.config.js': 'module.exports = { prefix: "/fail", invalid-syntax here };'
     }, async () => {
-      await expect(loadConfig()).rejects.toThrowError(/\[System\] Failed to parse or evaluate config file at/);
+      await expect(loadConfig()).rejects.toThrowError(/\[System\] Failed to parse config at/);
     });
   });
 });

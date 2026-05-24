@@ -228,7 +228,6 @@ export interface ResolvedConfig {
   domains?: string;
   shared?: string;
   prefix: string;
-  aliases: Record<string, string>;
   strict: boolean;
   resolveAliases: boolean;
   logger: LogHandler;

@@ -134,17 +134,16 @@ describe('tsconfig-generator', () => {
     });
 
     it('warns on write error', async () => {
-      const log = vi.fn();
+      const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
       const config = createDummyConfig(new Map());
       
       const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
         throw new Error('EACCES');
       });
 
-      await writeTsconfigNodulus(config, tmpDir, log);
+      await writeTsconfigNodulus(config, tmpDir, mockLog as any);
       
-      expect(log).toHaveBeenCalledWith(
-        'warn',
+      expect(mockLog.warn).toHaveBeenCalledWith(
         expect.stringContaining('No se pudo escribir'),
         expect.any(Object)
       );
@@ -155,45 +154,43 @@ describe('tsconfig-generator', () => {
 
   describe('ensureTsconfigExtends', () => {
     it('infos if tsconfig.json does not exist', async () => {
-      const log = vi.fn();
-      await ensureTsconfigExtends(tmpDir, log);
-      expect(log).toHaveBeenCalledWith(
-        'info',
+      const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
+      await ensureTsconfigExtends(tmpDir, mockLog as any);
+      expect(mockLog.info).toHaveBeenCalledWith(
         expect.stringContaining('tsconfig.json no encontrado'),
         expect.any(Object)
       );
     });
 
     it('infos if tsconfig.json does not extend nodulus', async () => {
-      const log = vi.fn();
+      const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
       fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{}');
-      await ensureTsconfigExtends(tmpDir, log);
-      expect(log).toHaveBeenCalledWith(
-        'info',
+      await ensureTsconfigExtends(tmpDir, mockLog as any);
+      expect(mockLog.info).toHaveBeenCalledWith(
         expect.stringContaining('Agrega "extends": "./tsconfig.nodulus.json"'),
         expect.any(Object)
       );
     });
 
     it('does nothing if tsconfig.json already extends nodulus (string)', async () => {
-      const log = vi.fn();
+      const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
       fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{"extends": "./tsconfig.nodulus.json"}');
-      await ensureTsconfigExtends(tmpDir, log);
-      expect(log).not.toHaveBeenCalled();
+      await ensureTsconfigExtends(tmpDir, mockLog as any);
+      expect(mockLog.info).not.toHaveBeenCalled();
     });
 
     it('does nothing if tsconfig.json already extends nodulus (array)', async () => {
-      const log = vi.fn();
+      const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
       fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{"extends": ["./base.json", "./tsconfig.nodulus.json"]}');
-      await ensureTsconfigExtends(tmpDir, log);
-      expect(log).not.toHaveBeenCalled();
+      await ensureTsconfigExtends(tmpDir, mockLog as any);
+      expect(mockLog.info).not.toHaveBeenCalled();
     });
     
     it('silently ignores invalid json', async () => {
-       const log = vi.fn();
+       const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
        fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{invalid: json');
-       await ensureTsconfigExtends(tmpDir, log);
-       expect(log).not.toHaveBeenCalled();
+       await ensureTsconfigExtends(tmpDir, mockLog as any);
+       expect(mockLog.info).not.toHaveBeenCalled();
     });
   });
 });

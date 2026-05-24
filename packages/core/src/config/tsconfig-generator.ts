@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ResolvedNodulusConfig } from './nodulus-config.js';
-import type { LogHandler } from '../types/index.js';
+import type { Logger } from '../types/index.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ export function generateTsconfigNodulus(
 export async function writeTsconfigNodulus(
   config: ResolvedNodulusConfig,
   cwd: string,
-  log?: LogHandler,
+  log?: Logger,
 ): Promise<void> {
   const outputPath = path.join(cwd, OUTPUT_FILE);
   const obj = generateTsconfigNodulus(config, cwd);
@@ -116,7 +116,7 @@ export async function writeTsconfigNodulus(
   try {
     fs.writeFileSync(outputPath, newContent, 'utf-8');
   } catch (err: any) {
-    log?.('warn', `[nodulus] No se pudo escribir "${OUTPUT_FILE}": ${err.message}`, {
+    log?.warn(`[nodulus] No se pudo escribir "${OUTPUT_FILE}": ${err.message}`, {
       _module: 'config',
       path: outputPath,
       error: err.message,
@@ -130,13 +130,13 @@ export async function writeTsconfigNodulus(
  * Reads the project's `tsconfig.json` and checks whether it already extends
  * `./tsconfig.nodulus.json`. Never modifies the file — only informs via log.
  */
-export async function ensureTsconfigExtends(cwd: string, log?: LogHandler): Promise<void> {
+export async function ensureTsconfigExtends(cwd: string, log?: Logger): Promise<void> {
   const tsconfigPath = path.join(cwd, 'tsconfig.json');
   const hint =
     `[nodulus] Agrega "extends": "./tsconfig.nodulus.json" a tu tsconfig.json para activar los aliases en TypeScript.`;
 
   if (!fs.existsSync(tsconfigPath)) {
-    log?.('info', `[nodulus] tsconfig.json no encontrado. ${hint}`, { _module: 'config' });
+    log?.info(`[nodulus] tsconfig.json no encontrado. ${hint}`, { _module: 'config' });
     return;
   }
 
@@ -156,6 +156,6 @@ export async function ensureTsconfigExtends(cwd: string, log?: LogHandler): Prom
       extendsVal.includes('./tsconfig.nodulus.json'));
 
   if (!alreadyExtends) {
-    log?.('info', hint, { _module: 'config' });
+    log?.info(hint, { _module: 'config' });
   }
 }

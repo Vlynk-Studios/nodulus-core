@@ -176,15 +176,15 @@ describe('createApp', () => {
   it('should register custom aliases in the registry', async () => {
     const appWithAliases = {
       ...validAppStructure,
-      'shared/utils.ts': 'export const foo = 1;'
+      'common/utils.ts': 'export const foo = 1;'
     };
     
     await runInTmpApp(appWithAliases, async (tmpDir, app) => {
-      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@shared": "./shared" } };');
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@common": "./common" } };');
       const nodulusApp = await createApp(app as any);
       
       const aliases = nodulusApp.registry.getAllAliases();
-      expect(aliases['@shared']).toBe(path.resolve(tmpDir, 'shared'));
+      expect(aliases['@common']).toBe(path.resolve(tmpDir, 'common'));
     });
   });
 
@@ -311,28 +311,16 @@ describe('createApp', () => {
       });
     });
 
-    it('§1.4-2: logs a warning (or throws if strict) for wildcard alias pointing to a file', async () => {
+    it('§1.4-2: throws INVALID_ALIAS_KEY if alias config key contains a wildcard', async () => {
       const logger = vi.fn();
       const appWithFile = {
         ...validAppStructure,
         'src/utils.ts': 'export const foo = 1;'
       };
       
-      // Strict: false -> warning
       await runInTmpApp(appWithFile, async (tmpDir, app) => {
-        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@utils/*": "./src/utils.ts" }, strict: false };');
-        await createApp(app as any, { logger } as any);
-        expect(logger).toHaveBeenCalledWith(
-          'warn',
-          expect.stringContaining('Wildcards should only point to directories'),
-          expect.any(Object)
-        );
-      });
-
-      // Strict: true -> throw
-      await runInTmpApp(appWithFile, async (tmpDir, app) => {
-        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@utils/*": "./src/utils.ts" }, strict: true };');
-        await expect(createApp(app as any, { logger } as any)).rejects.toMatchObject({ code: 'ALIAS_INVALID' });
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@utils/*": "./src/utils.ts" } };');
+        await expect(createApp(app as any, { logger } as any)).rejects.toMatchObject({ code: 'INVALID_ALIAS_KEY' });
       });
     });
 
@@ -389,10 +377,16 @@ describe('createApp', () => {
       });
     });
 
-    it('§1.4-6: throws ALIAS_NOT_FOUND if the target path does not exist', async () => {
+    it('§1.4-6: logs a warning if the target path does not exist', async () => {
+      const logger = vi.fn();
       await runInTmpApp(validAppStructure, async (tmpDir, app) => {
         fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@notfound": "./does-not-exist" } };');
-        await expect(createApp(app as any)).rejects.toMatchObject({ code: 'ALIAS_NOT_FOUND' });
+        await createApp(app as any, { logger } as any);
+        expect(logger).toHaveBeenCalledWith(
+          'warn',
+          expect.stringContaining('ese path no existe'),
+          expect.any(Object)
+        );
       });
     });
 
