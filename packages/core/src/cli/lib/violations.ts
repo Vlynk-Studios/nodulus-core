@@ -1,4 +1,5 @@
 import type { ModuleGraph } from './graph-builder.js';
+import { extractRelativeCrossModuleImports } from './import-scanner.js';
 import { findCircularDependencies } from '../../core/utils/cycle-detector.js';
 
 export const ViolationType = {
@@ -62,20 +63,28 @@ export function detectViolations(graph: ModuleGraph): Violation[] {
   }
 
   for (const node of nodes) {
+    const filesInModule = new Set(node.actualImports.map(i => i.file));
+
+    for (const file of filesInModule) {
+      const crossModuleSpecifiers = extractRelativeCrossModuleImports(file, node.dirPath);
+      for (const specifier of crossModuleSpecifiers) {
+        const imp = node.actualImports.find(
+          i => i.file === file && i.specifier === specifier,
+        );
+        violations.push({
+          type: ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+          module: node.name,
+          message: `Relative boundary violation: module "${node.name}" uses "${specifier}" to escape its directory.`,
+          suggestion: 'Use absolute alias "@modules/..." to import from other modules.',
+          location: imp
+            ? { file: imp.file, line: imp.line }
+            : { file, line: 1 },
+        });
+      }
+    }
+
     for (const imp of node.actualImports) {
-      if (imp.specifier.startsWith('../')) {
-        const path = require('node:path');
-        const resolvedPath = path.resolve(path.dirname(imp.file), imp.specifier);
-        // Check if resolved path is strictly inside the module directory
-        if (!resolvedPath.startsWith(node.dirPath + path.sep) && resolvedPath !== node.dirPath) {
-          violations.push({
-            type: ViolationType.RELATIVE_BOUNDARY_VIOLATION,
-            module: node.name,
-            message: `Relative boundary violation: module "${node.name}" uses "${imp.specifier}" to escape its directory.`,
-            suggestion: 'Use absolute alias "@modules/..." to import from other modules.',
-            location: { file: imp.file, line: imp.line }
-          });
-        }
+      if (imp.specifier.startsWith('./') || imp.specifier.startsWith('../')) {
         continue;
       }
 

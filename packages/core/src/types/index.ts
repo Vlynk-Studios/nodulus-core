@@ -265,6 +265,8 @@ export interface NodulusRegistry {
   getAllModules(): RegisteredModule[];
   resolveAlias(alias: string): string | undefined;
   getAllAliases(): Record<string, string>;
+  /** Bare alias keys (no `/*` wildcards) used for import scanning (REGLA-22). */
+  getRegisteredAliases(): string[];
 }
 
 /**

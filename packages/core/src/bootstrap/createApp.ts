@@ -392,7 +392,7 @@ export async function createApp(
     const usedImports = new Set<string>();
 
     for (const file of sourceFiles) {
-      const actualImports = extractModuleImports(file);
+      const actualImports = extractModuleImports(file, registry.getRegisteredAliases());
       for (const imp of actualImports) {
         const parts = imp.specifier.split('/');
         const targetModule = imp.specifier.startsWith('@modules/') ? parts[1] : (parts[1] || parts[0]).replace(/^@/, '');

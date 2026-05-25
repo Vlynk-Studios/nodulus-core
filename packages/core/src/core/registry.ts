@@ -45,6 +45,8 @@ export interface InternalRegistry extends NodulusRegistryAdvanced {
   getModuleByPath(dirPath: string): RegisteredModule | undefined;
   /** Adds an alias to the registry */
   registerAlias(alias: string, path: string): void;
+  /** Bare alias keys (no `/*` wildcards) for import scanning (REGLA-22). */
+  getRegisteredAliases(): string[];
   /** Stores temporary metadata for a recently evaluated controller */
   registerControllerMetadata(entry: ControllerEntry): void;
   /** Returns metadata for all controllers (useful for tests and bootstrap) */
@@ -127,6 +129,11 @@ export function createRegistry(): InternalRegistry {
 
     getAllAliases(): Record<string, string> {
       return Object.fromEntries(aliases.entries());
+    },
+
+    getRegisteredAliases(): string[] {
+      const keys = [...aliases.keys()].filter(k => !k.endsWith('/*'));
+      return keys.length > 0 ? keys : ['@modules'];
     },
 
     getDependencyGraph(): Map<string, string[]> {

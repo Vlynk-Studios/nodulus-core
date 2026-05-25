@@ -448,9 +448,9 @@ describe('§1.3 [BLOCKER]: extractModuleImports — dynamic import resilience', 
     const fixtureFile = path.resolve(__dirname, '../fixtures/nits-app/src/modules/notifications/service.ts');
     const result = extractModuleImports(fixtureFile);
     
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
     const specifiers = result.map(r => r.specifier);
     expect(specifiers).toContain('@modules/users');
-    expect(specifiers).toContain('@vlynk-studios/nodulus-core');
+    expect(specifiers).not.toContain('@vlynk-studios/nodulus-core');
   });
 });
