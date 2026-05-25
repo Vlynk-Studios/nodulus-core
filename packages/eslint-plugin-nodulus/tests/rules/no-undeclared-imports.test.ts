@@ -24,12 +24,13 @@ const testerTs = new RuleTester({
 
 afterEach(() => {
   vi.restoreAllMocks();
-  moduleResolver.clearModuleImportsCache();
+  moduleResolver.clearAllResolverCaches();
 });
 
 describe('file inside a Nodulus module', () => {
   beforeEach(() => {
     vi.spyOn(moduleResolver, 'getModuleImports').mockReturnValue(['users']);
+    vi.spyOn(moduleResolver, 'getActiveNodulusAliases').mockReturnValue(['@modules']);
   });
 
   const validCases = [
@@ -37,6 +38,8 @@ describe('file inside a Nodulus module', () => {
     { code: "import express from 'express';" },
     { code: "import { something } from './local-file.js';" },
     { code: "import { Private } from '@modules/users/users.service.js';" },
+    { code: "import { Foo } from '@nestjs/common';" },
+    { code: "import { x } from '@types/node';" },
   ];
 
   const invalidCases = [

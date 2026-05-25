@@ -1,46 +1,77 @@
+import path from 'node:path';
 import type { Rule } from 'eslint';
+import {
+  findModuleRoot,
+  inferCrossModuleTarget,
+  isRelativeBoundaryCrossing,
+} from '../utils/module-resolver.js';
+
+interface RuleOptions {
+  modulesDir?: string;
+  /** Project root for resolving modules and config. Defaults to ESLint cwd. */
+  projectRoot?: string;
+}
 
 const rule: Rule.RuleModule = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Disallow deep/private imports from other modules. Imports should be made from the public API.',
+      description:
+        'Disallow deep @-alias imports and relative imports that cross module boundaries.',
       recommended: true,
     },
     messages: {
-      privateImport: 'Cannot import private internal files from module "{{module}}". You must import from its public root.',
-      boundaryViolation: 'Relative import "{{specifier}}" escapes the module boundary. Use the "@modules/..." alias instead.',
+      noPrivateImport:
+        'Import privado detectado: "{{path}}". Usa el index público del módulo.',
+      relativeBoundary:
+        'Path relativo "{{path}}" cruza la frontera del módulo. Usa @modules/{{target}} en su lugar.',
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          modulesDir: { type: 'string' },
+          projectRoot: { type: 'string' },
+        },
+        additionalProperties: false,
+      },
+    ],
   },
   create(context) {
+    const options = (context.options[0] ?? {}) as RuleOptions;
+    const modulesDir = options.modulesDir;
+    const cwd = options.projectRoot ?? context.cwd ?? process.cwd();
+
+    function getFilePath(): string | null {
+      const filepath =
+        context.filename ||
+        (context as { physicalFilename?: string }).physicalFilename ||
+        (context as { getFilename?: () => string }).getFilename?.();
+      return typeof filepath === 'string' ? filepath : null;
+    }
+
     return {
-      ImportDeclaration(node: any) {
+      ImportDeclaration(node: { source?: { value?: unknown } }) {
         if (!node.source || typeof node.source.value !== 'string') {
           return;
         }
 
         const specifier = node.source.value;
+        const filePath = getFilePath();
+        if (!filePath) return;
 
-        if (specifier.startsWith('../')) {
-          const filepath = context.filename || (context as any).physicalFilename || (context as any).getFilename?.();
-          if (filepath) {
-            const normalizedPath = filepath.replace(/\\/g, '/');
-            // Support both standard 'modules' and 'src/modules' or 'packages'
-            // We look for a typical module boundary: a directory inside 'modules/'
-            const match = normalizedPath.match(/^(.*\/modules\/[^/]+)/);
-            if (match) {
-              const moduleRoot = match[1];
-              const path = require('node:path');
-              const resolved = path.posix.join(path.posix.dirname(normalizedPath), specifier);
-              if (!resolved.startsWith(moduleRoot + '/') && resolved !== moduleRoot) {
-                context.report({
-                  node,
-                  messageId: 'boundaryViolation',
-                  data: { specifier }
-                });
-              }
-            }
+        if (specifier.startsWith('./') || specifier.startsWith('../')) {
+          const moduleRoot = findModuleRoot(filePath, cwd, modulesDir);
+          if (!moduleRoot) return;
+
+          if (isRelativeBoundaryCrossing(specifier, filePath, moduleRoot)) {
+            const resolved = path.resolve(path.dirname(path.resolve(filePath)), specifier);
+            const target = inferCrossModuleTarget(resolved, moduleRoot, modulesDir, cwd);
+            context.report({
+              node: node as Rule.Node,
+              messageId: 'relativeBoundary',
+              data: { path: specifier, target },
+            });
           }
           return;
         }
@@ -50,14 +81,11 @@ const rule: Rule.RuleModule = {
         }
 
         const parts = specifier.split('/');
-
         if (parts.length > 2) {
           context.report({
-            node,
-            messageId: 'privateImport',
-            data: {
-              module: parts[1],
-            },
+            node: node as Rule.Node,
+            messageId: 'noPrivateImport',
+            data: { path: specifier },
           });
         }
       },
