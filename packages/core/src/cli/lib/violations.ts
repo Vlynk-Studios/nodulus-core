@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import fg from 'fast-glob';
 import type { ModuleGraph } from './graph-builder.js';
 import { extractRelativeCrossModuleImports } from './import-scanner.js';
 import { findCircularDependencies } from '../../core/utils/cycle-detector.js';
@@ -11,13 +14,89 @@ export const ViolationType = {
 
 export type ViolationType = typeof ViolationType[keyof typeof ViolationType];
 
-export interface Violation {
-  type: ViolationType;
+/** REGLA-45 / Fase 6 — always forces exit 1 in `nodulus check`. */
+export interface RelativeBoundaryViolation {
+  type: typeof ViolationType.RELATIVE_BOUNDARY_VIOLATION;
+  module: string;
+  file: string;
+  line?: number;
+  import: string;
+  hint: string;
+}
+
+export interface StandardViolation {
+  type: Exclude<
+    ViolationType,
+    typeof ViolationType.RELATIVE_BOUNDARY_VIOLATION
+  >;
   module: string;
   message: string;
   suggestion: string;
   location?: { file: string; line: number };
   cycle?: string[];
+}
+
+export type Violation = RelativeBoundaryViolation | StandardViolation;
+
+const BOUNDARY_HINT =
+  'Usa el alias @modules/<módulo> para importar desde otro módulo.';
+
+/** Lists source files under a module directory (excludes tests and declaration files). */
+export function getModuleFiles(moduleDirPath: string): string[] {
+  if (!fs.existsSync(moduleDirPath)) {
+    return [];
+  }
+  try {
+    return fg.sync('**/*.{ts,js,mts,mjs}', {
+      cwd: moduleDirPath,
+      absolute: true,
+      onlyFiles: true,
+      ignore: ['**/*.test.*', '**/*.spec.*', '**/*.d.ts'],
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function isErrorViolation(violation: Violation): boolean {
+  return (
+    violation.type === ViolationType.CIRCULAR_DEPENDENCY ||
+    violation.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION
+  );
+}
+
+/**
+ * Scans every file in each module for relative imports that escape the module boundary.
+ */
+export function detectRelativeBoundaryViolations(
+  graph: ModuleGraph,
+  cwd: string = process.cwd(),
+): RelativeBoundaryViolation[] {
+  const violations: RelativeBoundaryViolation[] = [];
+
+  for (const moduleNode of graph.modules) {
+    const files = getModuleFiles(moduleNode.dirPath);
+
+    for (const file of files) {
+      const crossModuleImports = extractRelativeCrossModuleImports(
+        file,
+        moduleNode.dirPath,
+      );
+
+      for (const { specifier, line } of crossModuleImports) {
+        violations.push({
+          type: ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+          module: moduleNode.name,
+          file: path.relative(cwd, file).replace(/\\/g, '/'),
+          line,
+          import: specifier,
+          hint: BOUNDARY_HINT,
+        });
+      }
+    }
+  }
+
+  return violations;
 }
 
 /**
@@ -29,7 +108,6 @@ function analyzeImport(specifier: string): { isPrivate: boolean; suggestion: str
   const isModules = specifier.startsWith('@modules/');
   const isAtAlias = specifier.startsWith('@');
 
-  // Rule: @modules/name is depth 2. More is private.
   if (isModules) {
     if (parts.length > 2) {
       return { isPrivate: true, suggestion: `${parts[0]}/${parts[1]}`, target: parts[1] };
@@ -37,12 +115,10 @@ function analyzeImport(specifier: string): { isPrivate: boolean; suggestion: str
     return { isPrivate: false, suggestion: '', target: parts[1] };
   }
 
-  // Rule: @domain (depth 1) or @domain/module (depth 2) are public. More is private.
   if (isAtAlias) {
     if (parts.length > 2) {
       return { isPrivate: true, suggestion: `${parts[0]}/${parts[1]}`, target: parts[1] };
     }
-    // Target is the most specific unit: module if depth 2, or domain itself if depth 1.
     const target = (parts[1] || parts[0]).replace(/^@/, '');
     return { isPrivate: false, suggestion: '', target };
   }
@@ -50,12 +126,16 @@ function analyzeImport(specifier: string): { isPrivate: boolean; suggestion: str
   return { isPrivate: false, suggestion: '', target: '' };
 }
 
-export function detectViolations(graph: ModuleGraph): Violation[] {
-  const violations: Violation[] = [];
+export function detectViolations(
+  graph: ModuleGraph,
+  cwd: string = process.cwd(),
+): Violation[] {
+  const violations: Violation[] = [
+    ...detectRelativeBoundaryViolations(graph, cwd),
+  ];
   const nodes = graph.modules;
   const moduleNames = new Set(nodes.map(n => n.name));
-  
-  // Also include domain names in the set of valid targets if they exist in the graph
+
   if (graph.domains) {
     for (const d of graph.domains) {
       moduleNames.add(d.name);
@@ -63,57 +143,35 @@ export function detectViolations(graph: ModuleGraph): Violation[] {
   }
 
   for (const node of nodes) {
-    const filesInModule = new Set(node.actualImports.map(i => i.file));
-
-    for (const file of filesInModule) {
-      const crossModuleSpecifiers = extractRelativeCrossModuleImports(file, node.dirPath);
-      for (const specifier of crossModuleSpecifiers) {
-        const imp = node.actualImports.find(
-          i => i.file === file && i.specifier === specifier,
-        );
-        violations.push({
-          type: ViolationType.RELATIVE_BOUNDARY_VIOLATION,
-          module: node.name,
-          message: `Relative boundary violation: module "${node.name}" uses "${specifier}" to escape its directory.`,
-          suggestion: 'Use absolute alias "@modules/..." to import from other modules.',
-          location: imp
-            ? { file: imp.file, line: imp.line }
-            : { file, line: 1 },
-        });
-      }
-    }
-
     for (const imp of node.actualImports) {
       if (imp.specifier.startsWith('./') || imp.specifier.startsWith('../')) {
         continue;
       }
 
       const { isPrivate, suggestion, target } = analyzeImport(imp.specifier);
-      
+
       if (isPrivate) {
         violations.push({
           type: ViolationType.PRIVATE_IMPORT,
           module: node.name,
           message: `Private import detected: module "${node.name}" directly imports internal path from "${imp.specifier}".`,
           suggestion: `Import only the public index: "${suggestion}".`,
-          location: { file: imp.file, line: imp.line }
+          location: { file: imp.file, line: imp.line },
         });
       } else if (target && target !== node.name && moduleNames.has(target)) {
-        // Only check for undeclared imports if it's NOT a private import violation
         if (!node.declaredImports.includes(target)) {
           violations.push({
             type: ViolationType.UNDECLARED_IMPORT,
             module: node.name,
             message: `Undeclared import: module "${node.name}" imports from "${target}" but it is not declared.`,
             suggestion: `Add "${target}" to the imports array in the Module() declaration of "${node.name}".`,
-            location: { file: imp.file, line: imp.line }
+            location: { file: imp.file, line: imp.line },
           });
         }
       }
     }
   }
 
-  // Circular dependency detection
   const dependencyMap = new Map<string, string[]>();
   for (const node of nodes) {
     dependencyMap.set(node.name, node.declaredImports);
@@ -127,7 +185,7 @@ export function detectViolations(graph: ModuleGraph): Violation[] {
       module: cycle[0],
       message: `Circular dependency detected: ${cycleStr}`,
       suggestion: 'Extract shared logic into a separate module to break the cycle.',
-      cycle
+      cycle,
     });
   }
 

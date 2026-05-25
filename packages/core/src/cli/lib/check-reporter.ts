@@ -1,5 +1,6 @@
 import type { ReconciliationResult } from '../../types/nits.js';
 import type { Violation } from './violations.js';
+import { ViolationType, isErrorViolation } from './violations.js';
 import { type ModuleNode as ModuleGraphNode } from './graph-builder.js';
 
 const R    = '\x1b[0m';
@@ -80,7 +81,11 @@ export function printArchitectureSection(data: CheckReportData): void {
 
   for (const mod of data.modules) {
     const modViolations = data.violations.filter(v => v.module === mod.name);
-    const hasCircular = modViolations.some(v => v.type === 'circular-dependency');
+    const hasCircular = modViolations.some(v => v.type === ViolationType.CIRCULAR_DEPENDENCY);
+    const boundaryViolations = modViolations.filter(
+      v => v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+    );
+    const hasBoundary = boundaryViolations.length > 0;
     const isNew = data.nitsResult?.newModules?.some(n => n.name === mod.name) || false;
     
     let icon: string;
@@ -89,6 +94,9 @@ export function printArchitectureSection(data: CheckReportData): void {
     if (hasCircular) {
       icon = `${AYU.red}✗${R}`;
       status = `${AYU.red}circular dep${R}`;
+    } else if (hasBoundary) {
+      icon = `${AYU.red}✗${R}`;
+      status = `${AYU.red}RELATIVE_BOUNDARY_VIOLATION${R}`;
     } else if (modViolations.length > 0) {
       icon = `${AYU.orange}⚠${R}`;
       status = `${AYU.orange}${modViolations.length} violation${modViolations.length === 1 ? '' : 's'}${R}`;
@@ -103,6 +111,15 @@ export function printArchitectureSection(data: CheckReportData): void {
     const displayName = mod.name.length > 20 ? mod.name.slice(0, 19) + '…' : mod.name;
     const paddedName = displayName.padEnd(maxLen + 2, ' ');
     console.log(`  ${icon}  ${AYU.fg}${paddedName}${R} ${status}`);
+
+    for (const bv of boundaryViolations) {
+      const lineSuffix = bv.line !== undefined ? `:${bv.line}` : '';
+      const fileBase = bv.file.split(/[/\\]/).pop() || bv.file;
+      console.log(
+        `       ${AYU.dim}${fileBase}${lineSuffix}  →  import from '${bv.import}'${R}`,
+      );
+      console.log(`       ${AYU.dim}${bv.hint}${R}`);
+    }
   }
   
   blank();
@@ -115,12 +132,15 @@ export function printArchitectureWithIdentity(data: CheckReportData): void {
 
   for (const mod of data.modules) {
     const modViolations = data.violations.filter(v => v.module === mod.name);
-    const hasCircular = modViolations.some(v => v.type === 'circular-dependency');
+    const hasCircular = modViolations.some(v => v.type === ViolationType.CIRCULAR_DEPENDENCY);
+    const hasBoundary = modViolations.some(
+      v => v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+    );
     const isNew = data.nitsResult?.newModules?.some(n => n.name === mod.name) || false;
     
     let icon: string;
     
-    if (hasCircular) {
+    if (hasCircular || hasBoundary) {
       icon = `${AYU.red}✗${R}`;
     } else if (modViolations.length > 0) {
       icon = `${AYU.orange}⚠${R}`;
@@ -177,12 +197,24 @@ export function printViolationDetails(violations: Violation[]): void {
     const moduleViolations = violations.filter(v => v.module === moduleName);
 
     for (const v of moduleViolations) {
-      const isError = v.type === 'circular-dependency';
+      if (v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION) {
+        const icon = `${AYU.red}✗${R}`;
+        const lineSuffix = v.line !== undefined ? `:${v.line}` : '';
+        const fileBase = v.file.split(/[/\\]/).pop() || v.file;
+        console.log(`    ${icon}  ${AYU.fg}RELATIVE_BOUNDARY_VIOLATION${R}`);
+        console.log(
+          `       ${AYU.dim}${fileBase}${lineSuffix}  →  import from '${v.import}'${R}`,
+        );
+        console.log(`       ${AYU.dim}${v.hint}${R}`);
+        continue;
+      }
+
+      const isError = isErrorViolation(v);
       const icon = isError ? `${AYU.red}✗${R}` : `${AYU.orange}⚠${R}`;
       
       console.log(`    ${icon}  ${AYU.fg}${v.message}${R}`);
       
-      if (isError && v.cycle) {
+      if (v.type === ViolationType.CIRCULAR_DEPENDENCY && v.cycle) {
         console.log(`       ${AYU.dim}${v.cycle.join(' → ')}${R}`);
         console.log(`       ${AYU.dim}${v.suggestion}${R}`);
       } else if (v.location) {
@@ -240,7 +272,7 @@ export function printSummary(data: CheckReportData): void {
   console.log(`    ${AYU.dim}modules${R}    ${AYU.fg}${totalModules.toString().padEnd(3)}${R} ${AYU.dim}${modsSubStr}${R}`);
 
   const totalViolations = data.violations.length;
-  const errorViolations = data.violations.filter(v => v.type === 'circular-dependency').length;
+  const errorViolations = data.violations.filter(isErrorViolation).length;
   const warnViolations = totalViolations - errorViolations;
   
   const warnDisplay = warnViolations > 0 ? `${warnViolations} warn` : '';

@@ -101,8 +101,9 @@ describe('cli/lib/import-scanner — extractRelativeCrossModuleImports', () => {
     tmpFiles.push(serviceFile);
 
     const cross = extractRelativeCrossModuleImports(serviceFile, usersDir);
-    expect(cross).toContain('../payments/payments.service');
-    expect(cross).not.toContain('./users.repository');
+    expect(cross.map(c => c.specifier)).toContain('../payments/payments.service');
+    expect(cross.map(c => c.specifier)).not.toContain('./users.repository');
+    expect(cross.find(c => c.specifier === '../payments/payments.service')?.line).toBe(1);
   });
 
   it('returns [] for missing file without throwing', () => {

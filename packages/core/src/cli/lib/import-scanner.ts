@@ -140,29 +140,36 @@ export function extractModuleImports(
  * Scans a file for relative imports whose resolved target lies outside `moduleDirPath`.
  * Never throws — resolution errors yield an empty array and a debug log.
  */
+export interface RelativeCrossModuleImport {
+  specifier: string;
+  line: number;
+}
+
 export function extractRelativeCrossModuleImports(
   filePath: string,
   moduleDirPath: string,
   log?: LogHandler,
-): string[] {
+): RelativeCrossModuleImport[] {
   try {
     const code = fs.readFileSync(filePath, 'utf-8');
     const moduleRoot = normalizePath(moduleDirPath);
     const fileDir = path.dirname(filePath);
-    const crossModule: string[] = [];
+    const crossModule: RelativeCrossModuleImport[] = [];
 
     let match: RegExpExecArray | null;
     const regex = new RegExp(RELATIVE_IMPORT_REGEX.source, RELATIVE_IMPORT_REGEX.flags);
 
     while ((match = regex.exec(code)) !== null) {
       const specifier = match[1];
+      const textBeforeMatch = code.substring(0, match.index);
+      const line = textBeforeMatch.split('\n').length;
       try {
         const resolvedPath = normalizePath(path.resolve(fileDir, specifier));
         const isInside =
           resolvedPath === moduleRoot || resolvedPath.startsWith(`${moduleRoot}/`);
 
         if (!isInside) {
-          crossModule.push(specifier);
+          crossModule.push({ specifier, line });
         }
       } catch (resolveErr: unknown) {
         const message = resolveErr instanceof Error ? resolveErr.message : String(resolveErr);

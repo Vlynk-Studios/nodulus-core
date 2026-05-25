@@ -365,3 +365,6 @@ export interface WatcherOptions {
   /** Nodulus logger instance. */
   logger: Logger; // reference to the existing internal Logger
 }
+
+/** Structured error codes thrown by Nodulus (includes CLI / check violations). */
+export type { NodulusErrorCode } from '../core/errors.js';

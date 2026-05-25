@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { detectViolations, ViolationType } from '../../src/cli/lib/violations.js';
+import {
+  detectViolations,
+  detectRelativeBoundaryViolations,
+  ViolationType,
+} from '../../src/cli/lib/violations.js';
 import { buildModuleGraph, ModuleNode } from '../../src/cli/lib/graph-builder.js';
 import { checkCommand } from '../../src/cli/commands/check.js';
 import * as configModule from '../../src/core/config.js';
@@ -40,12 +44,51 @@ describe('nodulus check', () => {
 
     it('detects real circular dependency in fixture (users <-> orders)', async () => {
       const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, fixturePath);
-      const violations = detectViolations(graph);
+      const violations = detectViolations(graph, fixturePath);
       
       const circular = violations.find(v => v.type === ViolationType.CIRCULAR_DEPENDENCY);
       expect(circular).toBeDefined();
       expect(circular?.cycle).toContain('users');
       expect(circular?.cycle).toContain('orders');
+    });
+
+    it('detects RELATIVE_BOUNDARY_VIOLATION when a file uses ../ to reach another module', async () => {
+      const tmpRoot = path.join(fixturePath, '..', `boundary-tmp-${Date.now()}`);
+      const usersDir = path.join(tmpRoot, 'src', 'modules', 'users');
+      const paymentsDir = path.join(tmpRoot, 'src', 'modules', 'payments');
+      fs.mkdirSync(usersDir, { recursive: true });
+      fs.mkdirSync(paymentsDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(usersDir, 'index.ts'),
+        "import { Module } from '@vlynk-studios/nodulus-core';\nModule('users', { imports: [] });",
+      );
+      fs.writeFileSync(
+        path.join(paymentsDir, 'index.ts'),
+        "import { Module } from '@vlynk-studios/nodulus-core';\nModule('payments', { imports: [] });",
+      );
+      fs.writeFileSync(path.join(paymentsDir, 'payments.service.ts'), 'export class PaymentsService {}');
+      fs.writeFileSync(
+        path.join(usersDir, 'users.service.ts'),
+        "import { PaymentsService } from '../payments/payments.service';",
+      );
+      fs.writeFileSync(
+        path.join(tmpRoot, 'nodulus.config.js'),
+        "export default { modules: 'src/modules/*', strict: false };",
+      );
+
+      try {
+        const graph = await buildModuleGraph({ modules: 'src/modules/*' } as any, tmpRoot);
+        const violations = detectRelativeBoundaryViolations(graph, tmpRoot);
+        expect(violations).toHaveLength(1);
+        expect(violations[0].type).toBe(ViolationType.RELATIVE_BOUNDARY_VIOLATION);
+        expect(violations[0].module).toBe('users');
+        expect(violations[0].import).toBe('../payments/payments.service');
+        expect(violations[0].file).toContain('users.service.ts');
+        expect(violations[0].hint).toContain('@modules');
+      } finally {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      }
     });
   });
 
@@ -192,6 +235,41 @@ describe('nodulus check', () => {
       await expect(
         cmd.parseAsync(['node', 'test', '--format', 'json', '--strict'])
       ).rejects.toThrow(/violations found/i);
+    });
+
+    it('--format json throws on RELATIVE_BOUNDARY_VIOLATION even without --strict', async () => {
+      const tmpRoot = path.join(fixturePath, '..', `boundary-cmd-${Date.now()}`);
+      const usersDir = path.join(tmpRoot, 'src', 'modules', 'users');
+      const paymentsDir = path.join(tmpRoot, 'src', 'modules', 'payments');
+      fs.mkdirSync(usersDir, { recursive: true });
+      fs.mkdirSync(paymentsDir, { recursive: true });
+      fs.writeFileSync(path.join(usersDir, 'index.ts'), "import { Module } from '@vlynk-studios/nodulus-core';\nModule('users', { imports: [] });");
+      fs.writeFileSync(path.join(paymentsDir, 'index.ts'), "import { Module } from '@vlynk-studios/nodulus-core';\nModule('payments', { imports: [] });");
+      fs.writeFileSync(path.join(paymentsDir, 'payments.service.ts'), 'export class P {}');
+      fs.writeFileSync(path.join(usersDir, 'users.service.ts'), "import { P } from '../payments/payments.service';");
+
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpRoot);
+      vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+        modules: 'src/modules/*',
+        strict: false,
+        nits: { enabled: false },
+      } as any);
+
+      try {
+        const cmd = checkCommand();
+        await expect(cmd.parseAsync(['node', 'test', '--format', 'json'])).rejects.toThrow(
+          /violations found/i,
+        );
+        const logCall = logSpy.mock.calls.find(
+          (call: any[]) => typeof call[0] === 'string' && call[0].includes('"violations"'),
+        );
+        const json = JSON.parse(logCall![0]);
+        expect(
+          json.violations.some((v: any) => v.type === 'relative-boundary-violation'),
+        ).toBe(true);
+      } finally {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      }
     });
 
     describe('NITS formatting', () => {
