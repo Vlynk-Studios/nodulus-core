@@ -52,6 +52,9 @@ export function generateTsconfigNodulus(
 
   // 2. User-defined aliases from resolvedAliases (absolute paths)
   for (const [alias, absoluteTarget] of config.resolvedAliases) {
+    // @modules/* is always owned by the built-in entry above
+    if (alias === '@modules' || alias.startsWith('@modules/')) continue;
+
     const relTarget = toRelative(absoluteTarget, cwd);
 
     const targetExists = fs.existsSync(absoluteTarget);
