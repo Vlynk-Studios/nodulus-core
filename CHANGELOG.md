@@ -8,6 +8,19 @@ For full technical details, see the individual package changelogs:
 → [`packages/core/CHANGELOG.md`](./packages/core/CHANGELOG.md)
 → [`packages/eslint-plugin-nodulus/CHANGELOG.md`](./packages/eslint-plugin-nodulus/CHANGELOG.md)
 
+## [1.7.0] — 2026-05-25
+
+### nodulus-core
+- **Alias system**: `nodulus.config.ts` as the single source of truth; automatic `tsconfig.nodulus.json` generation; `defineConfig()` helper; built-in `@modules` alias.
+- **Module boundaries**: `RELATIVE_BOUNDARY_VIOLATION` for relative imports crossing module directories; always reported as errors in `nodulus check` (even without `--strict`).
+- **REGLA-22**: import scanner filters by active Nodulus aliases instead of a hardcoded `excludedScopes` list.
+- **Breaking**: `aliases` removed from `CreateAppOptions` — configure aliases in `nodulus.config.ts` only.
+
+### eslint-plugin-nodulus
+- Version synchronized with `nodulus-core@1.7.0`. `no-private-imports` reports `relativeBoundary` for cross-module relative imports.
+
+---
+
 ## [1.6.0] — 2026-05-24
 
 ### nodulus-core
