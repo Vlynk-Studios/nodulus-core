@@ -41,6 +41,7 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<BootCo
     prefix: options.prefix ?? fileConfig.prefix ?? DEFAULTS.prefix,
     strict: options.strict ?? fileConfig.strict ?? DEFAULTS.strict,
     resolveAliases: options.resolveAliases ?? fileConfig.resolveAliases ?? DEFAULTS.resolveAliases,
+    aliases: fileConfig.aliases ?? {},
     logger: options.logger ?? fileConfig.logger ?? DEFAULTS.logger,
     logLevel: resolveLogLevel(options.logLevel ?? fileConfig.logLevel),
     logFormat: options.logFormat ?? fileConfig.logFormat ?? DEFAULTS.logFormat,

@@ -14,7 +14,7 @@ export function defineConfig(config: NodulusConfig): NodulusConfig {
 
 export function isValidAliasKey(key: string): boolean {
   if (key === '@modules' || key === '@shared' || key === '@') return false;
-  return /^@[a-zA-Z][a-zA-Z0-9\-]*$/.test(key);
+  return /^@[a-zA-Z][a-zA-Z0-9-]*$/.test(key);
 }
 
 export const RESERVED_ALIASES = ['@modules', '@shared'] as const;

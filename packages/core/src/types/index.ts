@@ -230,6 +230,7 @@ export interface ResolvedConfig {
   prefix: string;
   strict: boolean;
   resolveAliases: boolean;
+  aliases: Record<string, string>;
   logger: LogHandler;
   logLevel: LogLevel;
   logFormat: LogFormat;

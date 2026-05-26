@@ -1,5 +1,5 @@
 import type { ReconciliationResult } from '../../types/nits.js';
-import type { Violation } from './violations.js';
+import type { Violation, RelativeBoundaryViolation } from './violations.js';
 import { ViolationType, isErrorViolation } from './violations.js';
 import { type ModuleNode as ModuleGraphNode } from './graph-builder.js';
 
@@ -83,7 +83,7 @@ export function printArchitectureSection(data: CheckReportData): void {
     const modViolations = data.violations.filter(v => v.module === mod.name);
     const hasCircular = modViolations.some(v => v.type === ViolationType.CIRCULAR_DEPENDENCY);
     const boundaryViolations = modViolations.filter(
-      v => v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+      (v): v is RelativeBoundaryViolation => v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION,
     );
     const hasBoundary = boundaryViolations.length > 0;
     const isNew = data.nitsResult?.newModules?.some(n => n.name === mod.name) || false;
