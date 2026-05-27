@@ -65,6 +65,75 @@ describe('loadConfig', () => {
     });
   });
 
+  it('should return all defaults when config file is empty', async () => {
+    await runInTmpDir({
+      'nodulus.config.js': 'export default {};'
+    }, async () => {
+      const config = await loadConfig();
+      expect(config.modules).toBe(DEFAULTS.modules);
+      expect(config.prefix).toBe(DEFAULTS.prefix);
+      expect(config.strict).toBe(DEFAULTS.strict);
+      expect(config.resolveAliases).toBe(DEFAULTS.resolveAliases);
+      expect(config.logLevel).toBe(DEFAULTS.logLevel);
+      expect(config.logFormat).toBe(DEFAULTS.logFormat);
+      expect(config.nits.enabled).toBe(DEFAULTS.nits.enabled);
+      expect(config.requirePreloader).toBe(DEFAULTS.requirePreloader);
+      expect(config.moduleLoadTimeoutMs).toBe(DEFAULTS.moduleLoadTimeoutMs);
+    });
+  });
+
+  it('should parse v1.8.0 config fields correctly', async () => {
+    await runInTmpDir({
+      'nodulus.config.js': 'export default { logLevel: "debug", moduleLoadTimeoutMs: 5000, requirePreloader: true, resolveAliases: false };'
+    }, async () => {
+      const config = await loadConfig();
+      expect(config.logLevel).toBe('debug');
+      expect(config.moduleLoadTimeoutMs).toBe(5000);
+      expect(config.requirePreloader).toBe(true);
+      expect(config.resolveAliases).toBe(false);
+    });
+  });
+
+  it('should fallback and warn on invalid numeric/enum config fields', async () => {
+    const loggerSpy = vi.fn();
+    await runInTmpDir({
+      'nodulus.config.js': 'export default { logLevel: "invalid", logFormat: "yaml", moduleLoadTimeoutMs: -1 };'
+    }, async () => {
+      const config = await loadConfig({ logger: loggerSpy });
+      
+      expect(config.logLevel).toBe('info');
+      expect(config.logFormat).toBe('auto');
+      expect(config.moduleLoadTimeoutMs).toBe(30000);
+      
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('logLevel inválido'), expect.any(Object));
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('logFormat inválido'), expect.any(Object));
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('moduleLoadTimeoutMs debe ser un número positivo'), expect.any(Object));
+    });
+  });
+
+  it('should fallback and warn on moduleLoadTimeoutMs: 0', async () => {
+    const loggerSpy = vi.fn();
+    await runInTmpDir({
+      'nodulus.config.js': 'export default { moduleLoadTimeoutMs: 0 };'
+    }, async () => {
+      const config = await loadConfig({ logger: loggerSpy });
+      expect(config.moduleLoadTimeoutMs).toBe(30000);
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('moduleLoadTimeoutMs debe ser un número positivo'), expect.any(Object));
+    });
+  });
+
+  it('should use custom logger if provided, otherwise defaultLogHandler', async () => {
+    await runInTmpDir({}, async () => {
+      const customLogger = vi.fn();
+      const configWithCustom = await loadConfig({ logger: customLogger });
+      expect(configWithCustom.logger).toBe(customLogger);
+
+      const configWithDefault = await loadConfig();
+      expect(typeof configWithDefault.logger).toBe('function');
+      expect(configWithDefault.logger).not.toBe(customLogger);
+    });
+  });
+
   it('should throw clear error context when config file has a syntax error', async () => {
     await runInTmpDir({
       'nodulus.config.js': 'module.exports = { prefix: "/fail", invalid-syntax here };'

@@ -82,6 +82,72 @@ describe('createApp', () => {
     });
   });
 
+  it('should allow omitting options completely (v1.8.0 signature)', async () => {
+    await runInTmpApp(validAppStructure, async (_, app) => {
+      const nodulusApp = await createApp(app as any);
+      expect(nodulusApp.modules).toHaveLength(1);
+    });
+  });
+
+  it('should allow passing empty options object', async () => {
+    await runInTmpApp(validAppStructure, async (_, app) => {
+      const nodulusApp = await createApp(app as any, {});
+      expect(nodulusApp.modules).toHaveLength(1);
+    });
+  });
+
+  it('should use a custom logger when provided', async () => {
+    const customLogger = vi.fn();
+    await runInTmpApp(validAppStructure, async (_, app) => {
+      await createApp(app as any, { logger: customLogger });
+      expect(customLogger).toHaveBeenCalled();
+    });
+  });
+
+  it('should return a listen() method for shutdown management', async () => {
+    await runInTmpApp(validAppStructure, async (_, app) => {
+      const nodulusApp = await createApp(app as any);
+      expect(typeof nodulusApp.listen).toBe('function');
+      
+      const mockServer = {
+        close: vi.fn((cb) => cb()),
+        on: vi.fn(),
+        emit: vi.fn()
+      };
+
+      const shutdownHook = vi.fn();
+      const triggerShutdown = nodulusApp.listen(mockServer as any, { onShutdown: shutdownHook });
+      
+      expect(typeof triggerShutdown).toBe('function');
+      
+      // Manually trigger to verify it executes the hook
+      vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+      await triggerShutdown();
+      
+      expect(mockServer.close).toHaveBeenCalled();
+      expect(shutdownHook).toHaveBeenCalled();
+    });
+  });
+
+  it('should allow listen() without options', async () => {
+    await runInTmpApp(validAppStructure, async (_, app) => {
+      const nodulusApp = await createApp(app as any);
+      
+      const mockServer = {
+        close: vi.fn((cb) => cb()),
+        on: vi.fn(),
+        emit: vi.fn()
+      };
+
+      const triggerShutdown = nodulusApp.listen(mockServer as any);
+      
+      vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+      await triggerShutdown();
+      
+      expect(mockServer.close).toHaveBeenCalled();
+    });
+  });
+
   it('should maintain atomic failure and prevent any route mount if a module is invalid', async () => {
     const invalidAppStructure: Record<string, string> = { ...validAppStructure };
     // This file deliberately fails validation!

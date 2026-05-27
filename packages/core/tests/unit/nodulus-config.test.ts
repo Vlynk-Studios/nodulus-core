@@ -134,4 +134,58 @@ describe('loadNodulusConfig', () => {
     expect(result.resolvedAliases.get('@a')).toBe(aDir);
     expect(result.resolvedAliases.get('@b')).toBe(bFile);
   });
+
+  // ── v1.8.0 Config fields parsing and validation ────────────────────────────
+
+  it('parses logLevel correctly when valid', async () => {
+    writeConfig(tmpDir, 'nodulus.config.js', 'export default { logLevel: "debug" };');
+    const result = await loadNodulusConfig(tmpDir);
+    expect(result.logLevel).toBe('debug');
+  });
+
+  it('emits warn and falls back to info when logLevel is invalid', async () => {
+    const log = vi.fn();
+    writeConfig(tmpDir, 'nodulus.config.js', 'export default { logLevel: "verbose" };');
+    const result = await loadNodulusConfig(tmpDir, log);
+    expect(result.logLevel).toBe('info');
+    expect(log).toHaveBeenCalledWith('warn', expect.stringContaining('logLevel inválido'), expect.any(Object));
+  });
+
+  it('parses moduleLoadTimeoutMs correctly when valid', async () => {
+    writeConfig(tmpDir, 'nodulus.config.js', 'export default { moduleLoadTimeoutMs: 10000 };');
+    const result = await loadNodulusConfig(tmpDir);
+    expect(result.moduleLoadTimeoutMs).toBe(10000);
+  });
+
+  it('parses requirePreloader correctly', async () => {
+    writeConfig(tmpDir, 'nodulus.config.js', 'export default { requirePreloader: true };');
+    const result = await loadNodulusConfig(tmpDir);
+    expect(result.requirePreloader).toBe(true);
+  });
+
+  it('parses resolveAliases correctly', async () => {
+    writeConfig(tmpDir, 'nodulus.config.js', 'export default { resolveAliases: false };');
+    const result = await loadNodulusConfig(tmpDir);
+    expect(result.resolveAliases).toBe(false);
+  });
+
+  it('parses all new v1.8.0 fields together correctly', async () => {
+    writeConfig(
+      tmpDir,
+      'nodulus.config.js',
+      `export default { 
+        logLevel: "error", 
+        logFormat: "json",
+        moduleLoadTimeoutMs: 15000, 
+        requirePreloader: true, 
+        resolveAliases: false 
+      };`
+    );
+    const result = await loadNodulusConfig(tmpDir);
+    expect(result.logLevel).toBe('error');
+    expect(result.logFormat).toBe('json');
+    expect(result.moduleLoadTimeoutMs).toBe(15000);
+    expect(result.requirePreloader).toBe(true);
+    expect(result.resolveAliases).toBe(false);
+  });
 });
