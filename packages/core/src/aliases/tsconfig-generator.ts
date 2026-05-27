@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parse, stringify } from 'comment-json';
+import { stringify } from 'comment-json';
 import type { ResolvedConfig, Logger } from '../types/index.js';
 
 export async function generateTsConfigNodulus(config: ResolvedConfig, cwd: string, logger?: Logger): Promise<void> {

@@ -27,11 +27,10 @@ import {
 } from '../../src/nits/nits-reconciler.js';
 import { scanShadowFiles } from '../../src/nits/nits-store.js';
 import { computeModuleHash } from '../../src/nits/nits-hash.js';
-import { NITS_REGISTRY_VERSION } from '../../src/nits/constants.js';
+
 import type {
   NitsRegistry,
   DiscoveredModule,
-  NitsModuleRecord,
 } from '../../src/types/nits.js';
 
 // ─── Valid module IDs (exactly /^mod_[0-9a-f]{8}$/) ─────────────────────────
@@ -84,15 +83,7 @@ function writeService(dir: string, filename: string, identifiers: string[]): voi
 
 // ─── Registry helpers ────────────────────────────────────────────────────────
 
-function makeEmptyRegistry(): NitsRegistry {
-  return { project: 'test', version: NITS_REGISTRY_VERSION, lastCheck: '', modules: {} };
-}
 
-function makeRegistry(mods: NitsModuleRecord[]): NitsRegistry {
-  const modules: Record<string, NitsModuleRecord> = {};
-  for (const m of mods) modules[m.id] = m;
-  return { project: 'test', version: NITS_REGISTRY_VERSION, lastCheck: '', modules };
-}
 
 /** Writes `registry.json` to `<cwd>/.nodulus/registry.json`. */
 function writeRegistry(cwd: string, reg: NitsRegistry): void {
@@ -437,7 +428,7 @@ describe('Retrocompatibilidad: proyecto sin ningún .nodulus', () => {
       }
 
       // Obtener IDs generados dinámicamente
-      const allIds = r0.newModules.map(m => m.id);
+
       const orderId = r0.newModules.find(m => m.name === 'orders-legacy')!.id;
 
       // ── Ciclo 1: orders-legacy desaparece → stale, NO deleted ─────────────

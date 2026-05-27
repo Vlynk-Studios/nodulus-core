@@ -99,4 +99,25 @@ describe('E2E Integration', () => {
     expect(firstUser).toHaveProperty('name');
     expect(typeof firstUser.name).toBe('string');
   });
+
+  it('T-04: nodulusApp.listen() with onShutdown hook executes correctly', async () => {
+    const mockServer = {
+      close: vi.fn((cb) => cb()),
+      on: vi.fn(),
+      emit: vi.fn()
+    };
+    const shutdownHook = vi.fn();
+    
+    const triggerShutdown = nodulusInfo.listen(mockServer as any, { onShutdown: shutdownHook });
+    
+    // Intercept process.exit to prevent the test runner from dying
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    
+    await triggerShutdown();
+    
+    expect(mockServer.close).toHaveBeenCalled();
+    expect(shutdownHook).toHaveBeenCalled();
+    
+    exitSpy.mockRestore();
+  });
 });

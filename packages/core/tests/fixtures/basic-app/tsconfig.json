@@ -17,6 +17,6 @@
       "@modules/*.js": ["./src/modules/*.ts"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "../../../src/**/*.ts"]
 }
 

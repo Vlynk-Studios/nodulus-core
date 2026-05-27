@@ -8,6 +8,18 @@ For full technical details, see the individual package changelogs:
 → [`packages/core/CHANGELOG.md`](./packages/core/CHANGELOG.md)
 → [`packages/eslint-plugin-nodulus/CHANGELOG.md`](./packages/eslint-plugin-nodulus/CHANGELOG.md)
 
+## [1.8.0] — 2026-05-27
+
+### nodulus-core
+- **Configuration Unification**: `createApp()` no longer accepts declarative configuration options. All config (aliases, prefix, modules, strict mode, NITS, etc.) has been unified into a single source of truth: `nodulus.config.ts`.
+- **Preloader and Runtime Flags**: `requirePreloader` and `moduleLoadTimeoutMs` added to `nodulus.config.ts`.
+- **Graceful Shutdown**: `onShutdown` hook moved from `createApp()` options to `nodulus.listen(server, { onShutdown })`.
+
+### eslint-plugin-nodulus
+- Version synchronized with `nodulus-core@1.8.0`. No new rules or behavioral changes.
+
+---
+
 ## [1.7.0] — 2026-05-25
 
 ### nodulus-core

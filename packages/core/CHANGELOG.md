@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] — 2026-05-27
+
+### Changed
+- `createApp()` ya no acepta opciones de configuración — toda la config vive en `nodulus.config.ts`
+- `createApp(app, options)` → `createApp(app)` (o `createApp(app, { logger })` para logger custom)
+- `onShutdown` se mueve de `createApp()` a `nodulus.listen(server, { onShutdown })`
+
+### Added
+- `nodulus.config.ts` soporta todos los campos de configuración: `logLevel`, `logFormat`, `resolveAliases`, `requirePreloader`, `moduleLoadTimeoutMs`
+- `ListenOptions` — interfaz para las opciones de `nodulus.listen()`
+- Validación de `logLevel`, `logFormat`, y `moduleLoadTimeoutMs` en la carga del config file
+
+### Removed
+- `CreateAppOptions.modules` — mover a `nodulus.config.ts`
+- `CreateAppOptions.prefix` — mover a `nodulus.config.ts`
+- `CreateAppOptions.strict` — mover a `nodulus.config.ts`
+- `CreateAppOptions.logLevel` — mover a `nodulus.config.ts`
+- `CreateAppOptions.logFormat` — mover a `nodulus.config.ts`
+- `CreateAppOptions.resolveAliases` — mover a `nodulus.config.ts`
+- `CreateAppOptions.requirePreloader` — mover a `nodulus.config.ts`
+- `CreateAppOptions.moduleLoadTimeoutMs` — mover a `nodulus.config.ts`
+- `CreateAppOptions.nits` — mover a `nodulus.config.ts`
+- `CreateAppOptions.onShutdown` — movido a `nodulus.listen(server, { onShutdown })`
+
+---
+
 ## [1.7.0] — 2026-05-25
 
 ### Added
