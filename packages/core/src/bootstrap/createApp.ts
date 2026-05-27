@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import fg from 'fast-glob';
 import type { Application } from 'express';
 import type { CreateAppOptions, NodulusApp } from '../types/index.js';
-import type { NodulusConfig } from '../config/nodulus-config.types.js';
+
 import { loadConfig } from '../core/config.js';
 import { NodulusError } from '../core/errors.js';
 import { createRegistry, registryContext } from '../core/registry.js';

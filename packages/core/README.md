@@ -483,8 +483,11 @@ npx nodulus create-module payments
 | Option | Description |
 |---|---|
 | `--path <path>` | Sets a custom absolute or relative destination |
-| `--no-repository` | Omits the repository file |
-| `--no-schema` | Omits the schema file |
+| `--service` | Generates a service file |
+| `--routes` | Generates a controller/routes file |
+| `--repository` | Generates a repository file |
+| `--schema` | Generates a schema file |
+| `--full` | Generates all of the above |
 | `--ts` | Force TypeScript output (`.ts` files) |
 | `--js` | Force JavaScript output (`.js` files) |
 

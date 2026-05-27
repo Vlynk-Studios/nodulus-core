@@ -102,14 +102,10 @@ npm install express
 ```
 
 ```ts
-// src/app.ts
-import express from 'express'
-import { createApp } from '@vlynk-studios/nodulus-core'
+// nodulus.config.ts
+import { defineConfig } from '@vlynk-studios/nodulus-core'
 
-const app = express()
-app.use(express.json())
-
-const { routes } = await createApp(app, {
+export default defineConfig({
   modules: 'src/modules/*',
   prefix: '/api/v1',
   aliases: {
@@ -117,6 +113,17 @@ const { routes } = await createApp(app, {
     '@middleware': './src/middleware',
   },
 })
+```
+
+```ts
+// src/app.ts
+import express from 'express'
+import { createApp } from '@vlynk-studios/nodulus-core'
+
+const app = express()
+app.use(express.json())
+
+const { routes } = await createApp(app)
 
 console.log(`Mounted routes: ${routes.length}`)
 export default app

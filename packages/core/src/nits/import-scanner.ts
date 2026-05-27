@@ -4,7 +4,6 @@ import type { MovedModule } from '../types/nits.js';
 import { calculateAlias } from './utils.js';
 import {
   extractModuleImports,
-  type ImportFound,
 } from '../cli/lib/import-scanner.js';
 
 export type { ImportFound } from '../cli/lib/import-scanner.js';
