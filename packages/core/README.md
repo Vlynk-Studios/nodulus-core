@@ -155,25 +155,14 @@ A relative path that escapes the module directory is always an error, regardless
 
 ## Quick start
 
-```ts
-// src/app.ts
+```typescript
 import express from 'express'
 import { createApp } from '@vlynk-studios/nodulus-core'
 
 const app = express()
-app.use(express.json())
-
-const { routes } = await createApp(app, {
-  modules: 'src/modules/*',
-  prefix: '/api/v1',
-  strict: process.env.NODE_ENV !== 'production',
-  logger: (level, msg) => console[level](`[nodulus] ${msg}`),
-})
-
-app.use(errorHandler) // error middleware always last
-
-console.log(`Mounted routes: ${routes.length}`)
-export default app
+const nodulus = await createApp(app)
+const server = app.listen(3000)
+nodulus.listen(server)
 ```
 
 > **Note:** Alias resolution runs through the Node.js ESM Hooks API, which activates inside `createApp()` at bootstrap time. Aliases are available to any file that Nodulus imports dynamically during bootstrap (your modules). They are **not** available to static imports in your entry point file (`app.ts`, `server.ts`) before `createApp()` is called. For bundler-based setups, see [Alias resolution with bundlers](#alias-resolution-with-bundlers).
@@ -215,31 +204,12 @@ even when the module's internal code changes significantly.
 Bootstraps the entire application. Runs module discovery, alias resolution, controller mounting, and validation in a deterministic sequence. Throws a `NodulusError` before mounting any routes if anything is invalid — the app is never left in a partial state.
 
 ```ts
-createApp(app: Application, options?: CreateAppOptions): Promise<NodulusApp>
+createApp(app: Application, options?: { logger?: LogHandler }): Promise<NodulusApp>
 ```
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `modules` | `string` | `'src/modules/*'` | Glob pointing to module folders |
-| `domains` | `string` | `undefined` | _(v2.0.0+, not yet active)_ Glob pointing to domain folders |
-| `shared` | `string` | `undefined` | _(v2.0.0+, not yet active)_ Glob pointing to shared global folders |
-| `prefix` | `string` | `''` | Global route prefix (e.g. `'/api/v1'`) |
-| `aliases` | `Record<string, string>` | `{}` | Folder or file aliases beyond the auto-generated `@modules/*` |
-| `strict` | `boolean` | `true` in dev | Enables circular-dependency detection and undeclared-import errors |
-| `resolveAliases` | `boolean` | `true` | Disable if you resolve aliases with a bundler |
 | `logger` | `LogHandler` | built-in | Custom log handler |
-| `logLevel` | `LogLevel` | `'info'` | Minimum severity for log events |
-| `logFormat` | `'pretty' \| 'json' \| 'auto'` | `'auto'` | Format of the output logs |
-| `nits` | `NitsConfig` | `{ enabled: true }` | NITS identity tracking configuration |
-| `requirePreloader` | `boolean` | `false` | _(v1.5.0+)_ If `true`, `createApp()` throws `PRELOADER_REQUIRED` when the runtime pre-loader is not active |
-| `onShutdown` | `() => void \| Promise<void>` | `undefined` | _(v1.5.0+)_ Async cleanup hook invoked after the HTTP server closes and before the process exits. Use for DB connections, queues, file handles, etc. |
-
-**`NitsConfig`:**
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | `boolean` | `true` | Whether to run NITS identity tracking at bootstrap |
-| `similarityThreshold` | `number` | dynamic | Jaccard similarity threshold (0.0–1.0) for module movement detection. If omitted, a dynamic value based on module size is used |
 
 Returns `NodulusApp`:
 
@@ -451,29 +421,34 @@ await esbuild.build({
 
 Centralise configuration in the project root. Options passed directly to `createApp()` take priority over the file.
 
-```ts
-// nodulus.config.ts
-import type { NodulusConfig } from '@vlynk-studios/nodulus-core'
+```typescript
+import { defineConfig } from '@vlynk-studios/nodulus-core'
 
-const config: NodulusConfig = {
-  modules: 'src/modules/*',
-  prefix: '/api/v1',
-  strict: process.env.NODE_ENV !== 'production',
-  logLevel: 'debug',
-  logFormat: 'pretty',
+export default defineConfig({
+  modules:             'src/modules/*',
+  prefix:              '/api',
+  strict:              true,
+  logLevel:            'info',
+  moduleLoadTimeoutMs: 30_000,
   aliases: {
-    '@config':     './src/config',
-    '@middleware': './src/middleware',
-    '@shared':     './src/shared',
-  },
-  nits: {
-    enabled: true,
-    similarityThreshold: 0.85  // optional — defaults to dynamic
+    '@config': './src/config'
   }
-}
-
-export default config
+})
 ```
+
+|Campo|Tipo|Default|Descripción|
+|---|---|---|---|
+|`modules`|`string`|`'src/modules/*'`|Glob de directorios de módulos|
+|`prefix`|`string`|`''`|Prefijo global de rutas HTTP|
+|`strict`|`boolean`|`true` en dev, `false` en prod|Modo estricto|
+|`logLevel`|`'debug'\|'info'\|'warn'\|'error'`|`'info'`|Nivel de logs|
+|`logFormat`|`'json'\|'pretty'\|'auto'`|`'auto'`|Formato de logs|
+|`resolveAliases`|`boolean`|`true`|Activar resolución de aliases en runtime|
+|`requirePreloader`|`boolean`|`false`|Requerir el pre-loader activo|
+|`moduleLoadTimeoutMs`|`number`|`30000`|Timeout de carga de módulos en ms|
+|`nits.enabled`|`boolean`|`true`|Activar NITS identity tracking|
+|`nits.similarityThreshold`|`number`|dinámico|Umbral de similitud Jaccard|
+|`aliases`|`AliasMap`|`{}`|Mapa de aliases de usuario|
 
 Config file loading order (first match wins):
 
@@ -852,18 +827,15 @@ import { createApp } from '@vlynk-studios/nodulus-core'
 
 const app = express()
 
-const nodulus = await createApp(app, {
-  modules: 'src/modules/*',
-  onShutdown: async () => {
-    // Called after the server closes, before process.exit(0)
-    await db.close()
-    await redisClient.quit()
-    console.log('Resources released.')
-  }
-})
+const nodulus = await createApp(app)
 
 const server = app.listen(3000)
-nodulus.listen(server) // ← registers SIGINT + SIGTERM handlers
+nodulus.listen(server, {
+  onShutdown: async () => {
+    await db.disconnect()
+    await redis.quit()
+  }
+})
 ```
 
 ### What happens on shutdown
@@ -898,7 +870,7 @@ All Nodulus errors are instances of `NodulusError` with a machine-readable `code
 import { NodulusError } from '@vlynk-studios/nodulus-core'
 
 try {
-  await createApp(app, { modules: 'src/modules/*' })
+  await createApp(app)
 } catch (err) {
   if (err instanceof NodulusError) {
     console.error(err.code)    // 'EXPORT_MISMATCH'

@@ -5,77 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0] — 2026-05-27
+## [1.8.0] — 2026-XX-XX
 
-> **Config Unification:** `nodulus.config.ts` becomes the single source of truth for all configuration.
-> `createApp()` is now a pure activator that only accepts an optional `logger`.
-
-### ⚠️ Breaking Changes
-
-#### `createApp()` — Firma simplificada
-
-All declarative options have been removed from `createApp()`. Only `logger` remains:
-
-```typescript
-// ANTES (≤ v1.7.0)
-createApp(app, {
-  modules: 'src/modules/*', prefix: '/api', strict: true,
-  logLevel: 'debug', resolveAliases: true, requirePreloader: false,
-  moduleLoadTimeoutMs: 30_000, nits: { enabled: true },
-  onShutdown: async () => { await db.close(); },
-})
-
-// DESPUÉS (v1.8.0)
-createApp(app)
-// Con logger personalizado:
-createApp(app, { logger: myCustomLogger })
-```
-
-Toda la configuración declarativa vive ahora en `nodulus.config.ts`:
-
-```typescript
-// nodulus.config.ts
-import { defineConfig } from '@vlynk-studios/nodulus-core';
-
-export default defineConfig({
-  modules: 'src/modules/*', prefix: '/api', strict: true,
-  logLevel: 'debug', resolveAliases: true, requirePreloader: false,
-  moduleLoadTimeoutMs: 30_000, nits: { enabled: true },
-});
-```
-
-#### `onShutdown` — Movido a `nodulus.listen()`
-
-```typescript
-// ANTES (≤ v1.7.0)
-createApp(app, { onShutdown: async () => { await db.close(); } })
-
-// DESPUÉS (v1.8.0)
-const nodulus = await createApp(app);
-const server  = app.listen(3000);
-nodulus.listen(server, { onShutdown: async () => { await db.close(); } });
-```
+### Changed
+- `createApp()` ya no acepta opciones de configuración — toda la config vive en `nodulus.config.ts`
+- `createApp(app, options)` → `createApp(app)` (o `createApp(app, { logger })` para logger custom)
+- `onShutdown` se mueve de `createApp()` a `nodulus.listen(server, { onShutdown })`
 
 ### Added
-
-- `logLevel`, `logFormat`, `resolveAliases`, `requirePreloader`, and `moduleLoadTimeoutMs` are now declarable in `nodulus.config.ts`
-- Runtime validation in `loadNodulusConfig()` for the three new numeric/enum fields:
-  - `moduleLoadTimeoutMs` — must be a positive number > 0; emits `warn` and falls back to `30000` if invalid
-  - `logLevel` — must be `'debug' | 'info' | 'warn' | 'error'`; emits `warn` and falls back to `'info'` if invalid
-  - `logFormat` — must be `'json' | 'pretty' | 'auto'`; emits `warn` and falls back to `'auto'` if invalid
+- `nodulus.config.ts` soporta todos los campos de configuración: `logLevel`, `logFormat`, `resolveAliases`, `requirePreloader`, `moduleLoadTimeoutMs`
+- `ListenOptions` — interfaz para las opciones de `nodulus.listen()`
+- Validación de `logLevel`, `logFormat`, y `moduleLoadTimeoutMs` en la carga del config file
 
 ### Removed
-
-- All options from `CreateAppOptions` except `logger`:
-  `modules`, `prefix`, `strict`, `logLevel`, `logFormat`, `resolveAliases`,
-  `requirePreloader`, `moduleLoadTimeoutMs`, `nits`, `onShutdown`
-
-### Migration (v1.7.0 → v1.8.0)
-
-1. Create (or update) `nodulus.config.ts` in your project root.
-2. Move all params from `createApp()` to the config file.
-3. Change `createApp(app, options)` → `createApp(app)`.
-4. Move `onShutdown` to `nodulus.listen(server, { onShutdown })`.
+- `CreateAppOptions.modules` — mover a `nodulus.config.ts`
+- `CreateAppOptions.prefix` — mover a `nodulus.config.ts`
+- `CreateAppOptions.strict` — mover a `nodulus.config.ts`
+- `CreateAppOptions.logLevel` — mover a `nodulus.config.ts`
+- `CreateAppOptions.logFormat` — mover a `nodulus.config.ts`
+- `CreateAppOptions.resolveAliases` — mover a `nodulus.config.ts`
+- `CreateAppOptions.requirePreloader` — mover a `nodulus.config.ts`
+- `CreateAppOptions.moduleLoadTimeoutMs` — mover a `nodulus.config.ts`
+- `CreateAppOptions.nits` — mover a `nodulus.config.ts`
+- `CreateAppOptions.onShutdown` — movido a `nodulus.listen(server, { onShutdown })`
 
 ---
 
