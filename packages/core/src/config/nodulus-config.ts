@@ -85,6 +85,30 @@ export async function loadNodulusConfig(
     }
   }
 
+  // ── 2.5 Validations ────────────────────────────────────────────────────────
+  if (fileConfig.moduleLoadTimeoutMs !== undefined) {
+    if (typeof fileConfig.moduleLoadTimeoutMs !== 'number' || fileConfig.moduleLoadTimeoutMs <= 0) {
+      logger('warn', `[nodulus] moduleLoadTimeoutMs debe ser un número positivo. Usando default: 30000ms.`, { _module: 'config' });
+      fileConfig.moduleLoadTimeoutMs = 30000;
+    }
+  }
+
+  if (fileConfig.logLevel !== undefined) {
+    const validLevels = ['debug', 'info', 'warn', 'error'];
+    if (!validLevels.includes(fileConfig.logLevel)) {
+      logger('warn', `[nodulus] logLevel inválido: "${fileConfig.logLevel}". Usando 'info'.`, { _module: 'config' });
+      fileConfig.logLevel = 'info';
+    }
+  }
+
+  if (fileConfig.logFormat !== undefined) {
+    const validFormats = ['json', 'pretty', 'auto'];
+    if (!validFormats.includes(fileConfig.logFormat)) {
+      logger('warn', `[nodulus] logFormat inválido: "${fileConfig.logFormat}". Usando 'auto'.`, { _module: 'config' });
+      fileConfig.logFormat = 'auto';
+    }
+  }
+
   // ── 3. Validate and resolve aliases ───────────────────────────────────────
   const rawAliases: AliasMap = fileConfig.aliases ?? {};
   const resolvedAliases = new Map<string, string>();
