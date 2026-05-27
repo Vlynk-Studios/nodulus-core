@@ -10,7 +10,7 @@ describe('cli-check-fixture integration', () => {
   const fixturePath = path.resolve(__dirname, '../fixtures/check-app');
 
   it('runs check command on check-app without violations', async () => {
-    const originalCwd = process.cwd;
+
     vi.spyOn(process, 'cwd').mockReturnValue(fixturePath);
     
     try {

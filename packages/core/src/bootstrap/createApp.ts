@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import fg from 'fast-glob';
 import type { Application } from 'express';
 import type { CreateAppOptions, NodulusApp } from '../types/index.js';
+
 import { loadConfig } from '../core/config.js';
 import { NodulusError } from '../core/errors.js';
 import { createRegistry, registryContext } from '../core/registry.js';
@@ -66,16 +67,16 @@ export async function createApp(
   const preloadConfig = globalThis.__NODULUS_PRELOAD_CONFIG__;
   const preloaderActive = preloadConfig?.preloaded === true;
 
-  if (options.requirePreloader === true && !preloaderActive) {
+  // Step 1 — Load configuration
+  const config = await loadConfig(options);
+
+  if (config.requirePreloader === true && !preloaderActive) {
     throw new NodulusError(
       'PRELOADER_REQUIRED',
       'The application requires the Nodulus pre-loader to be active.',
-      'Run the application with "node --import ./.nodulus/preload.js" or set requirePreloader: false in createApp options.'
+      'Run the application with "node --import ./.nodulus/preload.js" or set requirePreloader: false in nodulus.config.ts.'
     );
   }
-
-  // Step 1 — Load configuration
-  const config = await loadConfig(options);
   if (config.logger === defaultLogHandler) {
     setPinoInstance(createDefaultPinoInstance(config.logFormat, config.logLevel));
   }
@@ -639,10 +640,10 @@ export async function createApp(
         preloaderVersion: preloadConfig?._version ?? null,
         aliasesAtBoot: preloadConfig?.aliases ?? {}
       },
-      listen(server) {
+      listen(server, listenOptions) {
         return registerShutdown({
           server,
-          onShutdown: options.onShutdown,
+          onShutdown: listenOptions?.onShutdown,
           logger: log,
         });
       }
