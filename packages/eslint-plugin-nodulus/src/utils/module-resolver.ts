@@ -6,6 +6,151 @@ import * as walk from 'acorn-walk';
 const domainCache = new Map<string, string | null>();
 const sharedAllowedCache = new Map<string, string[] | null>();
 const moduleImportsCache = new Map<string, string[]>();
+const moduleRootCache = new Map<string, string | null>();
+const activeAliasesCache = new Map<string, string[]>();
+
+const CONFIG_CANDIDATES = ['nodulus.config.ts', 'nodulus.config.js', 'nodulus.config.mjs'] as const;
+const INDEX_EXTENSIONS = ['.ts', '.js', '.mts', '.mjs'] as const;
+
+function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+function hasModuleDeclaration(dir: string): boolean {
+  for (const ext of INDEX_EXTENSIONS) {
+    const indexPath = path.join(dir, `index${ext}`);
+    if (fs.existsSync(indexPath) && extractIdentifierCall(indexPath, 'Module')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Walks upward from `filePath` until an `index` with `Module()` is found.
+ * When `modulesDir` is set, also resolves the first segment under that root.
+ */
+export function findModuleRoot(
+  filePath: string,
+  cwd: string = process.cwd(),
+  modulesDir?: string,
+): string | null {
+  const cacheKey = `${filePath}|${cwd}|${modulesDir ?? ''}`;
+  if (moduleRootCache.has(cacheKey)) {
+    return moduleRootCache.get(cacheKey)!;
+  }
+
+  const absoluteFile = path.resolve(cwd, filePath);
+  let result: string | null = null;
+
+  if (modulesDir) {
+    const modulesRoot = path.resolve(cwd, modulesDir);
+    const fileNorm = normalizePath(absoluteFile);
+    const rootNorm = normalizePath(modulesRoot);
+    if (fileNorm.startsWith(`${rootNorm}/`)) {
+      const rel = path.relative(modulesRoot, absoluteFile);
+      const segment = rel.split(path.sep)[0];
+      if (segment) {
+        const candidate = path.join(modulesRoot, segment);
+        if (hasModuleDeclaration(candidate)) {
+          result = candidate;
+        }
+      }
+    }
+  }
+
+  if (!result) {
+    let dir = path.dirname(absoluteFile);
+    const stopAt = path.resolve(cwd);
+
+    while (dir.length >= stopAt.length) {
+      if (hasModuleDeclaration(dir)) {
+        result = dir;
+        break;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+
+  moduleRootCache.set(cacheKey, result);
+  return result;
+}
+
+/** REGLA-22 — inclusion list of active Nodulus aliases. */
+export function isNodulusAlias(specifier: string, activeAliases: readonly string[]): boolean {
+  if (!specifier.startsWith('@')) return false;
+  return activeAliases.some(
+    alias => specifier === alias || specifier.startsWith(`${alias}/`),
+  );
+}
+
+/**
+ * Loads alias keys from `nodulus.config.*` in `cwd`.
+ * Falls back to `['@modules']` when no config is found.
+ */
+export function getActiveNodulusAliases(cwd: string = process.cwd()): string[] {
+  if (activeAliasesCache.has(cwd)) {
+    return activeAliasesCache.get(cwd)!;
+  }
+
+  const aliases = new Set<string>(['@modules']);
+
+  for (const candidate of CONFIG_CANDIDATES) {
+    const configPath = path.join(cwd, candidate);
+    if (!fs.existsSync(configPath)) continue;
+
+    try {
+      const content = fs.readFileSync(configPath, 'utf8');
+      for (const match of content.matchAll(/['"](@[a-zA-Z][a-zA-Z0-9-]*)['"]\s*:/g)) {
+        aliases.add(match[1]);
+      }
+      break;
+    } catch {
+      // unreadable config — keep defaults
+    }
+  }
+
+  const result = [...aliases];
+  activeAliasesCache.set(cwd, result);
+  return result;
+}
+
+/** Infers the target module folder name when a relative import crosses a boundary. */
+export function inferCrossModuleTarget(
+  resolvedPath: string,
+  moduleRoot: string,
+  modulesDir: string | undefined,
+  cwd: string,
+): string {
+  if (modulesDir) {
+    const modulesRoot = path.resolve(cwd, modulesDir);
+    const rel = path.relative(modulesRoot, resolvedPath);
+    const segment = rel.split(path.sep)[0];
+    if (segment && !segment.startsWith('.')) return segment;
+  }
+
+  const modulesRoot = path.dirname(moduleRoot);
+  const sibling = path.relative(modulesRoot, resolvedPath);
+  const segment = sibling.split(path.sep)[0];
+  return segment && !segment.startsWith('.') ? segment : path.basename(path.dirname(resolvedPath));
+}
+
+export function isRelativeBoundaryCrossing(
+  specifier: string,
+  filePath: string,
+  moduleRoot: string,
+): boolean {
+  if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+    return false;
+  }
+  const fileDir = path.dirname(path.resolve(filePath));
+  const resolved = path.resolve(fileDir, specifier);
+  const root = path.resolve(moduleRoot);
+  const rel = path.relative(root, resolved);
+  return rel.startsWith('..') || path.isAbsolute(rel);
+}
 
 export function getDomainFromFilePath(filePath: string): string | null {
   if (domainCache.has(filePath)) {
@@ -109,26 +254,22 @@ export function getDomainSharedAllowed(sharedIndexPath: string): string[] | null
   return result;
 }
 
-function resolveModuleIndex(filePath: string): string | null {
-  const dir = path.dirname(filePath);
-  const extensions = ['.ts', '.js', '.mts', '.mjs'];
+export function getModuleImports(
+  filePath: string,
+  options?: { modulesDir?: string; cwd?: string },
+): string[] | null {
+  const cwd = options?.cwd ?? process.cwd();
+  const moduleRoot = findModuleRoot(filePath, cwd, options?.modulesDir);
+  if (!moduleRoot) return null;
 
-  for (const ext of extensions) {
-    const candidate = path.join(dir, `index${ext}`);
-    if (fs.existsSync(candidate)) return candidate;
+  let indexPath: string | null = null;
+  for (const ext of INDEX_EXTENSIONS) {
+    const candidate = path.join(moduleRoot, `index${ext}`);
+    if (fs.existsSync(candidate)) {
+      indexPath = candidate;
+      break;
+    }
   }
-
-  const parentDir = path.dirname(dir);
-  for (const ext of extensions) {
-    const candidate = path.join(parentDir, `index${ext}`);
-    if (fs.existsSync(candidate)) return candidate;
-  }
-
-  return null;
-}
-
-export function getModuleImports(filePath: string): string[] | null {
-  const indexPath = resolveModuleIndex(filePath);
   if (!indexPath) return null;
 
   if (moduleImportsCache.has(indexPath)) {
@@ -160,4 +301,20 @@ export function clearSharedAllowedCache() {
 
 export function clearModuleImportsCache() {
   moduleImportsCache.clear();
+}
+
+export function clearModuleRootCache() {
+  moduleRootCache.clear();
+}
+
+export function clearActiveAliasesCache() {
+  activeAliasesCache.clear();
+}
+
+export function clearAllResolverCaches() {
+  clearDomainCache();
+  clearSharedAllowedCache();
+  clearModuleImportsCache();
+  clearModuleRootCache();
+  clearActiveAliasesCache();
 }

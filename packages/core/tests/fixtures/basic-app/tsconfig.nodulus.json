@@ -1,0 +1,10 @@
+{
+  "_generated": "Este archivo es generado automáticamente por Nodulus. No editar manualmente. Agrega 'extends': './tsconfig.nodulus.json' a tu tsconfig.json.",
+  "compilerOptions": {
+    "paths": {
+      "@modules/*": [
+        "./src/modules/*"
+      ]
+    }
+  }
+}

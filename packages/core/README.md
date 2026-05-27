@@ -113,6 +113,46 @@ In this mode, aliases still work perfectly **inside** modules discovered by `cre
 
 ---
 
+## Alias System
+
+Define your aliases once in `nodulus.config.ts`:
+
+```typescript
+import { defineConfig } from '@vlynk-studios/nodulus-core'
+
+export default defineConfig({
+  aliases: {
+    '@config':     './src/config',
+    '@middleware': './src/middleware',
+    '@shared':     './src/shared',
+  }
+})
+```
+
+Nodulus automatically generates `tsconfig.nodulus.json` with the corresponding `paths`. Add this to your `tsconfig.json` once:
+
+```json
+{ "extends": "./tsconfig.nodulus.json" }
+```
+
+The `@modules` alias is always available — it points to the modules directory configured in `modules`.
+
+---
+
+## Module boundaries
+
+In Nodulus, `@` always crosses into another module. `./` and `../` always stay within the current module.
+
+```typescript
+import { X } from './local-file'         // ✅ internal to the module
+import { X } from '@modules/payments'    // ✅ declared cross-module connection
+import { X } from '../payments/service'  // ❌ RELATIVE_BOUNDARY_VIOLATION
+```
+
+A relative path that escapes the module directory is always an error, regardless of `strict` mode. Fix it by declaring the import in `imports[]` and using the corresponding alias.
+
+---
+
 ## Quick start
 
 ```ts
@@ -126,11 +166,6 @@ app.use(express.json())
 const { routes } = await createApp(app, {
   modules: 'src/modules/*',
   prefix: '/api/v1',
-  aliases: {
-    '@config':     './src/config',
-    '@middleware': './src/middleware',
-    '@shared':     './src/shared',
-  },
   strict: process.env.NODE_ENV !== 'production',
   logger: (level, msg) => console[level](`[nodulus] ${msg}`),
 })
@@ -355,7 +390,7 @@ Nodulus registers two kinds of aliases:
   ```
   @modules/<name> → src/modules/<name>/index.ts
   ```
-- **Folder or file aliases** — configured in `createApp()` or `nodulus.config.ts`:
+- **Folder or file aliases** — configured in `nodulus.config.ts` (see [Alias System](#alias-system)):
   ```
   @config     → src/config/          (directory — supports subpaths automatically)
   @db         → src/config/db.ts     (file — resolves exactly to that file)
