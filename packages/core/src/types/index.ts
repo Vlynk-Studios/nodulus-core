@@ -146,24 +146,6 @@ export interface NitsConfig {
 export type LogFormat = 'pretty' | 'json' | 'auto';
 
 export interface CreateAppOptions {
-  /** Glob pointing to module folders. Default: 'src/modules/*'. */
-  modules?: string;
-  /** Glob pointing to domain folders (v2.0.0+). Default: undefined. */
-  domains?: string;
-  /** Glob pointing to shared global folders (v2.0.0+). Default: undefined. */
-  shared?: string;
-  /** Global route prefix. Example: '/api/v1'. Default: ''. */
-  prefix?: string;
-  /**
-   * Enables circular dependency detection and undeclared import errors.
-   * Default: true in development, false in production.
-   */
-  strict?: boolean;
-  /**
-   * If false, the runtime ESM alias hook is not activated.
-   * Useful when the project resolves aliases via a bundler. Default: true.
-   */
-  resolveAliases?: boolean;
   /**
    * Custom log handler. Receives all Nodulus log events.
    * 
@@ -171,55 +153,6 @@ export interface CreateAppOptions {
    * and stdout (info). debug is suppressed unless NODE_DEBUG includes 'nodulus'.
    */
   logger?: LogHandler;
-  /**
-   * Minimum log level. Events below this level are not passed to the handler.
-   * Default: 'info' (debug is off unless explicitly set).
-   */
-  logLevel?: LogLevel;
-  /** Format of the output logs. Default: 'auto' */
-  logFormat?: LogFormat;
-  /** NITS (Nodulus Integrated Tracking System) configuration. */
-  nits?: NitsConfig;
-  /**
-   * When `true`, `createApp()` throws `PRELOADER_REQUIRED` if the runtime pre-loader
-   * is not active (i.e., the process was not started with `--import ./.nodulus/preload.js`).
-   *
-   * Use this to enforce that top-level alias resolution is always available in
-   * environments that require it (e.g. strict production deployments).
-   *
-   * @default false
-   * @since v1.5.0
-   */
-  requirePreloader?: boolean;
-  /**
-   * Async callback invoked during the graceful shutdown sequence, after the
-   * HTTP server is closed and before the process exits.
-   *
-   * Use this to cleanly release external resources (DB connections, message
-   * queues, caches, open file handles, etc.).
-   *
-   * @example
-   * ```ts
-   * const nodulus = await createApp(app, {
-   *   modules: 'src/modules/*',
-   *   onShutdown: async () => {
-   *     await db.close();
-   *     await redisClient.quit();
-   *   }
-   * });
-   * nodulus.listen(3000);
-   * ```
-   * @since v1.5.0
-   */
-  onShutdown?: () => void | Promise<void>;
-  /**
-   * Maximum time (in milliseconds) allowed for a module to load via dynamic import().
-   * If the module exceeds this limit, a MODULE_LOAD_TIMEOUT error is thrown.
-   * Helps prevent silent deadlocks from top-level await tasks (e.g. infinite DB connections).
-   * @default 30000 (30 seconds)
-   * @since v1.6.0
-   */
-  moduleLoadTimeoutMs?: number;
 }
 
 /** Resolved configuration used internally (defaults applied). */
@@ -323,17 +256,17 @@ export interface NodulusApp {
    *
    * Also returns a `shutdown()` function you can call programmatically.
    *
-   * @param server - The `http.Server` returned by `app.listen(...)`.
+   * @param options - Options including optional onShutdown hook.
    * @returns A function that triggers the shutdown sequence manually.
    *
    * @example
    * ```ts
    * const server = app.listen(3000);
-   * nodulus.listen(server);
+   * nodulus.listen(server, { onShutdown: async () => { await db.close(); } });
    * ```
    * @since v1.5.1
    */
-  listen(server: import('node:http').Server): ShutdownHook;
+  listen(server: import('node:http').Server, options?: { onShutdown?: () => void | Promise<void> }): ShutdownHook;
 }
 
 export interface GetAliasesOptions {

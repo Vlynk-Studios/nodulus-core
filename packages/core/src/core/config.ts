@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CreateAppOptions, ResolvedConfig } from '../types/index.js';
+import type { NodulusConfig } from '../config/nodulus-config.types.js';
 import { loadNodulusConfig, type ResolvedNodulusConfig } from '../config/nodulus-config.js';
 import { defaultLogHandler, resolveLogLevel } from './logger.js';
 
@@ -27,7 +28,7 @@ export const DEFAULTS: Omit<ResolvedConfig, 'aliases'> = {
 
 export type BootConfig = ResolvedConfig & { resolvedAliases: Map<string, string> };
 
-export const loadConfig = async (options: CreateAppOptions = {}): Promise<BootConfig> => {
+export const loadConfig = async (options: CreateAppOptions & Partial<NodulusConfig> = {}): Promise<BootConfig> => {
   const cwd = process.cwd();
   
   const fileConfig = await loadNodulusConfig(cwd, options.logger);
@@ -42,7 +43,7 @@ export const loadConfig = async (options: CreateAppOptions = {}): Promise<BootCo
     strict: options.strict ?? fileConfig.strict ?? DEFAULTS.strict,
     resolveAliases: options.resolveAliases ?? fileConfig.resolveAliases ?? DEFAULTS.resolveAliases,
     aliases: fileConfig.aliases ?? {},
-    logger: options.logger ?? fileConfig.logger ?? DEFAULTS.logger,
+    logger: options.logger ?? DEFAULTS.logger,
     logLevel: resolveLogLevel(options.logLevel ?? fileConfig.logLevel),
     logFormat: options.logFormat ?? fileConfig.logFormat ?? DEFAULTS.logFormat,
     nits: {

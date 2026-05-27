@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import fg from 'fast-glob';
 import type { Application } from 'express';
 import type { CreateAppOptions, NodulusApp } from '../types/index.js';
+import type { NodulusConfig } from '../config/nodulus-config.types.js';
 import { loadConfig } from '../core/config.js';
 import { NodulusError } from '../core/errors.js';
 import { createRegistry, registryContext } from '../core/registry.js';
@@ -25,7 +26,7 @@ import type { DiscoveredModule } from '../types/nits.js';
 
 export async function createApp(
   app: Application,
-  options: CreateAppOptions = {}
+  options: CreateAppOptions & Partial<NodulusConfig> = {}
 ): Promise<NodulusApp> {
   // Step 0 — Prevent Duplicate Bootstrap
   if ((app as any).__nodulusBootstrapped) {
@@ -639,10 +640,10 @@ export async function createApp(
         preloaderVersion: preloadConfig?._version ?? null,
         aliasesAtBoot: preloadConfig?.aliases ?? {}
       },
-      listen(server) {
+      listen(server, listenOptions) {
         return registerShutdown({
           server,
-          onShutdown: options.onShutdown,
+          onShutdown: listenOptions?.onShutdown,
           logger: log,
         });
       }
