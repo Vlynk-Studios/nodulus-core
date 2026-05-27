@@ -407,6 +407,32 @@ describe("Integration Tests", () => {
         },
       );
     });
+
+    it("throws UNDECLARED_IMPORT in strict mode when a module re-exports a type from another module without declaring the import", async () => {
+      await runInTmpApp(
+        {
+          "nodulus.config.js": "export default { strict: true };",
+          "src/modules/mod-a/index.ts": `
+          import { Module } from '{{SOURCE}}';
+          Module('mod-a', { exports: ['RealValue'] });
+          export const RealValue = 42;
+          export type TypeA = string;
+        `,
+          "src/modules/mod-b/index.ts": `
+          import { Module } from '{{SOURCE}}';
+          Module('mod-b');
+        `,
+          "src/modules/mod-b/types.ts": `
+          export type { TypeA } from '@modules/mod-a';
+        `
+        },
+        async (_, app) => {
+          await expect(createApp(app as any)).rejects.toMatchObject({
+            code: "UNDECLARED_IMPORT",
+          });
+        },
+      );
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -1032,6 +1058,144 @@ describe("Integration Tests", () => {
           delete (globalThis as any).__NODULUS_PRELOAD_CONFIG__;
         },
       );
+    });
+  });
+  // -----------------------------------------------------------------------
+  // SubModule & INVALID_ESM_ENV tests
+  // -----------------------------------------------------------------------
+  describe("SubModule and INVALID_ESM_ENV (Blockers)", () => {
+    it("processes SubModule() without crash if it exists (reserved for v2.0.0)", async () => {
+      await runInTmpApp(
+        {
+          "nodulus.config.js": "export default { strict: false };",
+          "src/modules/parent/index.ts": `
+          import * as api from '{{SOURCE}}';
+          api.Module('parent');
+          if ('SubModule' in api) {
+            (api as any).SubModule('parent', 'child');
+          }
+        `,
+        },
+        async (_, app) => {
+          const result = await createApp(app as any);
+          expect(result.modules).toHaveLength(1);
+          expect(result.modules[0].name).toBe("parent");
+        },
+      );
+    });
+
+    it("throws INVALID_ESM_ENV when package.json is missing type: module", async () => {
+      await runInTmpApp(
+        {
+          "nodulus.config.js": "export default { strict: false };",
+          "src/modules/cjs/index.ts": `
+          import { Module } from '{{SOURCE}}';
+          Module('cjs');
+        `,
+        },
+        async (tmpDir, app) => {
+          // Overwrite package.json to remove type: module
+          fs.writeFileSync(
+            path.join(tmpDir, "package.json"),
+            JSON.stringify({ name: "test-app" }),
+          );
+
+          await expect(createApp(app as any)).rejects.toMatchObject({
+            code: "INVALID_ESM_ENV",
+          });
+        },
+      );
+    });
+  });
+  // -----------------------------------------------------------------------
+  // strict-app Fixture Tests
+  // -----------------------------------------------------------------------
+  describe("strict-app fixture", () => {
+    vi.mock('@modules/core', () => ({
+      CoreService: class { getData() { return 'core-data'; } }
+    }));
+    vi.mock('@modules/auth', () => ({
+      AuthService: class { isAuthenticated() { return true; } }
+    }));
+
+    const strictAppFixturePath = path.resolve(__dirname, "../fixtures/strict-app");
+
+    it("bootstrap of strict-app completes without error when everything is correctly declared", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nodulus-strict-"));
+      fs.cpSync(strictAppFixturePath, tmpDir, { recursive: true });
+      
+      // Rewrite imports to point to local source code instead of NPM package,
+      // because tmp dir doesn't have node_modules installed.
+      const localSrcUrl = await import("node:url").then(m => m.pathToFileURL(path.resolve(__dirname, "../../src/index.ts")).href);
+      const rewriteImportsSync = (dir: string) => {
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file.name);
+          if (file.isDirectory()) {
+            rewriteImportsSync(fullPath);
+          } else if (file.name.endsWith('.ts')) {
+            let content = fs.readFileSync(fullPath, 'utf8');
+            content = content.replace(/from\s+['"]@vlynk-studios\/nodulus-core['"]/g, `from '${localSrcUrl}'`);
+            fs.writeFileSync(fullPath, content);
+          }
+        }
+      };
+      rewriteImportsSync(tmpDir);
+
+      const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tmpDir);
+
+      try {
+        const app = { use: vi.fn() };
+        const result = await createApp(app as any);
+        expect(result.modules).toHaveLength(3); // core, auth, users
+      } catch (err: any) {
+        console.error("BOOTSTRAP FAILED WITH:", err, err.details);
+        throw err;
+      } finally {
+        cwdSpy.mockRestore();
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("throws UNDECLARED_IMPORT when an undeclared import is introduced in users module", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nodulus-strict-err-"));
+      fs.cpSync(strictAppFixturePath, tmpDir, { recursive: true });
+      
+      const localSrcUrl = await import("node:url").then(m => m.pathToFileURL(path.resolve(__dirname, "../../src/index.ts")).href);
+      const rewriteImportsSync = (dir: string) => {
+        const files = fs.readdirSync(dir, { withFileTypes: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file.name);
+          if (file.isDirectory()) {
+            rewriteImportsSync(fullPath);
+          } else if (file.name.endsWith('.ts')) {
+            let content = fs.readFileSync(fullPath, 'utf8');
+            content = content.replace(/from\s+['"]@vlynk-studios\/nodulus-core['"]/g, `from '${localSrcUrl}'`);
+            fs.writeFileSync(fullPath, content);
+          }
+        }
+      };
+      rewriteImportsSync(tmpDir);
+
+      // Introduce an undeclared import in a SECONDARY file (not index.ts).
+      // Secondary files are statically scanned by Nodulus for cross-module
+      // import violations — index.ts is dynamically imported, so injecting a
+      // bare @modules/* there would fail with ERR_MODULE_NOT_FOUND before the
+      // UNDECLARED_IMPORT check even runs.
+      const spyFilePath = path.join(tmpDir, "src/modules/users/users.spy.ts");
+      fs.writeFileSync(spyFilePath, `import { CoreService } from '@modules/core';\n`);
+
+      const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tmpDir);
+
+      try {
+        const app = { use: vi.fn() };
+        await expect(createApp(app as any)).rejects.toMatchObject({
+          code: "UNDECLARED_IMPORT"
+        });
+      } finally {
+        cwdSpy.mockRestore();
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 });

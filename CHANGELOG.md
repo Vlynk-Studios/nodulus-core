@@ -8,6 +8,21 @@ For full technical details, see the individual package changelogs:
 → [`packages/core/CHANGELOG.md`](./packages/core/CHANGELOG.md)
 → [`packages/eslint-plugin-nodulus/CHANGELOG.md`](./packages/eslint-plugin-nodulus/CHANGELOG.md)
 
+## [1.6.0] — 2026-05-24
+
+### nodulus-core
+- **Verification Triangle & Reconciler Unit Testing (0 & 1.1)**: Added robust unit tests to `nits-reconciler.test.ts` covering edge cases: explicit `similarityThreshold` option, same-cycle module path swapping (`mod_a` <-> `mod_b`), single-identifier dynamic Jaccard threshold evaluation, candidate-to-active stabilization (DESIGN-2 contract), name change tracking on moved modules, stale transition for undiscovered modules, and Jaccard-identical modules cloning prevention under `clonePolicy: 'new'`.
+- **Registry Validation & Parsing (1.2 & 1.4)**: Hardened `loadNitsRegistry()` to catch malformed registry objects (null `identifiers` or invalid `status` fields) and safely return `null` with descriptive warnings. Added support in `extractModuleImports()` to handle dynamic `import()` seamlessly alongside static imports.
+- **Bootstrapping & Integration (1.7 & 2 & 3 & 5)**: 
+  - Verified `createApp()` with `nits.enabled: false` strictly skips registry operations.
+  - Added compatibility tests for internal `SubModule` configurations (reserved for v2.0.0).
+  - Enforced runtime environment validation, throwing `INVALID_ESM_ENV` on non-ESM (CJS) setups.
+  - Secured Express boundary route 404 handling preventing internal Nodulus stack leaks.
+  - Bootstrapped native integration tests for CLI analysis commands via `cli-check-fixture.test.ts`.
+
+### eslint-plugin-nodulus
+- Version synchronized with `nodulus-core@1.6.0`. No new rules or behavioral changes.
+
 ---
 
 ## [1.5.8] — 2026-05-17

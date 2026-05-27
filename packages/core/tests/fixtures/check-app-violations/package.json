@@ -1,0 +1,5 @@
+{
+  "name": "check-app-fixture",
+  "type": "module",
+  "private": true
+}

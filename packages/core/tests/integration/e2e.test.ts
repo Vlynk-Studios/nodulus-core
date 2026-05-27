@@ -30,10 +30,10 @@ describe('E2E Integration', () => {
 
   it('should successfully boot without errors and resolve all modules', () => {
     expect(nodulusInfo).toBeDefined();
-    expect(nodulusInfo.modules).toHaveLength(3); // auth, notifications, users
+    expect(nodulusInfo.modules).toHaveLength(4); // auth, core, notifications, users
     
     const moduleNames = nodulusInfo.modules.map(m => m.name).sort();
-    expect(moduleNames).toEqual(['auth', 'notifications', 'users']);
+    expect(moduleNames).toEqual(['auth', 'core', 'notifications', 'users']);
   });
 
   it('should correctly register and resolve the global prefix and child prefixes', async () => {
@@ -62,5 +62,41 @@ describe('E2E Integration', () => {
     expect(nodulusInfo.registry.resolveAlias('@modules/notifications')).toBeDefined(); // internal sanity check that alias logic succeeded underneath
     const aliases = nodulusInfo.registry.getAllAliases();
     expect(aliases['@modules/notifications']).toBeDefined();
+  });
+
+  // ── T-03: expanded HTTP + registry coverage ────────────────────────────────
+
+  it('T-03a: unregistered path → Express returns 404, not a Nodulus stack trace', async () => {
+    const res = await request(appServer).get('/api/this-route-does-not-exist-xyz');
+    expect(res.status).toBe(404);
+    // Response must NOT contain a Nodulus error code
+    const body = typeof res.body === 'object' ? JSON.stringify(res.body) : String(res.text ?? '');
+    expect(body).not.toMatch(/NodulusError/);
+  });
+
+  it('T-03b: registry.getModule("nonExistent") returns undefined and does not throw', () => {
+    expect(() => {
+      const result = nodulusInfo.registry.getModule('nonExistent-xyz-module');
+      expect(result).toBeUndefined();
+    }).not.toThrow();
+  });
+
+  it('T-03c: registry.getAllModules() returns the correct set of module names', () => {
+    const allModules = nodulusInfo.registry.getAllModules();
+    expect(Array.isArray(allModules)).toBe(true);
+    expect(allModules.length).toBe(4);
+    const names = allModules.map((m: any) => m.name).sort();
+    expect(names).toEqual(['auth', 'core', 'notifications', 'users']);
+  });
+
+  it('T-03d: GET /api/users returns 200 with the expected user array shape', async () => {
+    const res = await request(appServer).get('/api/users');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    // Each user entry must have at least a name field
+    const firstUser = res.body[0];
+    expect(firstUser).toHaveProperty('name');
+    expect(typeof firstUser.name).toBe('string');
   });
 });

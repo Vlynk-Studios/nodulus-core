@@ -50,7 +50,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       },
     ];
 
-    const result = await reconcile(discovered, null, cwd);
+    const result = reconcile(discovered, null, cwd);
 
     expect(result.newModules.length).toBe(2);
     expect(result.newModules[0].id).toMatch(/^mod_[0-9a-f]{8}$/);
@@ -84,7 +84,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       },
     ];
 
-    const result = await reconcile(discovered, previous, cwd);
+    const result = reconcile(discovered, previous, cwd);
 
     expect(result.confirmed.length).toBe(1);
     expect(result.confirmed[0].id).toBe("mod_1");
@@ -119,7 +119,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
 
     vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0);
 
-    const result = await reconcile(discovered, previous, cwd);
+    const result = reconcile(discovered, previous, cwd);
 
     expect(result.moved.length).toBe(1);
     expect(result.moved[0].record.id).toBe("mod_1");
@@ -144,7 +144,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       },
     };
 
-    const result = await reconcile([], previous, cwd);
+    const result = reconcile([], previous, cwd);
 
     expect(result.stale.length).toBe(1);
     expect(result.stale[0].id).toBe("mod_gone");
@@ -187,7 +187,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
     
     // We explicitly set clonePolicy: 'new' to ensure this test passes even in CI
     // where the default would be 'error'.
-    const result = await reconcile(discovered, previous, cwd, { clonePolicy: 'new' });
+    const result = reconcile(discovered, previous, cwd, { clonePolicy: 'new' });
 
     expect(result.confirmed.length).toBe(1);
     expect(result.confirmed[0].id).toBe("mod_orig");
@@ -223,7 +223,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       },
     ];
 
-    const result = await reconcile(discovered, previous, cwd);
+    const result = reconcile(discovered, previous, cwd);
 
     expect(result.confirmed.length).toBe(1);
     expect(result.confirmed[0].id).toBe("mod_1");
@@ -268,7 +268,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
 
     vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.95);
 
-    const result = await reconcile(discovered, previous, cwd);
+    const result = reconcile(discovered, previous, cwd);
 
     expect(result.moved.length).toBe(0);
     expect(result.newModules.length).toBe(1);
@@ -304,7 +304,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
     // No hash similarity → Step 2 skipped
     vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.1);
 
-    const result = await reconcile(discovered, previous, cwd);
+    const result = reconcile(discovered, previous, cwd);
 
     // Step 3 should match by name on the stale record
     expect(result.candidates.length).toBe(1);
@@ -346,7 +346,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
     // Very low similarity → Step 2 skipped
     vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.05);
 
-    const result = await reconcile(discovered, previous, cwd);
+    const result = reconcile(discovered, previous, cwd);
 
     // Step 3 must NOT produce a candidate — the 'active' record is not eligible
     expect(result.candidates.length).toBe(0);
@@ -397,9 +397,9 @@ describe("NITS Reconciler (Verification Triangle)", () => {
         }, // Clone
       ];
 
-      await expect(
+      expect(() =>
         reconcile(discovered, previous, "/project", { isCi: true }),
-      ).rejects.toThrow(/Duplicate module content detected/i);
+      ).toThrow(/Duplicate module content detected/i);
     });
 
     it('Test: identical hash + original in its path + dev policy "new" → newModules with distinct ID', async () => {
@@ -436,7 +436,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
         }, // Clone
       ];
 
-      const result = await reconcile(discovered, previous, "/project", {
+      const result = reconcile(discovered, previous, "/project", {
         clonePolicy: "new",
         isCi: false,
       });
@@ -484,9 +484,9 @@ describe("NITS Reconciler (Verification Triangle)", () => {
         },
       ];
 
-      await expect(
+      expect(() =>
         reconcile(discovered, previous, "/project", { clonePolicy: "error" }),
-      ).rejects.toThrow(/Duplicate module content detected/i);
+      ).toThrow(/Duplicate module content detected/i);
     });
 
     it("Test: empty modules (no identifiers) do not collide even if hashes match (N-38)", async () => {
@@ -505,7 +505,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
         },
       ];
 
-      const result = await reconcile(discovered, null, "/project", { clonePolicy: 'error' });
+      const result = reconcile(discovered, null, "/project", { clonePolicy: 'error' });
 
       // Should have 2 new modules, no error even if hashes match
       expect(result.newModules.length).toBe(2);
@@ -548,9 +548,9 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0);
 
       // In Step 2, mod1 moves to /src/new. This should immediately block /src/clone.
-      await expect(
+      expect(() =>
         reconcile(discovered, previous, "/project", { clonePolicy: "error" })
-      ).rejects.toThrow(/Duplicate module content detected/i);
+      ).toThrow(/Duplicate module content detected/i);
     });
   });
 
@@ -587,7 +587,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
         },
       ];
 
-      const result = await reconcile(discovered, previous, "/project");
+      const result = reconcile(discovered, previous, "/project");
 
       expect(result.confirmed.length).toBe(1);
       expect(result.confirmed[0].id).toBe("mod_1");
@@ -626,7 +626,7 @@ describe("NITS Reconciler (Verification Triangle)", () => {
       ];
 
       // We expect it to be confirmed because src\users should normalize to src/users
-      const result = await reconcile(discovered, previous, "/project");
+      const result = reconcile(discovered, previous, "/project");
 
       expect(result.confirmed.length).toBe(1);
       expect(result.confirmed[0].id).toBe("mod_1");
@@ -736,5 +736,364 @@ describe("buildNitsIdMap()", () => {
 
     const expectedPath = path.resolve("/project", "src/test");
     expect(map.get(expectedPath)).toBe("mod_123");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-02: Verification Triangle — gap tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("T-02: Verification Triangle — pending gap cases", () => {
+  const cwd = "/project";
+  const timestamp = "2024-01-01T00:00:00.000Z";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(timestamp));
+  });
+
+  const makeRegistry = (
+    modules: Record<string, any>
+  ): NitsRegistry => ({
+    project: "test",
+    version: NITS_REGISTRY_VERSION,
+    lastCheck: "",
+    modules,
+  });
+
+  const makeRecord = (
+    id: string,
+    name: string,
+    path: string,
+    hash: string,
+    status: "active" | "stale" | "candidate" | "moved" = "active",
+    identifiers: string[] = ["Id"]
+  ) => ({
+    id,
+    name,
+    path,
+    hash,
+    status,
+    createdAt: timestamp,
+    lastSeen: "",
+    identifiers,
+  });
+
+  // ── T-02a: two modules swap paths in the same cycle ──────────────────────
+  it("T-02a: modules that swap paths in the same cycle — neither goes stale", () => {
+    // mod_a was at src/a, mod_b was at src/b.
+    // This cycle: mod_a appears at src/b and mod_b at src/a.
+    // Step 1 matches by path: discovered-at-src/b matches prev src/b (mod_b),
+    // discovered-at-src/a matches prev src/a (mod_a).
+    // Both are confirmed — neither should go stale.
+    const previous = makeRegistry({
+      mod_a: makeRecord("mod_a", "moduleA", "src/a", "h_a"),
+      mod_b: makeRecord("mod_b", "moduleB", "src/b", "h_b"),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      { name: "moduleA", dirPath: "/project/src/a", identifiers: ["Id"], hash: "h_a" },
+      { name: "moduleB", dirPath: "/project/src/b", identifiers: ["Id"], hash: "h_b" },
+    ];
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0);
+
+    const result = reconcile(discovered, previous, cwd);
+
+    // Both modules re-confirmed by path — zero stale
+    expect(result.confirmed.length).toBe(2);
+    expect(result.stale.length).toBe(0);
+    expect(result.moved.length).toBe(0);
+
+    const ids = result.confirmed.map((r) => r.id).sort();
+    expect(ids).toEqual(["mod_a", "mod_b"]);
+  });
+
+  // ── T-02b: candidate → active stabilisation in next cycle ────────────────
+  it("T-02b: a 'candidate' record is confirmed as 'active' by path in the next cycle", () => {
+    // Cycle N: module was saved as candidate at new-path.
+    // Cycle N+1: discovered at the same new-path → Step 1 matches → active.
+    const previous = makeRegistry({
+      mod_c: makeRecord("mod_c", "payments", "src/new-payments", "h_p", "candidate"),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      { name: "payments", dirPath: "/project/src/new-payments", identifiers: ["Id"], hash: "h_p" },
+    ];
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0);
+
+    const result = reconcile(discovered, previous, cwd);
+
+    // Step 1 (path match) has NO status filter — candidate is eligible
+    expect(result.confirmed.length).toBe(1);
+    expect(result.confirmed[0].id).toBe("mod_c");
+    expect(result.confirmed[0].status).toBe("active");
+    expect(result.stale.length).toBe(0);
+    expect(result.newModules.length).toBe(0);
+  });
+
+  // ── T-02c: 10 modules in registry, 0 discovered ──────────────────────────
+  it("T-02c: 10 modules in previous registry, 0 discovered → all go stale, zero false positives", () => {
+    const modules: Record<string, any> = {};
+    for (let i = 0; i < 10; i++) {
+      const id = `mod_${String(i).padStart(8, "0")}`;
+      modules[id] = makeRecord(id, `m${i}`, `src/m${i}`, `h${i}`);
+    }
+    const previous = makeRegistry(modules);
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0);
+
+    const result = reconcile([], previous, cwd);
+
+    expect(result.stale.length).toBe(10);
+    expect(result.confirmed.length).toBe(0);
+    expect(result.moved.length).toBe(0);
+    expect(result.newModules.length).toBe(0);
+    expect(result.candidates.length).toBe(0);
+    // Verify every stale record came from the registry
+    const staleIds = result.stale.map((r) => r.id).sort();
+    expect(staleIds).toEqual(Object.keys(modules).sort());
+  });
+
+  // ── T-02d: clonePolicy:'new' with 3 modules sharing the same hash ─────────
+  it("T-02d: clonePolicy:'new' with 3 modules of identical hash → original confirmed, 2 clones in newModules with distinct IDs", () => {
+    // Original module is in the registry at src/original.
+    // Two additional copies appear this cycle at src/copy1 and src/copy2.
+    const previous = makeRegistry({
+      mod_orig: makeRecord("mod_orig", "widget", "src/original", "shared_hash"),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      { name: "widget",  dirPath: "/project/src/original", identifiers: ["Id"], hash: "shared_hash" },
+      { name: "widget2", dirPath: "/project/src/copy1",    identifiers: ["Id"], hash: "shared_hash" },
+      { name: "widget3", dirPath: "/project/src/copy2",    identifiers: ["Id"], hash: "shared_hash" },
+    ];
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0);
+
+    const result = reconcile(discovered, previous, cwd, { clonePolicy: "new" });
+
+    // Original is confirmed (path match → Step 1)
+    expect(result.confirmed.length).toBe(1);
+    expect(result.confirmed[0].id).toBe("mod_orig");
+
+    // Two clones become newModules with fresh IDs
+    expect(result.newModules.length).toBe(2);
+
+    const cloneIds = result.newModules.map((r) => r.id);
+    expect(cloneIds[0]).not.toBe("mod_orig");
+    expect(cloneIds[1]).not.toBe("mod_orig");
+    expect(cloneIds[0]).not.toBe(cloneIds[1]);
+    expect(cloneIds[0]).toMatch(/^mod_[0-9a-f]{8}$/);
+    expect(cloneIds[1]).toMatch(/^mod_[0-9a-f]{8}$/);
+
+    // Nothing should be stale or moved
+    expect(result.stale.length).toBe(0);
+    expect(result.moved.length).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §1.1: nits-reconciler — completitud y edge cases
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("§1.1: reconciler — completitud y edge cases", () => {
+  const cwd = "/project";
+  const timestamp = "2024-01-01T00:00:00.000Z";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(timestamp));
+  });
+
+  const makeRegistry = (modules: Record<string, any>): NitsRegistry => ({
+    project: "test",
+    version: NITS_REGISTRY_VERSION,
+    lastCheck: "",
+    modules,
+  });
+
+  const makeRec = (
+    id: string,
+    name: string,
+    relPath: string,
+    hash: string,
+    identifiers: string[] = ["Id"],
+    status: "active" | "stale" | "candidate" | "moved" = "active"
+  ) => ({
+    id,
+    name,
+    path: relPath,
+    hash,
+    status,
+    createdAt: timestamp,
+    lastSeen: "",
+    identifiers,
+  });
+
+  // ── §1.1-1 [BLOCKER]: similarityThreshold custom ─────────────────────────
+  it("[BLOCKER] §1.1-1: custom similarityThreshold — 0.85 rejected with default 0.9, accepted with 0.8", () => {
+    // A module whose similarity = 0.85 sits between default (0.9) and custom (0.8).
+    // With the default threshold it must NOT be matched (→ newModule).
+    // With { similarityThreshold: 0.8 } it MUST be matched (→ moved).
+    const previous = makeRegistry({
+      mod_x: makeRec("mod_x", "payments", "src/old-payments", "h_old", ["ServiceA", "ServiceB"]),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      {
+        name: "payments",
+        dirPath: "/project/src/new-payments",
+        identifiers: ["ServiceA", "ServiceB"],
+        hash: "h_new",
+      },
+    ];
+
+    // ── Case 1: default threshold 0.9 — similarity 0.85 falls short ──────────
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.85);
+    const resultDefault = reconcile(discovered, previous, cwd);
+    // 0.85 < 0.9 → Step 2 does not match → goes to newModules
+    expect(resultDefault.moved.length).toBe(0);
+    expect(resultDefault.newModules.length).toBe(1);
+    expect(resultDefault.stale.length).toBe(1);  // prev mod_x goes stale
+
+    // ── Case 2: custom threshold 0.8 — similarity 0.85 passes ────────────────
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0.85);
+    const resultCustom = reconcile(discovered, previous, cwd, { similarityThreshold: 0.8 });
+    // 0.85 >= 0.8 → Step 2 matches → moved
+    expect(resultCustom.moved.length).toBe(1);
+    expect(resultCustom.moved[0].record.id).toBe("mod_x");
+    expect(resultCustom.moved[0].oldPath).toBe("src/old-payments");
+    expect(resultCustom.moved[0].newPath).toBe("src/new-payments");
+    expect(resultCustom.newModules.length).toBe(0);
+    expect(resultCustom.stale.length).toBe(0);
+  });
+
+  // ── §1.1-2: path swap → both resolved as `moved` via Jaccard ────────────
+  it("§1.1-2: two modules swap destinations — both resolved as moved via Step 2 (no stale)", () => {
+    // mod_a was at src/a (identifiers: ["ServiceA"]).
+    // mod_b was at src/b (identifiers: ["ServiceB"]).
+    // This cycle both modules appear at entirely NEW paths that mirror each other:
+    //   - mod_a content (ServiceA) now at src/new-b
+    //   - mod_b content (ServiceB) now at src/new-a
+    // Step 1 fails for both (no prev records at src/new-b or src/new-a).
+    // Step 2 Jaccard matches each to its correct prev record → both in moved.
+    const previous = makeRegistry({
+      mod_a: makeRec("mod_a", "serviceA", "src/a", "h_a", ["ServiceA"]),
+      mod_b: makeRec("mod_b", "serviceB", "src/b", "h_b", ["ServiceB"]),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      { name: "serviceA", dirPath: "/project/src/new-b", identifiers: ["ServiceA"], hash: "h_a_new" },
+      { name: "serviceB", dirPath: "/project/src/new-a", identifiers: ["ServiceB"], hash: "h_b_new" },
+    ];
+
+    // Each module uniquely matches its own prev record (1.0 for exact, 0 for cross)
+    vi.mocked(nitsHash.hashSimilarity).mockImplementation((prevIds, discIds) => {
+      if (prevIds.includes("ServiceA") && discIds.includes("ServiceA")) return 1.0;
+      if (prevIds.includes("ServiceB") && discIds.includes("ServiceB")) return 1.0;
+      return 0;
+    });
+
+    const result = reconcile(discovered, previous, cwd);
+
+    // Both resolved as moved — zero stale, zero new
+    expect(result.moved.length).toBe(2);
+    expect(result.stale.length).toBe(0);
+    expect(result.newModules.length).toBe(0);
+    expect(result.confirmed.length).toBe(0);
+
+    const movedIds = result.moved.map((m) => m.record.id).sort();
+    expect(movedIds).toEqual(["mod_a", "mod_b"]);
+  });
+
+  // ── §1.1-3: single identifier → Jaccard = 1.0 via Step 2 ────────────────
+  it("§1.1-3: module with exactly one identifier — similarity 1.0 with identical single identifier", () => {
+    // Jaccard with sets of size 1: |{A} ∩ {A}| / |{A} ∪ {A}| = 1/1 = 1.0
+    // Verifies the threshold edge case for the minimum viable identifier set.
+    const previous = makeRegistry({
+      mod_u: makeRec("mod_u", "users", "src/old-users", "h_old", ["UserService"]),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      { name: "users", dirPath: "/project/src/new-users", identifiers: ["UserService"], hash: "h_new" },
+    ];
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0); // exact match
+
+    const result = reconcile(discovered, previous, cwd);
+
+    // Step 1 fails (different path). Step 2: sim = 1.0 >= 0.9 → moved
+    expect(result.moved.length).toBe(1);
+    expect(result.moved[0].record.id).toBe("mod_u");
+    expect(result.moved[0].record.name).toBe("users");
+    expect(result.stale.length).toBe(0);
+    expect(result.newModules.length).toBe(0);
+  });
+
+  // ── §1.1-4: previous with empty modules{} behaves identically to null ────
+  it("§1.1-4: reconcile() with previous={ modules:{} } behaves identically to previous=null", () => {
+    const discovered: DiscoveredModule[] = [
+      { name: "orders", dirPath: "/project/src/orders", identifiers: ["OrderService"], hash: "h1" },
+      { name: "users",  dirPath: "/project/src/users",  identifiers: ["UserService"],  hash: "h2" },
+    ];
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(0);
+
+    const resultNull  = reconcile(discovered, null, cwd);
+    const resultEmpty = reconcile(discovered, makeRegistry({}), cwd);
+
+    // Both should produce 2 newModules, no stale/moved/confirmed/candidates
+    expect(resultNull.newModules.length).toBe(2);
+    expect(resultEmpty.newModules.length).toBe(2);
+
+    expect(resultNull.stale.length).toBe(0);
+    expect(resultEmpty.stale.length).toBe(0);
+
+    expect(resultNull.moved.length).toBe(0);
+    expect(resultEmpty.moved.length).toBe(0);
+
+    // Both generate valid IDs in the same format
+    for (const r of [...resultNull.newModules, ...resultEmpty.newModules]) {
+      expect(r.id).toMatch(/^mod_[0-9a-f]{8}$/);
+    }
+  });
+
+  // ── §1.1-6: moved module that also changes name ───────────────────────────
+  it("§1.1-6: moved module that simultaneously changes name — record.name reflects new name, oldPath/newPath are correct", () => {
+    // prev: Module("users") at src/old-users
+    // discovered: Module("accounts") at /project/src/new-accounts (new path, new name, same identifiers)
+    // Step 1 fails (path changed). Step 2 matches via Jaccard → moved.
+    // record.name must be "accounts" (new name), oldPath = "src/old-users", newPath = "src/new-accounts".
+    const previous = makeRegistry({
+      mod_u: makeRec("mod_u", "users", "src/old-users", "h_old", ["UserService", "UserRepo"]),
+    });
+
+    const discovered: DiscoveredModule[] = [
+      {
+        name: "accounts",                          // ← name changed
+        dirPath: "/project/src/new-accounts",      // ← path changed
+        identifiers: ["UserService", "UserRepo"],  // ← same identifiers (sim = 1.0)
+        hash: "h_new",
+      },
+    ];
+
+    vi.mocked(nitsHash.hashSimilarity).mockReturnValue(1.0);
+
+    const result = reconcile(discovered, previous, cwd);
+
+    expect(result.moved.length).toBe(1);
+    expect(result.stale.length).toBe(0);
+    expect(result.newModules.length).toBe(0);
+
+    const moved = result.moved[0];
+    expect(moved.record.id).toBe("mod_u");                    // same ID preserved
+    expect(moved.record.name).toBe("accounts");               // NEW name
+    expect(moved.oldPath).toBe("src/old-users");              // prev path
+    expect(moved.newPath).toBe("src/new-accounts");           // new path
+    expect(moved.record.createdAt).toBe(timestamp);           // createdAt preserved
   });
 });

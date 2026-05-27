@@ -40,29 +40,31 @@ export function extractModuleImports(filePath: string): ImportFound[] {
     
     // Regex to match imports: import ... from 'specifier' or import 'specifier'
     // Also matches: export ... from 'specifier'
-    const importRegex = /(?:import|export)\s+(?:[^"';]+\s+from\s+)?['"]([^"';]+)['"]/g;
+    // Now updated for N-52 to support: 'import type { X } from', 'export type { X } from', and dynamic 'import("...")'
+    const importRegex = /(?:import|export)(?:\s+type\s+)?(?:\s+|\s*\()(?:[^"';]+\s+from\s+)?['"]([^"';]+)['"]/g;
     
-    const lines = code.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      let match;
-      while ((match = importRegex.exec(lines[i])) !== null) {
-        const specifier = match[1];
-        if (specifier.startsWith("@")) {
-          const excludedScopes = [
-            "@types", "@typescript-eslint", "@vitest", "@eslint", "@nestjs", 
-            "@angular", "@babel", "@jest", "@testing-library", "@vitejs", 
-            "@swc", "@puppeteer", "@playwright"
-          ];
+    let match;
+    while ((match = importRegex.exec(code)) !== null) {
+      const specifier = match[1];
+      if (specifier.startsWith("@")) {
+        const excludedScopes = [
+          "@types", "@typescript-eslint", "@vitest", "@eslint", "@nestjs", 
+          "@angular", "@babel", "@jest", "@testing-library", "@vitejs", 
+          "@swc", "@puppeteer", "@playwright"
+        ];
+        
+        const isExcluded = excludedScopes.some(scope => specifier.startsWith(scope + "/") || specifier === scope);
+        
+        if (!isExcluded) {
+          // Calculate line number by counting newlines before the match
+          const textBeforeMatch = code.substring(0, match.index);
+          const line = textBeforeMatch.split('\n').length;
           
-          const isExcluded = excludedScopes.some(scope => specifier.startsWith(scope + "/") || specifier === scope);
-          
-          if (!isExcluded) {
-            imports.push({
-              specifier,
-              line: i + 1,
-              file: filePath,
-            });
-          }
+          imports.push({
+            specifier,
+            line,
+            file: filePath,
+          });
         }
       }
     }

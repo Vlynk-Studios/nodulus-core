@@ -195,7 +195,7 @@ export async function createApp(
         }
       }
 
-      const nitsResult = await reconcile(discovered, oldRegistry, cwd, {
+      const nitsResult = reconcile(discovered, oldRegistry, cwd, {
         similarityThreshold: config.nits?.similarityThreshold
       });
       
@@ -289,7 +289,24 @@ export async function createApp(
 
   // Step 4 — Import modules
   for (const mod of resolvedModules) {
-    const imported = await import(pathToFileURL(mod.indexPath).href);
+    const importUrl = pathToFileURL(mod.indexPath).href;
+    let timer: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new NodulusError(
+          'MODULE_LOAD_TIMEOUT',
+          `Module load timed out after ${config.moduleLoadTimeoutMs}ms. Check for unhandled promises or blocking operations in the top-level scope.`,
+          `File: ${mod.indexPath}`
+        ));
+      }, config.moduleLoadTimeoutMs);
+    });
+
+    let imported: any;
+    try {
+      imported = await Promise.race([import(importUrl), timeoutPromise]);
+    } finally {
+      clearTimeout(timer!);
+    }
 
     // Correlate the imported module with the one added to the registry based on dirPath
     const allRegistered = registry.getAllModules();
@@ -370,17 +387,25 @@ export async function createApp(
   // Build a Map of module -> source files
   const filesByModule = new Map<string, string[]>();
   
+  // Pre-process a Map of normalizedPath -> moduleName
+  const modulePathMap = new Map<string, string>();
   for (const mod of allModules) {
     filesByModule.set(mod.name, []);
+    const rawMod = registry.getRawModule(mod.name);
+    if (rawMod) {
+      modulePathMap.set(normalizePath(rawMod.path), mod.name);
+    }
   }
+
+  // Sort paths by length descending to match the most specific (longest) path first
+  const sortedModulePaths = Array.from(modulePathMap.keys()).sort((a, b) => b.length - a.length);
   
   for (const file of allSourceFiles) {
-    // Determine which module this file belongs to
-    for (const mod of allModules) {
-      const rawMod = registry.getRawModule(mod.name);
-      if (!rawMod) continue;
-      if (file.startsWith(rawMod.path + path.sep) || file.startsWith(rawMod.path + '/')) {
-        filesByModule.get(mod.name)?.push(file);
+    // files from fast-glob already have forward slashes
+    for (const modPath of sortedModulePaths) {
+      if (file.startsWith(modPath + '/')) {
+        const modName = modulePathMap.get(modPath)!;
+        filesByModule.get(modName)?.push(file);
         break;
       }
     }
@@ -462,17 +487,17 @@ export async function createApp(
   
   for (const file of allControllerFiles) {
     const normalizedFile = normalizePath(file);
-    for (const mod of allModules) {
-      const rawMod = registry.getRawModule(mod.name);
-      if (!rawMod) continue;
-      
-      const normalizedModPath = normalizePath(rawMod.path);
-      const normalizedIndexPath = normalizePath(rawMod.indexPath);
-      
-      if (normalizedFile.startsWith(normalizedModPath + '/')) {
-        // Exclude the module's main index file
-        if (normalizedFile === normalizedIndexPath) continue;
-        controllerFilesByModule.get(mod.name)?.push(file);
+    for (const modPath of sortedModulePaths) {
+      if (normalizedFile.startsWith(modPath + '/')) {
+        const modName = modulePathMap.get(modPath)!;
+        const rawMod = registry.getRawModule(modName);
+        
+        if (rawMod && normalizedFile === normalizePath(rawMod.indexPath)) {
+          // Exclude the module's main index file
+          break;
+        }
+        
+        controllerFilesByModule.get(modName)?.push(file);
         break;
       }
     }
@@ -490,8 +515,25 @@ export async function createApp(
       file = path.normalize(file);
       let imported: any;
       try {
-        imported = await import(pathToFileURL(file).href);
+        const importUrl = pathToFileURL(file).href;
+        let timer: NodeJS.Timeout;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new NodulusError(
+              'MODULE_LOAD_TIMEOUT',
+              `Controller load timed out after ${config.moduleLoadTimeoutMs}ms. Check for unhandled promises or blocking operations.`,
+              `File: ${file}`
+            ));
+          }, config.moduleLoadTimeoutMs);
+        });
+
+        try {
+          imported = await Promise.race([import(importUrl), timeoutPromise]);
+        } finally {
+          clearTimeout(timer!);
+        }
       } catch (err: any) {
+        if (err instanceof NodulusError) throw err;
         throw new NodulusError(
           'INVALID_CONTROLLER',
           `Failed to import controller file. Check for syntax errors or missing dependencies.`,
