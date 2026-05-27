@@ -147,10 +147,8 @@ export type LogFormat = 'pretty' | 'json' | 'auto';
 
 export interface CreateAppOptions {
   /**
-   * Custom log handler. Receives all Nodulus log events.
-   * 
-   * Default: prints [System] prefixed messages to stderr (warn/error)
-   * and stdout (info). debug is suppressed unless NODE_DEBUG includes 'nodulus'.
+   * Custom log handler. If omitted, Nodulus uses the default pino instance
+   * configured via logLevel and logFormat in nodulus.config.ts.
    */
   logger?: LogHandler;
 }
@@ -220,6 +218,14 @@ export interface ShutdownHook {
 }
 
 /** Value returned by createApp() after a successful bootstrap. */
+export interface ListenOptions {
+  /**
+   * Async hook executed during graceful shutdown, after the HTTP server closes.
+   * Previously passed to createApp() — moved here in v1.8.0.
+   */
+  onShutdown?: () => void | Promise<void>;
+}
+
 export interface NodulusApp {
   modules: RegisteredModule[];
   routes: MountedRoute[];
@@ -256,7 +262,8 @@ export interface NodulusApp {
    *
    * Also returns a `shutdown()` function you can call programmatically.
    *
-   * @param options - Options including optional onShutdown hook.
+   * @param server  - The http.Server returned by app.listen().
+   * @param options - Optional shutdown hook and configuration.
    * @returns A function that triggers the shutdown sequence manually.
    *
    * @example
@@ -266,7 +273,7 @@ export interface NodulusApp {
    * ```
    * @since v1.5.1
    */
-  listen(server: import('node:http').Server, options?: { onShutdown?: () => void | Promise<void> }): ShutdownHook;
+  listen(server: import('node:http').Server, options?: ListenOptions): ShutdownHook;
 }
 
 export interface GetAliasesOptions {
