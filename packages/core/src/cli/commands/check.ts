@@ -159,15 +159,21 @@ export function checkCommand(): Command {
           }
         }
 
-        let violations = detectViolations(graph);
+        let violations = detectViolations(graph, cwd);
 
         if (options.circular === false) { 
           violations = violations.filter(v => v.type !== ViolationType.CIRCULAR_DEPENDENCY);
         }
 
+        const hasBoundaryViolation = violations.some(
+          v => v.type === ViolationType.RELATIVE_BOUNDARY_VIOLATION,
+        );
+        const hasBlockingViolations =
+          hasBoundaryViolation || (options.strict && violations.length > 0);
+
         if (options.format === 'json') {
           console.log(JSON.stringify({ domains: graph.domains, modules: nodes, violations }, null, 2));
-          if (options.strict && violations.length > 0) {
+          if (hasBlockingViolations) {
             throw new Error('Structural integrity violations found (JSON format)');
           }
           return;
@@ -196,7 +202,7 @@ export function checkCommand(): Command {
           }
         }
 
-        if (options.strict && violations.length > 0) {
+        if (hasBlockingViolations) {
           throw new Error('Structural integrity violations found.');
         }
     });

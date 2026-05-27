@@ -44,54 +44,39 @@ describe('P3 Alias Validation', () => {
     `,
   };
 
-  it('should warn on alias collision with modules', async () => {
-    const logger = vi.fn();
+  it('should throw ALIAS_RESERVED if the config defines @modules', async () => {
     await runInTmpApp(baseStructure, async (tmpDir, app) => {
-      // Create a directory for the colliding alias to pass existence check
-      fs.mkdirSync(path.join(tmpDir, 'custom-users'));
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@modules": "./custom-modules" } };');
       
-      await createApp(app as any, { 
-        logger, 
-        aliases: { '@modules/users': './custom-users' },
-        strict: false 
-      });
-
-      expect(logger).toHaveBeenCalledWith(
-        'warn',
-        expect.stringContaining('Alias collision'),
-        expect.objectContaining({ _module: 'alias', alias: '@modules/users' })
-      );
-    });
-  });
-
-  it('should throw ALIAS_INVALID in strict mode if wildcard points to a file', async () => {
-    await runInTmpApp(baseStructure, async (tmpDir, app) => {
-      fs.writeFileSync(path.join(tmpDir, 'config.ts'), 'export default {}');
-      
-      await expect(createApp(app as any, { 
-        aliases: { '@config/*': './config.ts' },
-        strict: true 
-      })).rejects.toMatchObject({
-        code: 'ALIAS_INVALID'
+      await expect(createApp(app as any)).rejects.toMatchObject({
+        code: 'ALIAS_RESERVED'
       });
     });
   });
 
-  it('should warn in non-strict mode if wildcard points to a file', async () => {
-    const logger = vi.fn();
+  it('should throw INVALID_ALIAS_KEY if a config key includes a wildcard', async () => {
     await runInTmpApp(baseStructure, async (tmpDir, app) => {
       fs.writeFileSync(path.join(tmpDir, 'config.ts'), 'export default {}');
       
-      await createApp(app as any, { 
-        logger,
-        aliases: { '@config/*': './config.ts' },
-        strict: false 
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@config/*": "./config.ts" }, strict: true };');
+      
+      await expect(createApp(app as any)).rejects.toMatchObject({
+        code: 'INVALID_ALIAS_KEY'
       });
+    });
+  });
+
+  it('should warn if an alias target points to a non-existent path', async () => {
+    const logger = vi.fn();
+    await runInTmpApp(baseStructure, async (tmpDir, app) => {
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@config": "./does-not-exist.ts" }, strict: false };');
+      
+      await createApp(app as any, { logger });
 
       expect(logger).toHaveBeenCalledWith(
         'warn',
-        expect.stringContaining('Wildcards should only point to directories'),
-        expect.objectContaining({ _module: 'alias' })
+        expect.stringContaining('ese path no existe'),
+        expect.objectContaining({ _module: 'config' })
       );
     });
   });
@@ -101,9 +86,9 @@ describe('P3 Alias Validation', () => {
       const filePath = path.join(tmpDir, 'db.ts');
       fs.writeFileSync(filePath, 'export const db = {}');
       
-      const nodulusApp = await createApp(app as any, { 
-        aliases: { '@db': './db.ts' }
-      });
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@db": "./db.ts" } };');
+      
+      const nodulusApp = await createApp(app as any);
 
       const aliases = nodulusApp.registry.getAllAliases();
       expect(aliases['@db']).toBe(path.resolve(tmpDir, 'db.ts'));
@@ -113,17 +98,15 @@ describe('P3 Alias Validation', () => {
   it('should emit debug log for custom alias registration', async () => {
     const logger = vi.fn();
     await runInTmpApp(baseStructure, async (tmpDir, app) => {
-      fs.mkdirSync(path.join(tmpDir, 'shared'));
+      fs.mkdirSync(path.join(tmpDir, 'common'));
       
-      await createApp(app as any, { 
-        logger,
-        logLevel: 'debug',
-        aliases: { '@shared': './shared' }
-      });
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@common": "./common" } };');
+      
+      await createApp(app as any, { logger, logLevel: 'debug' });
 
       expect(logger).toHaveBeenCalledWith(
         'debug',
-        expect.stringMatching(/Alias registered: @shared → .*shared/),
+        expect.stringMatching(/Alias registered: @common → .*common/),
         expect.objectContaining({ source: 'config' })
       );
     });

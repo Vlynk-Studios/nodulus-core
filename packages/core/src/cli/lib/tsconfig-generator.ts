@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import fg from 'fast-glob';
-import type { NodulusConfig } from '../../types/index.js';
+import type { NodulusConfig } from '../../config/nodulus-config.types.js';
 
 export async function generatePathAliases(config: NodulusConfig, cwd: string): Promise<Record<string, string[]>> {
   const pathsObj: Record<string, string[]> = {};

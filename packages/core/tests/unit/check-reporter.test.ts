@@ -94,6 +94,23 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('circular dep');
     });
 
+    it('Módulo con RELATIVE_BOUNDARY_VIOLATION → ✗ y detalle del import', () => {
+      const v: Violation = {
+        type: 'relative-boundary-violation',
+        module: 'users',
+        file: 'src/modules/users/users.service.ts',
+        line: 14,
+        import: '../payments/payments.service',
+        hint: 'Usa el alias @modules/payments para importar desde otro módulo.',
+      };
+      printArchitectureSection({ modules: [createMockModule('users')], violations: [v] } as any);
+      const out = getOutput();
+      expect(out).toContain('✗');
+      expect(out).toContain('RELATIVE_BOUNDARY_VIOLATION');
+      expect(out).toContain("import from '../payments/payments.service'");
+      expect(out).toContain('@modules/payments');
+    });
+
     it('Módulo nuevo (en newModules) → ◈ y new', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.newModules = [{ name: 'auth' } as NitsModuleRecord];

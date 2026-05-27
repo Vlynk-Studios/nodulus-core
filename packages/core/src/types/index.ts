@@ -154,16 +154,6 @@ export interface CreateAppOptions {
   shared?: string;
   /** Global route prefix. Example: '/api/v1'. Default: ''. */
   prefix?: string;
-  /** 
-   * Custom folder or file aliases beyond the auto-generated @modules/* entries.
-   * 
-   * - **File Aliases**: e.g., `"@db": "./src/db.ts"`. Resolves exactly to that file.
-   * - **Directory Aliases**: e.g., `"@shared": "./src/shared"`. Resolves to the folder 
-   *   and automatically supports subpaths (e.g., `@shared/utils` -> `./src/shared/utils`).
-   * 
-   * Default: {}. 
-   */
-  aliases?: Record<string, string>;
   /**
    * Enables circular dependency detection and undeclared import errors.
    * Default: true in development, false in production.
@@ -238,9 +228,9 @@ export interface ResolvedConfig {
   domains?: string;
   shared?: string;
   prefix: string;
-  aliases: Record<string, string>;
   strict: boolean;
   resolveAliases: boolean;
+  aliases: Record<string, string>;
   logger: LogHandler;
   logLevel: LogLevel;
   logFormat: LogFormat;
@@ -276,6 +266,8 @@ export interface NodulusRegistry {
   getAllModules(): RegisteredModule[];
   resolveAlias(alias: string): string | undefined;
   getAllAliases(): Record<string, string>;
+  /** Bare alias keys (no `/*` wildcards) used for import scanning (REGLA-22). */
+  getRegisteredAliases(): string[];
 }
 
 /**
@@ -344,9 +336,6 @@ export interface NodulusApp {
   listen(server: import('node:http').Server): ShutdownHook;
 }
 
-/** Shape of nodulus.config.ts. Options passed directly to createApp() take priority. */
-export type NodulusConfig = CreateAppOptions;
-
 export interface GetAliasesOptions {
   /**
    * If false, only returns auto-generated @modules/* aliases.
@@ -377,3 +366,6 @@ export interface WatcherOptions {
   /** Nodulus logger instance. */
   logger: Logger; // reference to the existing internal Logger
 }
+
+/** Structured error codes thrown by Nodulus (includes CLI / check violations). */
+export type { NodulusErrorCode } from '../core/errors.js';

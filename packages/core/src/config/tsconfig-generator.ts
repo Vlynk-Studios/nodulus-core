@@ -1,0 +1,164 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import type { ResolvedNodulusConfig } from './nodulus-config.js';
+import type { Logger } from '../types/index.js';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface TsconfigNodulus {
+  /** Auto-generation notice — included in the written JSON. */
+  _generated: string;
+  compilerOptions: {
+    paths: Record<string, string[]>;
+  };
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const OUTPUT_FILE = 'tsconfig.nodulus.json';
+const GENERATED_NOTICE =
+  "Este archivo es generado automáticamente por Nodulus. No editar manualmente. Agrega 'extends': './tsconfig.nodulus.json' a tu tsconfig.json.";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Converts an absolute path to a `./`-prefixed relative path from `cwd`. */
+function toRelative(abs: string, cwd: string): string {
+  const rel = path.relative(cwd, abs).replace(/\\/g, '/');
+  return rel.startsWith('.') ? rel : `./${rel}`;
+}
+
+// ─── Core generator ───────────────────────────────────────────────────────────
+
+/**
+ * Builds the `TsconfigNodulus` object from a resolved config.
+ *
+ * For every alias two entries are generated:
+ *  - `@alias`   → points to the file/directory itself (or its `index.ts`)
+ *  - `@alias/*` → points to `<target>/*` for sub-path resolution
+ *
+ * The built-in `@modules/*` entry is always included first.
+ */
+export function generateTsconfigNodulus(
+  config: ResolvedNodulusConfig,
+  cwd: string,
+): TsconfigNodulus {
+  const paths: Record<string, string[]> = {};
+
+  // 1. Built-in @modules alias (always first)
+  const modulesTarget = config.modules ?? 'src/modules/*';
+  const modulesRel = modulesTarget.replace(/\\/g, '/');
+  const modulesBase = modulesRel.endsWith('/*') ? modulesRel : `${modulesRel}/*`;
+  paths['@modules/*'] = [modulesBase.startsWith('.') ? modulesBase : `./${modulesBase}`];
+
+  // 2. User-defined aliases from resolvedAliases (absolute paths)
+  for (const [alias, absoluteTarget] of config.resolvedAliases) {
+    // @modules/* is always owned by the built-in entry above
+    if (alias === '@modules' || alias.startsWith('@modules/')) continue;
+
+    const relTarget = toRelative(absoluteTarget, cwd);
+
+    const targetExists = fs.existsSync(absoluteTarget);
+    const isDir = targetExists
+      ? fs.statSync(absoluteTarget).isDirectory()
+      : !path.extname(absoluteTarget); // treat no-extension as directory hint
+
+    if (isDir) {
+      // Try to find an index file for the bare alias entry
+      const tsIndex = path.join(absoluteTarget, 'index.ts');
+      const jsIndex = path.join(absoluteTarget, 'index.js');
+
+      if (fs.existsSync(tsIndex)) {
+        paths[alias] = [toRelative(tsIndex, cwd)];
+      } else if (fs.existsSync(jsIndex)) {
+        paths[alias] = [toRelative(jsIndex, cwd)];
+      } else {
+        paths[alias] = [relTarget];
+      }
+
+      // Sub-path wildcard
+      paths[`${alias}/*`] = [`${relTarget}/*`];
+    } else {
+      // File alias — single entry, no wildcard
+      paths[alias] = [relTarget];
+    }
+  }
+
+  return {
+    _generated: GENERATED_NOTICE,
+    compilerOptions: { paths },
+  };
+}
+
+// ─── Writer ───────────────────────────────────────────────────────────────────
+
+/**
+ * Serialises and writes `tsconfig.nodulus.json` to disk.
+ *
+ * - Skips the write if the content is identical to what's already on disk.
+ * - On permission errors: emits a `warn` log and continues — never throws.
+ */
+export async function writeTsconfigNodulus(
+  config: ResolvedNodulusConfig,
+  cwd: string,
+  log?: Logger,
+): Promise<void> {
+  const outputPath = path.join(cwd, OUTPUT_FILE);
+  const obj = generateTsconfigNodulus(config, cwd);
+  const newContent = JSON.stringify(obj, null, 2);
+
+  // Content-diffing — skip write if unchanged
+  if (fs.existsSync(outputPath)) {
+    try {
+      const existing = fs.readFileSync(outputPath, 'utf-8');
+      if (existing === newContent) return;
+    } catch {
+      // Unreadable existing file — fall through to overwrite
+    }
+  }
+
+  try {
+    fs.writeFileSync(outputPath, newContent, 'utf-8');
+  } catch (err: any) {
+    log?.warn(`[nodulus] No se pudo escribir "${OUTPUT_FILE}": ${err.message}`, {
+      _module: 'config',
+      path: outputPath,
+      error: err.message,
+    });
+  }
+}
+
+// ─── Extends checker ──────────────────────────────────────────────────────────
+
+/**
+ * Reads the project's `tsconfig.json` and checks whether it already extends
+ * `./tsconfig.nodulus.json`. Never modifies the file — only informs via log.
+ */
+export async function ensureTsconfigExtends(cwd: string, log?: Logger): Promise<void> {
+  const tsconfigPath = path.join(cwd, 'tsconfig.json');
+  const hint =
+    `[nodulus] Agrega "extends": "./tsconfig.nodulus.json" a tu tsconfig.json para activar los aliases en TypeScript.`;
+
+  if (!fs.existsSync(tsconfigPath)) {
+    log?.info(`[nodulus] tsconfig.json no encontrado. ${hint}`, { _module: 'config' });
+    return;
+  }
+
+  let parsed: any;
+  try {
+    const raw = fs.readFileSync(tsconfigPath, 'utf-8');
+    parsed = JSON.parse(raw);
+  } catch {
+    // Unparseable tsconfig — can't check, silently skip
+    return;
+  }
+
+  const extendsVal: unknown = parsed?.extends;
+  const alreadyExtends =
+    extendsVal === './tsconfig.nodulus.json' ||
+    (Array.isArray(extendsVal) &&
+      extendsVal.includes('./tsconfig.nodulus.json'));
+
+  if (!alreadyExtends) {
+    log?.info(hint, { _module: 'config' });
+  }
+}

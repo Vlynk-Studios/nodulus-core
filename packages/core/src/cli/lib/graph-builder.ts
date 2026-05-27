@@ -6,10 +6,11 @@ import {
   extractIdentifierCall
 } from './ast-parser.js';
 import {
-  extractModuleImports, 
-  type ImportFound 
-} from '../../nits/import-scanner.js';
-import type { NodulusConfig } from '../../types/index.js';
+  buildActiveAliasesFromConfig,
+  extractModuleImports,
+  type ImportFound,
+} from './import-scanner.js';
+import type { NodulusConfig } from '../../config/nodulus-config.types.js';
 
 export interface BaseNode {
   name: string;
@@ -49,6 +50,19 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
   const modulesGlob = config.modules || 'src/modules/*';
   const dirs = await fg(modulesGlob, { cwd, onlyDirectories: true, absolute: true });
   const nodes: ModuleNode[] = [];
+  const moduleNames: string[] = [];
+
+  for (const dirPath of dirs) {
+    let indexPath = path.join(dirPath, 'index.ts');
+    if (!fs.existsSync(indexPath)) {
+      indexPath = path.join(dirPath, 'index.js');
+      if (!fs.existsSync(indexPath)) continue;
+    }
+    const declaration = extractModuleDeclaration(indexPath);
+    if (declaration) moduleNames.push(declaration.name);
+  }
+
+  const activeAliases = buildActiveAliasesFromConfig(config, moduleNames);
 
   for (const dirPath of dirs) {
     let indexPath = path.join(dirPath, 'index.ts');
@@ -83,7 +97,7 @@ export async function buildModuleGraph(config: NodulusConfig, cwd: string): Prom
     });
 
     for (const file of moduleFiles) {
-      const fileImports = extractModuleImports(file);
+      const fileImports = extractModuleImports(file, activeAliases);
       actualImports.push(...fileImports);
       
       for (const callee of targetCallees) {

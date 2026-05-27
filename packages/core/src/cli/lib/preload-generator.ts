@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { NodulusConfig } from '../../types/index.js';
+import type { NodulusConfig } from '../../config/nodulus-config.types.js';
 
 // Resolved at CLI execution time — points to the bundled preload-hook alongside this file.
 const HOOK_URL = pathToFileURL(

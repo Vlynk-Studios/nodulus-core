@@ -9,6 +9,7 @@ import { NodulusError } from '../core/errors.js';
 import { createRegistry, registryContext } from '../core/registry.js';
 import { activateAliasResolver } from '../aliases/resolver.js';
 import { updateAliasCache } from '../aliases/cache.js';
+import { writeTsconfigNodulus, ensureTsconfigExtends } from '../config/tsconfig-generator.js';
 import { createLogger, defaultLogHandler } from '../core/logger.js';
 import { setPinoInstance, createDefaultPinoInstance } from '../core/pino-instance.js';
 import { performance } from 'node:perf_hooks';
@@ -79,6 +80,11 @@ export async function createApp(
     setPinoInstance(createDefaultPinoInstance(config.logFormat, config.logLevel));
   }
   const log = createLogger(config.logger, config.logLevel, 'boot');
+
+  // Step 1.0.5 — Generar tsconfig.nodulus.json y registrar aliases
+  await writeTsconfigNodulus(config, process.cwd(), log);
+  await ensureTsconfigExtends(process.cwd(), log);
+  log.debug(`[bootstrap] Aliases registrados: ${[...config.resolvedAliases.keys()].join(', ')}`, { _module: 'alias' });
 
   // Step 1.1 — Pre-loader Warnings
   if (!preloaderActive && config.resolveAliases !== false) {
@@ -238,50 +244,15 @@ export async function createApp(
     }
 
     const normalizedConfigAliases: Record<string, string> = {};
-    for (const [alias, target] of Object.entries(config.aliases)) {
-      if (pureModuleAliases[alias]) {
-        log.warn(`Alias collision: User alias "${alias}" overrides an auto-generated module alias. Configuration will take precedence.`, { alias, target, _module: 'alias' });
-      }
-
-      const isWildcard = target.endsWith('/*');
-      const cleanTarget = isWildcard ? target.slice(0, -2) : target;
-      const targetPath = path.isAbsolute(cleanTarget) ? cleanTarget : path.resolve(process.cwd(), cleanTarget);
-      
-      if (!fs.existsSync(targetPath)) {
-        let details = `Alias: ${alias}, Target Path: ${targetPath}`;
-        
-        // Suggestion hint: if the path doesn't exist, check for index files
-        const tsIndex = path.join(targetPath, 'index.ts');
-        const jsIndex = path.join(targetPath, 'index.js');
-        if (fs.existsSync(tsIndex) || fs.existsSync(jsIndex)) {
-            const hintPath = fs.existsSync(tsIndex) ? 'index.ts' : 'index.js';
-            details += `\nHint: The directory was not found but it contains an "${hintPath}". Did you mean "${target.endsWith('/') ? target : target + '/'}${hintPath}"?`;
-        }
-
-        throw new NodulusError(
-          'ALIAS_NOT_FOUND',
-          `The target path for alias "${alias}" does not exist.`,
-          details
-        );
-      }
-
-      const stats = fs.statSync(targetPath);
-      // Re-add wildcard to the absolute path if it was originally present
-      const finalTargetPath = isWildcard ? targetPath + '/*' : targetPath;
-
-      if (!stats.isDirectory() && alias.endsWith('/*')) {
-        const msg = `Invalid alias: Alias "${alias}" uses a wildcard "/*" but points to a file: ${targetPath}. Wildcards should only point to directories.`;
-        if (config.strict) {
-          throw new NodulusError('ALIAS_INVALID', msg);
-        } else {
-          log.warn(msg, { _module: 'alias' });
-        }
-      }
-
-      registry.registerAlias(alias, finalTargetPath);
-      normalizedConfigAliases[alias] = finalTargetPath;
-      log.debug(`Alias registered: ${alias} → ${finalTargetPath}`, { alias, finalTargetPath, source: 'config', _module: 'alias' });
+    for (const [alias, absPath] of config.resolvedAliases) {
+      registry.registerAlias(alias, absPath);
+      normalizedConfigAliases[alias] = absPath;
+      log.debug(`Alias registered: ${alias} → ${absPath}`, { alias, finalTargetPath: absPath, source: 'config', _module: 'alias' });
     }
+
+    // Registrar @modules como alias built-in
+    const modulesDir = config.modules.replace(/\/\*$/, '');
+    registry.registerAlias('@modules', path.resolve(process.cwd(), modulesDir));
 
     await activateAliasResolver(pureModuleAliases, normalizedConfigAliases, log);
     updateAliasCache(registry.getAllAliases());
@@ -421,7 +392,7 @@ export async function createApp(
     const usedImports = new Set<string>();
 
     for (const file of sourceFiles) {
-      const actualImports = extractModuleImports(file);
+      const actualImports = extractModuleImports(file, registry.getRegisteredAliases());
       for (const imp of actualImports) {
         const parts = imp.specifier.split('/');
         const targetModule = imp.specifier.startsWith('@modules/') ? parts[1] : (parts[1] || parts[0]).replace(/^@/, '');

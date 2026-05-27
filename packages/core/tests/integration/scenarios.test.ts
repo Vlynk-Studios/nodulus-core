@@ -473,7 +473,7 @@ describe("Integration Tests", () => {
         {
           "nodulus.config.js": `
           export default {
-            aliases: { '@config/database': './src/db' },
+            aliases: { '@config': './src/db' },
             strict: false
           };
         `,
