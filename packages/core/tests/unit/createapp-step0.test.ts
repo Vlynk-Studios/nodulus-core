@@ -82,8 +82,9 @@ describe('createApp - Step 0 (Pre-loader Validation)', () => {
   });
 
   it('createApp() throws PRELOADER_REQUIRED if requirePreloader is true and pre-loader is not active', async () => {
-    await runInTmpApp(validAppStructure, async (_, app) => {
-      await expect(createApp(app as any, { requirePreloader: true }))
+    await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { requirePreloader: true };');
+      await expect(createApp(app as any))
         .rejects.toThrow('The application requires the Nodulus pre-loader to be active');
     });
   });

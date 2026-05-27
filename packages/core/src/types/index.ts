@@ -145,10 +145,26 @@ export interface NitsConfig {
 
 export type LogFormat = 'pretty' | 'json' | 'auto';
 
+/**
+ * Options accepted by {@link createApp}.
+ *
+ * @since v1.0.0
+ *
+ * ## Breaking change — v1.8.0
+ * All declarative configuration (modules, prefix, strict, aliases, logLevel,
+ * logFormat, resolveAliases, requirePreloader, moduleLoadTimeoutMs, nits, etc.)
+ * has been **removed** from this interface and must now be declared in
+ * `nodulus.config.ts` via `defineConfig()`.
+ *
+ * `onShutdown` was moved to {@link ListenOptions} (passed to `nodulus.listen()`).
+ *
+ * The only option that remains here is `logger`, because it is a runtime
+ * artifact (a function reference) that cannot be serialised in a config file.
+ */
 export interface CreateAppOptions {
   /**
    * Custom log handler. If omitted, Nodulus uses the default pino instance
-   * configured via logLevel and logFormat in nodulus.config.ts.
+   * configured via `logLevel` and `logFormat` in `nodulus.config.ts`.
    */
   logger?: LogHandler;
 }
@@ -257,7 +273,7 @@ export interface NodulusApp {
    * Once called, SIGINT (Ctrl+C) and SIGTERM signals will trigger a graceful
    * shutdown sequence:
    *   1. Close the HTTP server (no new connections accepted).
-   *   2. Run the `onShutdown` hook from `createApp()` options (if provided).
+   *   2. Run the `onShutdown` hook from {@link ListenOptions} (if provided).
    *   3. Exit with code 0.
    *
    * Also returns a `shutdown()` function you can call programmatically.

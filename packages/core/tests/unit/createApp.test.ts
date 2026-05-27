@@ -122,8 +122,9 @@ describe('createApp', () => {
 
     it('should respect logLevel and suppress info messages when set to warn', async () => {
       const logger = vi.fn();
-      await runInTmpApp(validAppStructure, async (_, app) => {
-        await createApp(app as any, { logger, logLevel: 'warn' });
+      await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { logLevel: "warn" };');
+        await createApp(app as any, { logger });
         
         // Modules, routes, and bootstrap completion are 'info' level
         const infoCalls = logger.mock.calls.filter(call => call[0] === 'info');
@@ -233,8 +234,9 @@ describe('createApp', () => {
         `
       };
 
-      await runInTmpApp(appWithHangingModule, async (_, app) => {
-        await expect(createApp(app as any, { moduleLoadTimeoutMs: 100 })).rejects.toMatchObject({
+      await runInTmpApp(appWithHangingModule, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { moduleLoadTimeoutMs: 100 };');
+        await expect(createApp(app as any)).rejects.toMatchObject({
           code: 'MODULE_LOAD_TIMEOUT'
         });
       });
@@ -251,8 +253,9 @@ describe('createApp', () => {
         `
       };
 
-      await runInTmpApp(appWithHangingController, async (_, app) => {
-        await expect(createApp(app as any, { moduleLoadTimeoutMs: 100 })).rejects.toMatchObject({
+      await runInTmpApp(appWithHangingController, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { moduleLoadTimeoutMs: 100 };');
+        await expect(createApp(app as any)).rejects.toMatchObject({
           code: 'MODULE_LOAD_TIMEOUT'
         });
       });
@@ -267,8 +270,9 @@ describe('createApp', () => {
         `
       };
 
-      await runInTmpApp(appWithSlowModule, async (_, app) => {
-        const nodulusApp = await createApp(app as any, { moduleLoadTimeoutMs: 200, strict: false });
+      await runInTmpApp(appWithSlowModule, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { moduleLoadTimeoutMs: 200, strict: false };');
+        const nodulusApp = await createApp(app as any);
         expect(nodulusApp.modules).toHaveLength(1);
         expect(nodulusApp.modules[0].name).toBe('slow');
       });
@@ -281,9 +285,8 @@ describe('createApp', () => {
     it('T-05: does not create .nodulus/registry.json when NITS is disabled, and bootstrap succeeds', async () => {
       await runInTmpApp(validAppStructure, async (tmpDir, app) => {
         // Boot with NITS disabled
-        const nodulusApp = await createApp(app as any, {
-          nits: { enabled: false }
-        } as any);
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { nits: { enabled: false } };');
+        const nodulusApp = await createApp(app as any);
 
         // Bootstrap should complete normally
         expect(nodulusApp.modules).toHaveLength(1);
@@ -301,8 +304,9 @@ describe('createApp', () => {
   describe('§1.4: createApp - missing coverage branches', () => {
     it('§1.4-1: logs a warning if config.domains or config.shared is provided', async () => {
       const logger = vi.fn();
-      await runInTmpApp(validAppStructure, async (_, app) => {
-        await createApp(app as any, { domains: ['src/domains/*'], logger } as any);
+      await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { domains: ["src/domains/*"] };');
+        await createApp(app as any, { logger });
         expect(logger).toHaveBeenCalledWith(
           'warn',
           expect.stringContaining('Infrastructure (domains/shared) is not yet supported'),
@@ -325,8 +329,9 @@ describe('createApp', () => {
     });
 
     it('§1.4-3: skips Step 3 entirely if resolveAliases is false', async () => {
-      await runInTmpApp(validAppStructure, async (_, app) => {
-        const nodulusApp = await createApp(app as any, { resolveAliases: false } as any);
+      await runInTmpApp(validAppStructure, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { resolveAliases: false };');
+        const nodulusApp = await createApp(app as any);
         // The registry should NOT have the @modules/users alias.
         const aliases = nodulusApp.registry.getAllAliases();
         expect(aliases).not.toHaveProperty('@modules/users');
@@ -351,8 +356,9 @@ describe('createApp', () => {
         `
       };
 
-      await runInTmpApp(circularApp, async (_, app) => {
-        await expect(createApp(app as any, { strict: true } as any)).rejects.toMatchObject({
+      await runInTmpApp(circularApp, async (tmpDir, app) => {
+        fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { strict: true };');
+        await expect(createApp(app as any)).rejects.toMatchObject({
           code: 'CIRCULAR_DEPENDENCY'
         });
       });

@@ -65,16 +65,6 @@ describe('loadConfig', () => {
     });
   });
 
-  it('should prioritize inline options over config file values', async () => {
-    await runInTmpDir({
-      'nodulus.config.js': 'export default { prefix: "/file-prefix", strict: false };'
-    }, async () => {
-      const config = await loadConfig({ prefix: '/options-prefix' });
-      expect(config.prefix).toBe('/options-prefix'); // From options
-      expect(config.strict).toBe(false); // From file
-    });
-  });
-
   it('should throw clear error context when config file has a syntax error', async () => {
     await runInTmpDir({
       'nodulus.config.js': 'module.exports = { prefix: "/fail", invalid-syntax here };'

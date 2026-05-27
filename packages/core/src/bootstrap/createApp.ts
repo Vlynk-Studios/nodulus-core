@@ -26,7 +26,7 @@ import type { DiscoveredModule } from '../types/nits.js';
 
 export async function createApp(
   app: Application,
-  options: CreateAppOptions & Partial<NodulusConfig> = {}
+  options: CreateAppOptions = {}
 ): Promise<NodulusApp> {
   // Step 0 — Prevent Duplicate Bootstrap
   if ((app as any).__nodulusBootstrapped) {
@@ -67,16 +67,16 @@ export async function createApp(
   const preloadConfig = globalThis.__NODULUS_PRELOAD_CONFIG__;
   const preloaderActive = preloadConfig?.preloaded === true;
 
-  if (options.requirePreloader === true && !preloaderActive) {
+  // Step 1 — Load configuration
+  const config = await loadConfig(options);
+
+  if (config.requirePreloader === true && !preloaderActive) {
     throw new NodulusError(
       'PRELOADER_REQUIRED',
       'The application requires the Nodulus pre-loader to be active.',
-      'Run the application with "node --import ./.nodulus/preload.js" or set requirePreloader: false in createApp options.'
+      'Run the application with "node --import ./.nodulus/preload.js" or set requirePreloader: false in nodulus.config.ts.'
     );
   }
-
-  // Step 1 — Load configuration
-  const config = await loadConfig(options);
   if (config.logger === defaultLogHandler) {
     setPinoInstance(createDefaultPinoInstance(config.logFormat, config.logLevel));
   }

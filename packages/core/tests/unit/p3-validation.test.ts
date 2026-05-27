@@ -100,9 +100,8 @@ describe('P3 Alias Validation', () => {
     await runInTmpApp(baseStructure, async (tmpDir, app) => {
       fs.mkdirSync(path.join(tmpDir, 'common'));
       
-      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@common": "./common" } };');
-      
-      await createApp(app as any, { logger, logLevel: 'debug' });
+      fs.writeFileSync(path.join(tmpDir, 'nodulus.config.js'), 'export default { aliases: { "@common": "./common" }, logLevel: "debug" };');
+      await createApp(app as any, { logger });
 
       expect(logger).toHaveBeenCalledWith(
         'debug',
