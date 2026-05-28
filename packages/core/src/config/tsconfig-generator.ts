@@ -139,7 +139,7 @@ export async function ensureTsconfigExtends(cwd: string, log?: Logger): Promise<
     `[nodulus] Add "extends": "./tsconfig.nodulus.json" to your tsconfig.json to enable TypeScript aliases.`;
 
   if (!fs.existsSync(tsconfigPath)) {
-    log?.info(`[nodulus] tsconfig.json not found. ${hint}`, { _module: 'config' });
+    log?.debug(`[nodulus] tsconfig.json not found. ${hint}`, { _module: 'config' });
     return;
   }
 
