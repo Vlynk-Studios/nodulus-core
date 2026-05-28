@@ -2,6 +2,28 @@ import type { RequestHandler, ErrorRequestHandler } from 'express';
 import { getPinoInstance } from './pino-instance.js';
 import type { HttpLogger, HttpLoggerOptions } from '../types/index.js';
 
+/**
+ * Opt-in HTTP logger hook that returns Express middlewares for request and error logging.
+ * It shares the same Pino instance as the rest of the Nodulus application.
+ *
+ * @example
+ * ```ts
+ * import { useHttpLogger } from '@vlynk-studios/nodulus-core';
+ * 
+ * const httpLogger = useHttpLogger({ ignore: ['/health*'] });
+ * 
+ * // Mount `requests()` early in your Express pipeline
+ * app.use(httpLogger.requests());
+ * 
+ * // ... your routes and Nodulus app here ...
+ * 
+ * // Mount `errors()` at the very end to catch unhandled exceptions
+ * app.use(httpLogger.errors());
+ * ```
+ * 
+ * @param options - Configuration options such as routes to ignore.
+ * @returns An object with `requests()` and `errors()` middleware generators.
+ */
 export function useHttpLogger(options: HttpLoggerOptions = {}): HttpLogger {
   const logger = getPinoInstance().child({ service: 'http' });
   const ignorePatterns = options.ignore ?? [];

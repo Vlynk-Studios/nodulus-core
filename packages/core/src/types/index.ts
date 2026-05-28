@@ -52,17 +52,41 @@ export interface Logger {
   error(message: string, meta?: Record<string, unknown> & { err?: Error, error?: Error }): void;
 }
 
+/**
+ * Configuration options for the HTTP logger middleware.
+ */
 export interface HttpLoggerOptions {
-  /** Routes to ignore. Default: []. Supports exact strings and simple globs. */
+  /** 
+   * Routes to ignore (no logs will be emitted for these paths).
+   * Supports exact strings (e.g., `'/health'`) and simple prefix globs (e.g., `'/api/v1/status*'`).
+   * @default []
+   */
   ignore?: string[];
-  /** Log request body in debug level. Default: false. */
+  
+  /** 
+   * Whether to log the request body. Note that the logger must be set to 'debug' level
+   * for the body to actually be printed/recorded.
+   * @default false 
+   */
   logBody?: boolean;
 }
 
+/**
+ * A logger middleware generator for Express applications.
+ * Provides separate middlewares for incoming requests and unhandled errors.
+ */
 export interface HttpLogger {
-  /** Access log middleware: METHOD /path STATUS Xms */
+  /** 
+   * Access log middleware that logs request execution time and status.
+   * Typically mounted early in the Express pipeline.
+   * Output format: `METHOD /path STATUS Xms`
+   */
   requests(): RequestHandler;
-  /** Error handler middleware (4 arguments — Express signature). */
+  
+  /** 
+   * Error handler middleware that logs unhandled exceptions.
+   * Must be mounted at the very end of the Express pipeline.
+   */
   errors(): ErrorRequestHandler;
 }
 
