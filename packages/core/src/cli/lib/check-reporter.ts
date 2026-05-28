@@ -44,7 +44,7 @@ export interface CheckReportData {
     verbose:      boolean;
     strict:       boolean;
     moduleFilter?: string;
-    domain?:       string;  // v2.0.0 — siempre undefined en v1.x
+    domain?:       string;  // v2.0.0 — always undefined in v1.x
   };
 }
 

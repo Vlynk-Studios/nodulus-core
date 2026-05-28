@@ -17,8 +17,11 @@ export async function runSyncTsconfig(logger: any, tsconfigPath: string = 'tscon
         const configPath = path.resolve(cwd, tsconfigPath);
 
         if (!fs.existsSync(configPath)) {
-            logger.error(`Could not find ${tsconfigPath} at ${configPath}`, { _module: 'alias' });
-            throw new Error(`Config not found at ${configPath}`);
+            if (!silent) {
+                logger.error(`Could not find ${tsconfigPath} at ${configPath}`, { _module: 'alias' });
+                throw new Error(`Config not found at ${configPath}`);
+            }
+            return;
         }
 
         const config = await loadConfig();

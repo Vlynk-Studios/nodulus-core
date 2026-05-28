@@ -88,7 +88,7 @@ export async function loadNodulusConfig(
   // ── 2.5 Validations ────────────────────────────────────────────────────────
   if (fileConfig.moduleLoadTimeoutMs !== undefined) {
     if (typeof fileConfig.moduleLoadTimeoutMs !== 'number' || fileConfig.moduleLoadTimeoutMs <= 0) {
-      logger('warn', `[nodulus] moduleLoadTimeoutMs debe ser un número positivo. Usando default: 30000ms.`, { _module: 'config' });
+      logger('warn', `[nodulus] moduleLoadTimeoutMs must be a positive number. Using default: 30000ms.`, { _module: 'config' });
       fileConfig.moduleLoadTimeoutMs = 30000;
     }
   }
@@ -96,7 +96,7 @@ export async function loadNodulusConfig(
   if (fileConfig.logLevel !== undefined) {
     const validLevels = ['debug', 'info', 'warn', 'error'];
     if (!validLevels.includes(fileConfig.logLevel)) {
-      logger('warn', `[nodulus] logLevel inválido: "${fileConfig.logLevel}". Usando 'info'.`, { _module: 'config' });
+      logger('warn', `[nodulus] Invalid logLevel: "${fileConfig.logLevel}". Using 'info'.`, { _module: 'config' });
       fileConfig.logLevel = 'info';
     }
   }
@@ -104,7 +104,7 @@ export async function loadNodulusConfig(
   if (fileConfig.logFormat !== undefined) {
     const validFormats = ['json', 'pretty', 'auto'];
     if (!validFormats.includes(fileConfig.logFormat)) {
-      logger('warn', `[nodulus] logFormat inválido: "${fileConfig.logFormat}". Usando 'auto'.`, { _module: 'config' });
+      logger('warn', `[nodulus] Invalid logFormat: "${fileConfig.logFormat}". Using 'auto'.`, { _module: 'config' });
       fileConfig.logFormat = 'auto';
     }
   }
@@ -118,7 +118,7 @@ export async function loadNodulusConfig(
     if ((RESERVED_ALIASES as readonly string[]).includes(key)) {
       throw new NodulusError(
         'ALIAS_RESERVED',
-        `[nodulus] El alias "${key}" está reservado por Nodulus y no puede redefinirse en nodulus.config.ts.`,
+        `[nodulus] The alias "${key}" is reserved by Nodulus and cannot be redefined in nodulus.config.ts.`,
         key,
       );
     }
@@ -127,9 +127,9 @@ export async function loadNodulusConfig(
     if (!isValidAliasKey(key)) {
       throw new NodulusError(
         'INVALID_ALIAS_KEY',
-        `[nodulus] El alias "${key}" no es una clave válida. ` +
-        `Las claves deben comenzar con "@" seguido de al menos una letra (ej. "@config", "@db"). ` +
-        `Alias inválido detectado en nodulus.config.`,
+        `[nodulus] The alias "${key}" is not a valid key. ` +
+        `Keys must start with "@" followed by at least one letter (e.g. "@config", "@db"). ` +
+        `Invalid alias detected in nodulus.config.`,
         key,
       );
     }
@@ -137,7 +137,7 @@ export async function loadNodulusConfig(
     // 3c. Existence check (warn, don't throw)
     const absolutePath = path.resolve(cwd, value);
     if (!fs.existsSync(absolutePath)) {
-      logger('warn', `[nodulus] El alias "${key}" apunta a "${value}" pero ese path no existe.`, {
+      logger('warn', `[nodulus] The alias "${key}" points to "${value}" but that path does not exist.`, {
         _module: 'config',
         alias: key,
         target: value,

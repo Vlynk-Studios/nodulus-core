@@ -79,6 +79,9 @@ function formatPrettyLine(obj: Record<string, unknown>): string {
   // message: fg — the protagonist
   const msgStr = `${AYU.fg}${msg}${R}`;
 
+  // response time: dim — at the end of the line
+  const responseTime = typeof obj.responseTime === 'number' ? ` ${AYU.muted}${DIM}— ${obj.responseTime}ms${R}` : '';
+
   // error stack: muted dim, indented
   const errStr = err?.stack
     ? `\n  ${AYU.muted}${DIM}${err.stack.split('\n').join('\n  ')}${R}`
@@ -86,7 +89,7 @@ function formatPrettyLine(obj: Record<string, unknown>): string {
       ? ` ${AYU.red}— ${err.message}${R}`
       : '';
 
-  return `${tsStr} ${lvStr}${svcStr}${modStr} ${msgStr}${errStr}`;
+  return `${tsStr} ${lvStr}${svcStr}${modStr} ${msgStr}${responseTime}${errStr}`;
 }
 
 // ── Custom inline stream (replaces pino-pretty transport) ────────────────────

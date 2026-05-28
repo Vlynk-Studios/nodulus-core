@@ -39,7 +39,7 @@ export interface StandardViolation {
 export type Violation = RelativeBoundaryViolation | StandardViolation;
 
 const BOUNDARY_HINT =
-  'Usa el alias @modules/<módulo> para importar desde otro módulo.';
+  'Use the alias @modules/<module> to import from another module.';
 
 /** Lists source files under a module directory (excludes tests and declaration files). */
 export function getModuleFiles(moduleDirPath: string): string[] {
