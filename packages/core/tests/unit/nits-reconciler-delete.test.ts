@@ -402,10 +402,10 @@ describe("NITS Reconciler — buildUpdatedNitsRegistry: atomic purge", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("NITS Reconciler — Clonación de Shadow File", () => {
+describe("NITS Reconciler — Shadow File Cloning", () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it("mismo shadowFile.id en dos discovered: el de path coincidente mantiene ID, el otro recibe ID nuevo → newModules", async () => {
+  it("same shadowFile.id in two discovered: the one with matching path keeps its ID, the other gets a new ID → newModules", async () => {
     const previous = makeRegistry({
       mod_aabbccdd: makeTrackedRecord("mod_aabbccdd", "auth", "src/auth"),
     });
@@ -434,7 +434,7 @@ describe("NITS Reconciler — Clonación de Shadow File", () => {
     warnSpy.mockRestore();
   });
 
-  it("warning de clonación se emite exactamente una vez por colisión", async () => {
+  it("cloning warning is emitted exactly once per collision", async () => {
     const previous = makeRegistry({
       mod_aabbccdd: makeTrackedRecord("mod_aabbccdd", "auth", "src/auth"),
     });
@@ -457,7 +457,7 @@ describe("NITS Reconciler — Clonación de Shadow File", () => {
     warnSpy.mockRestore();
   });
 
-  it("dos discovered con mismo shadowFile.id, ninguno en registry previo → ambos IDs nuevos, at-least-one warning", async () => {
+  it("two discovered with same shadowFile.id, neither in previous registry → both get new IDs, at-least-one warning", async () => {
     // Empty registry — neither module is known.
     // Design: when no prev record anchors an "original", the reconciler uses
     // discs[0].dirPath as the reference path. Because prev is undefined, the

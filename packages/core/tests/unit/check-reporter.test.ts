@@ -51,14 +51,14 @@ describe('check-reporter', () => {
   }
 
   describe('printHeader()', () => {
-    it('Output contiene la versión pasada como argumento y nombre del proyecto', () => {
+    it('Output contains the version passed as argument and project name', () => {
       printHeader({ version: '1.6.0', projectName: 'my-project' } as any);
       const output = getOutput();
       expect(output).toContain('v1.6.0');
       expect(output).toContain('my-project');
     });
 
-    it('No lanza con versión unknown — muestra unknown', () => {
+    it('Does not throw with unknown version — shows unknown', () => {
       printHeader({ version: 'unknown', projectName: 'test' } as any);
       const output = getOutput();
       expect(output).toContain('unknown');
@@ -66,13 +66,13 @@ describe('check-reporter', () => {
   });
 
   describe('printArchitectureSection()', () => {
-    it('Módulo sin violaciones → línea con ✔ y OK', () => {
+    it('Module with no violations → line with ✔ and OK', () => {
       printArchitectureSection({ modules: [createMockModule('auth')], violations: [] } as any);
       expect(getOutput()).toContain('✔');
       expect(getOutput()).toContain('OK');
     });
 
-    it('Módulo con 1 violación warn → línea con ⚠ y 1 violation', () => {
+    it('Module with 1 warn violation → line with ⚠ and 1 violation', () => {
       const v: Violation = { type: 'private-import', module: 'auth', message: '', suggestion: '' };
       printArchitectureSection({ modules: [createMockModule('auth')], violations: [v] } as any);
       expect(getOutput()).toContain('⚠');
@@ -80,28 +80,28 @@ describe('check-reporter', () => {
       expect(getOutput()).not.toContain('1 violations');
     });
 
-    it('Módulo con 2+ violaciones → N violations (plural)', () => {
+    it('Module with 2+ violations → N violations (plural)', () => {
       const v: Violation = { type: 'private-import', module: 'auth', message: '', suggestion: '' };
       printArchitectureSection({ modules: [createMockModule('auth')], violations: [v, v] } as any);
       expect(getOutput()).toContain('⚠');
       expect(getOutput()).toContain('2 violations');
     });
 
-    it('Módulo con circular dep → ✗ y circular dep', () => {
+    it('Module with circular dep → ✗ and circular dep', () => {
       const v: Violation = { type: 'circular-dependency', module: 'auth', message: '', suggestion: '' };
       printArchitectureSection({ modules: [createMockModule('auth')], violations: [v] } as any);
       expect(getOutput()).toContain('✗');
       expect(getOutput()).toContain('circular dep');
     });
 
-    it('Módulo con RELATIVE_BOUNDARY_VIOLATION → ✗ y detalle del import', () => {
+    it('Module with RELATIVE_BOUNDARY_VIOLATION → ✗ and import detail', () => {
       const v: Violation = {
         type: 'relative-boundary-violation',
         module: 'users',
         file: 'src/modules/users/users.service.ts',
         line: 14,
         import: '../payments/payments.service',
-        hint: 'Usa el alias @modules/payments para importar desde otro módulo.',
+        hint: 'Use the @modules/payments alias to import from another module.',
       };
       printArchitectureSection({ modules: [createMockModule('users')], violations: [v] } as any);
       const out = getOutput();
@@ -111,7 +111,7 @@ describe('check-reporter', () => {
       expect(out).toContain('@modules/payments');
     });
 
-    it('Módulo nuevo (en newModules) → ◈ y new', () => {
+    it('New module (in newModules) → ◈ and new', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.newModules = [{ name: 'auth' } as NitsModuleRecord];
       printArchitectureSection({ modules: [createMockModule('auth')], violations: [], nitsResult } as any);
@@ -119,21 +119,21 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('new');
     });
 
-    it('Nombres de módulos alineados — padding consistente independiente del largo del nombre', () => {
+    it('Module names aligned — consistent padding regardless of name length', () => {
       printArchitectureSection({ modules: [createMockModule('auth'), createMockModule('verylongname')], violations: [] } as any);
       const out = getOutput();
       expect(out).toContain('auth          ');
       expect(out).toContain('verylongname  ');
     });
 
-    it('nitsResult: null — módulo no marcado como new', () => {
+    it('nitsResult: null — module not marked as new', () => {
       printArchitectureSection({ modules: [createMockModule('auth')], violations: [], nitsResult: null } as any);
       expect(getOutput()).toContain('OK');
     });
   });
 
   describe('printArchitectureWithIdentity()', () => {
-    it('shadow-file → muestra método en verde', () => {
+    it('shadow-file → shows method in green', () => {
       const mod = createMockModule('auth', 'shadow-file');
       mod.id = 'mod_abc123';
       printArchitectureSection({ modules: [mod], violations: [], nitsResult: null } as any);
@@ -141,7 +141,7 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('OK');
     });
 
-    it('verbose: shadow-file → muestra shadow-file en el identity display', () => {
+    it('verbose: shadow-file → shows shadow-file in identity display', () => {
       const mod = createMockModule('auth', 'shadow-file');
       mod.id = 'mod_abc123';
       const data = { version: '1', projectName: 'p', modules: [mod], violations: [], nitsResult: null, options: { verbose: true, strict: false } };
@@ -151,7 +151,7 @@ describe('check-reporter', () => {
       expect(out).toContain('mod_abc123');
     });
 
-    it('verbose: jaccard → muestra jaccard en naranja con hint', () => {
+    it('verbose: jaccard → shows jaccard in orange with hint', () => {
       const mod = createMockModule('auth', 'jaccard');
       mod.id = 'mod_abc123';
       const data = { version: '1', projectName: 'p', modules: [mod], violations: [], nitsResult: null, options: { verbose: true, strict: false } };
@@ -161,7 +161,7 @@ describe('check-reporter', () => {
       expect(out).toContain('no .nodulus file');
     });
 
-    it('verbose: path → muestra path en cyan', () => {
+    it('verbose: path → shows path in cyan', () => {
       const mod = createMockModule('auth', 'path');
       mod.id = 'mod_abc123';
       const data = { version: '1', projectName: 'p', modules: [mod], violations: [], nitsResult: null, options: { verbose: true, strict: false } };
@@ -170,7 +170,7 @@ describe('check-reporter', () => {
       expect(out).toContain('mod_abc123');
     });
 
-    it('verbose: new (en newModules) → muestra .nodulus generated hint', () => {
+    it('verbose: new (in newModules) → shows .nodulus generated hint', () => {
       const mod = createMockModule('auth');
       mod.id = 'mod_abc123';
       const nitsResult = createMockNitsResult();
@@ -190,7 +190,7 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('mod_abc123');
     });
 
-    it('verbose: módulo con violación circular → ✗', () => {
+    it('verbose: module with circular violation → ✗', () => {
       const mod = createMockModule('billing', 'shadow-file');
       const v: Violation = { type: 'circular-dependency', module: 'billing', message: 'cycle', suggestion: 'fix', cycle: ['billing', 'orders', 'billing'] };
       const data = { version: '1', projectName: 'p', modules: [mod], violations: [v], nitsResult: null, options: { verbose: true, strict: false } };
@@ -198,7 +198,7 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('✗');
     });
 
-    it('verbose: módulo con violación warn → ⚠', () => {
+    it('verbose: module with warn violation → ⚠', () => {
       const mod = createMockModule('payments', 'shadow-file');
       const v: Violation = { type: 'private-import', module: 'payments', message: 'bad import', suggestion: 'fix' };
       const data = { version: '1', projectName: 'p', modules: [mod], violations: [v], nitsResult: null, options: { verbose: true, strict: false } };
@@ -206,7 +206,7 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('⚠');
     });
 
-    it('verbose: módulo sin id muestra unknown', () => {
+    it('verbose: module with no id shows unknown', () => {
       const mod = createMockModule('auth', 'shadow-file');
       mod.id = undefined;
       const data = { version: '1', projectName: 'p', modules: [mod], violations: [], nitsResult: null, options: { verbose: true, strict: false } };
@@ -214,7 +214,7 @@ describe('check-reporter', () => {
       expect(getOutput()).toContain('unknown');
     });
 
-    it('verbose: muestra Identity legend con las 3 entradas', () => {
+    it('verbose: shows Identity legend with 3 entries', () => {
       const data = { version: '1', projectName: 'p', modules: [], violations: [], nitsResult: null, options: { verbose: true, strict: false } };
       printCheckReport(data as any);
       const out = getOutput();
@@ -224,14 +224,14 @@ describe('check-reporter', () => {
   });
 
   describe('moved/candidates en printIdentitySection()', () => {
-    it('moved con record shadow-file se cuenta correctamente', () => {
+    it('moved with shadow-file record is counted correctly', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.moved = [{ record: { resolvedBy: 'shadow-file' } as any, oldPath: '', newPath: '', brokenImports: [] }];
       printIdentitySection(nitsResult, []);
       expect(getOutput()).toContain('via shadow-file');
     });
 
-    it('candidates con record jaccard se cuenta correctamente', () => {
+    it('candidates with jaccard record is counted correctly', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.candidates = [{ record: { resolvedBy: 'jaccard' } as any, oldPath: '', newPath: '', brokenImports: [] }];
       printIdentitySection(nitsResult, []);
@@ -245,7 +245,7 @@ describe('check-reporter', () => {
       expect(logMock).not.toHaveBeenCalled();
     });
 
-    it('Violación con location → muestra archivo y línea', () => {
+    it('Violation with location → shows file and line', () => {
       const v: Violation = { type: 'private-import', module: 'auth', message: 'msg', suggestion: 'sug', location: { file: 'file.ts', line: 10 } };
       printViolationDetails([v]);
       const out = getOutput();
@@ -253,7 +253,7 @@ describe('check-reporter', () => {
       expect(out).toContain('sug');
     });
 
-    it('Violación sin location → no rompe, omite la línea de localización', () => {
+    it('Violation without location → does not break, omits location line', () => {
       const v: Violation = { type: 'private-import', module: 'auth', message: 'msg', suggestion: 'sug' };
       printViolationDetails([v]);
       const out = getOutput();
@@ -261,14 +261,14 @@ describe('check-reporter', () => {
       expect(out).not.toContain('undefined');
     });
 
-    it('Circular dep → muestra el ciclo (a → b → a)', () => {
+    it('Circular dep → shows the cycle (a → b → a)', () => {
       const v: Violation = { type: 'circular-dependency', module: 'auth', message: 'msg', suggestion: 'sug', cycle: ['auth', 'billing', 'auth'] };
       printViolationDetails([v]);
       const out = getOutput();
       expect(out).toContain('auth → billing → auth');
     });
 
-    it('Múltiples violaciones del mismo módulo → agrupadas bajo un solo header de módulo', () => {
+    it('Multiple violations of the same module → grouped under a single module header', () => {
       const v1: Violation = { type: 'private-import', module: 'auth', message: 'msg1', suggestion: 'sug1' };
       const v2: Violation = { type: 'private-import', module: 'auth', message: 'msg2', suggestion: 'sug2' };
       printViolationDetails([v1, v2]);
@@ -290,7 +290,7 @@ describe('check-reporter', () => {
       expect(logMock).not.toHaveBeenCalled();
     });
 
-    it('Todos shadow-file → solo línea verde', () => {
+    it('All shadow-file → green line only', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.confirmed = [{ resolvedBy: 'shadow-file' } as any];
       printIdentitySection(nitsResult, []);
@@ -299,7 +299,7 @@ describe('check-reporter', () => {
       expect(out).not.toContain('via jaccard');
     });
 
-    it('Mix shadow-file + jaccard → ambas líneas con colores correctos', () => {
+    it('Mix shadow-file + jaccard → both lines with correct colors', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.confirmed = [{ resolvedBy: 'shadow-file' } as any, { resolvedBy: 'jaccard' } as any];
       printIdentitySection(nitsResult, []);
@@ -308,7 +308,7 @@ describe('check-reporter', () => {
       expect(out).toContain('via jaccard');
     });
 
-    it('Módulos nuevos → línea cyan', () => {
+    it('New modules → cyan line', () => {
       const nitsResult = createMockNitsResult();
       nitsResult.newModules = [{ name: 'mod' } as any];
       printIdentitySection(nitsResult, []);
@@ -345,8 +345,8 @@ describe('check-reporter', () => {
     });
   });
 
-  describe('printCheckReport() — integración', () => {
-    it('No lanza con nitsResult: null, violations: [], modules: []', () => {
+  describe('printCheckReport() — integration', () => {
+    it('Does not throw with nitsResult: null, violations: [], modules: []', () => {
       expect(() => {
         printCheckReport({
           version: '1', projectName: 'p', modules: [], violations: [], nitsResult: null, options: { verbose: false, strict: false }
