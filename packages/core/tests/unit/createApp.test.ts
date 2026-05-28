@@ -456,7 +456,7 @@ describe('createApp', () => {
         await createApp(app as any, { logger } as any);
         expect(logger).toHaveBeenCalledWith(
           'warn',
-          expect.stringContaining('ese path no existe'),
+          expect.stringContaining('path does not exist'),
           expect.any(Object)
         );
       });

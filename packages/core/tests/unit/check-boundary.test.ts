@@ -160,7 +160,7 @@ describe('check — relative boundary violations', () => {
     process.exitCode = originalExitCode;
   });
 
-  it('hint menciona el alias @modules/<módulo>', async () => {
+  it('hint mentions the alias @modules/<module>', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': "import { P } from '../payments/payments.service';",
     });
@@ -169,6 +169,6 @@ describe('check — relative boundary violations', () => {
     const graph = await buildModuleGraph({ modules: 'src/modules/*' } as never, root);
     const [violation] = detectRelativeBoundaryViolations(graph, root);
 
-    expect(violation.hint).toMatch(/@modules\/<módulo>/);
+    expect(violation.hint).toMatch(/@modules\/<module>/);
   });
 });

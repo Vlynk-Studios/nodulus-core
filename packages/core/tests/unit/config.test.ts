@@ -105,9 +105,9 @@ describe('loadConfig', () => {
       expect(config.logFormat).toBe('auto');
       expect(config.moduleLoadTimeoutMs).toBe(30000);
       
-      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('logLevel inválido'), expect.any(Object));
-      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('logFormat inválido'), expect.any(Object));
-      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('moduleLoadTimeoutMs debe ser un número positivo'), expect.any(Object));
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Invalid logLevel'), expect.any(Object));
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Invalid logFormat'), expect.any(Object));
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('moduleLoadTimeoutMs must be a positive number'), expect.any(Object));
     });
   });
 
@@ -118,7 +118,7 @@ describe('loadConfig', () => {
     }, async () => {
       const config = await loadConfig({ logger: loggerSpy });
       expect(config.moduleLoadTimeoutMs).toBe(30000);
-      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('moduleLoadTimeoutMs debe ser un número positivo'), expect.any(Object));
+      expect(loggerSpy).toHaveBeenCalledWith('warn', expect.stringContaining('moduleLoadTimeoutMs must be a positive number'), expect.any(Object));
     });
   });
 
