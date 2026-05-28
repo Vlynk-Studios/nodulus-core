@@ -22,9 +22,9 @@ const rule: Rule.RuleModule = {
     },
     messages: {
       noPrivateImport:
-        'Import privado detectado: "{{path}}". Usa el index público del módulo.',
+        'Private import detected: "{{path}}". Use the public index of the module.',
       relativeBoundary:
-        'Path relativo "{{path}}" cruza la frontera del módulo. Usa @modules/{{target}} en su lugar.',
+        'Relative path "{{path}}" crosses the module boundary. Use @modules/{{target}} instead.',
     },
     schema: [
       {
