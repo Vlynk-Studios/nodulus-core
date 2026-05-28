@@ -148,7 +148,7 @@ describe('loadNodulusConfig', () => {
     writeConfig(tmpDir, 'nodulus.config.js', 'export default { logLevel: "verbose" };');
     const result = await loadNodulusConfig(tmpDir, log);
     expect(result.logLevel).toBe('info');
-    expect(log).toHaveBeenCalledWith('warn', expect.stringContaining('logLevel inválido'), expect.any(Object));
+    expect(log).toHaveBeenCalledWith('warn', expect.stringContaining('Invalid logLevel'), expect.any(Object));
   });
 
   it('parses moduleLoadTimeoutMs correctly when valid', async () => {

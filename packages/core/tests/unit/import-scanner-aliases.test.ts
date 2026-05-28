@@ -49,40 +49,40 @@ describe('import-scanner — extractRelativeCrossModuleImports()', () => {
     return { usersDir, serviceFile };
   }
 
-  it('archivo con import ./local → array vacío (import interno)', () => {
+  it('file with import ./local → empty array (internal import)', () => {
     const { usersDir, serviceFile } = setupModuleTree();
     fs.writeFileSync(serviceFile, "import X from './local';");
     expect(extractRelativeCrossModuleImports(serviceFile, usersDir)).toEqual([]);
   });
 
-  it('archivo con import ../payments/payments.service → retorna el specifier', () => {
+  it('file with import ../payments/payments.service → returns the specifier', () => {
     const { usersDir, serviceFile } = setupModuleTree();
     fs.writeFileSync(serviceFile, "import { P } from '../payments/payments.service';");
     const cross = extractRelativeCrossModuleImports(serviceFile, usersDir);
     expect(cross.map(c => c.specifier)).toEqual(['../payments/payments.service']);
   });
 
-  it('archivo con import ../../shared/utils → retorna el specifier', () => {
+  it('file with import ../../shared/utils → returns the specifier', () => {
     const { usersDir, serviceFile } = setupModuleTree();
     fs.writeFileSync(serviceFile, "import { u } from '../../shared/utils';");
     const cross = extractRelativeCrossModuleImports(serviceFile, usersDir);
     expect(cross.map(c => c.specifier)).toEqual(['../../shared/utils']);
   });
 
-  it('archivo con import @modules/payments → array vacío (alias, no relativo)', () => {
+  it('file with import @modules/payments → empty array (alias, not relative)', () => {
     const { usersDir, serviceFile } = setupModuleTree();
     fs.writeFileSync(serviceFile, "import { P } from '@modules/payments';");
     expect(extractRelativeCrossModuleImports(serviceFile, usersDir)).toEqual([]);
   });
 
-  it('archivo vacío → array vacío sin lanzar', () => {
+  it('empty file → empty array without throwing', () => {
     const { usersDir, serviceFile } = setupModuleTree();
     fs.writeFileSync(serviceFile, '');
     expect(() => extractRelativeCrossModuleImports(serviceFile, usersDir)).not.toThrow();
     expect(extractRelativeCrossModuleImports(serviceFile, usersDir)).toEqual([]);
   });
 
-  it('archivo que no existe → array vacío sin lanzar', () => {
+  it('file that does not exist → empty array without throwing', () => {
     const log = vi.fn();
     expect(() =>
       extractRelativeCrossModuleImports('/no/such/file.ts', '/module', log),
@@ -90,7 +90,7 @@ describe('import-scanner — extractRelativeCrossModuleImports()', () => {
     expect(extractRelativeCrossModuleImports('/no/such/file.ts', '/module', log)).toEqual([]);
   });
 
-  it('múltiples imports: solo retorna los cross-module', () => {
+  it('multiple imports: only returns cross-module ones', () => {
     const { usersDir, serviceFile } = setupModuleTree();
     fs.writeFileSync(
       serviceFile,
@@ -109,7 +109,7 @@ describe('import-scanner — extractRelativeCrossModuleImports()', () => {
   });
 });
 
-describe('import-scanner — REGLA-22 (inversión de filtrado)', () => {
+describe('import-scanner — RULE-22 (inverted filtering)', () => {
   const tmpFiles: string[] = [];
 
   afterEach(() => {
@@ -123,7 +123,7 @@ describe('import-scanner — REGLA-22 (inversión de filtrado)', () => {
     tmpFiles.length = 0;
   });
 
-  it('@nestjs/common con aliases [@modules] → filtrado', () => {
+  it('@nestjs/common with aliases [@modules] → filtered', () => {
     const p = writeTempFile("import { Injectable } from '@nestjs/common';");
     tmpFiles.push(p);
     expect(extractModuleImports(p, ['@modules'])).toEqual([]);
@@ -143,20 +143,20 @@ describe('import-scanner — REGLA-22 (inversión de filtrado)', () => {
     expect(result[0].specifier).toBe('@modules/users');
   });
 
-  it('@config/database con @config registrado → incluido', () => {
+  it('@config/database with @config registered → included', () => {
     const p = writeTempFile("import { db } from '@config/database';");
     tmpFiles.push(p);
     const result = extractModuleImports(p, ['@modules', '@config']);
     expect(result.map(r => r.specifier)).toEqual(['@config/database']);
   });
 
-  it('@config/database sin @config registrado → filtrado', () => {
+  it('@config/database without @config registered → filtered', () => {
     const p = writeTempFile("import { db } from '@config/database';");
     tmpFiles.push(p);
     expect(extractModuleImports(p, ['@modules'])).toEqual([]);
   });
 
-  it('express (sin @) → filtrado siempre', () => {
+  it('express (without @) → always filtered', () => {
     const p = writeTempFile("import express from 'express';");
     tmpFiles.push(p);
     expect(extractModuleImports(p, ['@modules', '@config'])).toEqual([]);

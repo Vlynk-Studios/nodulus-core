@@ -11,8 +11,8 @@
  *  1. Full delete lifecycle — confirmed delete → purge from registry
  *  2. Move detected by Shadow File, NOT by Jaccard
  *  3. Aggressive move (path + name + ~80% identifiers change): ID preserved
- *  4. Accidental delete + Undo — ID purgado → newModule en ciclo siguiente
- *  5. Backward compatibility — proyecto sin .nodulus: deleted siempre vacío
+ *  4. Accidental delete + Undo — ID purged → newModule in the next cycle
+ *  5. Backward compatibility — project without .nodulus: deleted always empty
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -181,7 +181,7 @@ describe('Ciclo completo de borrado', () => {
       expect(r1.stale).toHaveLength(1);
       expect(r1.stale[0].id).toBe(ID_PAYMENTS);
       expect(r1.stale[0].missingCount).toBe(1);
-      // Aún en el registry (grace period)
+      // Still in the registry (grace period)
       expect(reg1.modules[ID_PAYMENTS]).toBeDefined();
 
       // ── Ciclo 2: sigue ausente (missingCount→2) ───────────────────────────
@@ -198,11 +198,11 @@ describe('Ciclo completo de borrado', () => {
       expect(r3.deleted[0].status).toBe('deleted');
       expect(r3.stale).toHaveLength(0);
 
-      // buildUpdatedNitsRegistry excluye deleted → purge atómico
+      // buildUpdatedNitsRegistry excludes deleted → atomic purge
       expect(reg3.modules[ID_PAYMENTS]).toBeUndefined();
       expect(Object.keys(reg3.modules)).toHaveLength(0);
 
-      // El archivo en disco tampoco tiene trazas
+      // The file on disk also has no traces
       const persisted = readRegistry(cwd);
       expect(persisted.modules[ID_PAYMENTS]).toBeUndefined();
     }
@@ -235,7 +235,7 @@ describe('Move detectado por Shadow File (no por Jaccard)', () => {
       fs.mkdirSync(path.dirname(usersNewDir), { recursive: true });
       fs.renameSync(usersDir, usersNewDir);
 
-      // El .nodulus debe estar en la nueva ubicación con el mismo ID
+      // The .nodulus file must be at the new location with the same ID
       expect(readShadow(usersNewDir)?.id).toBe(ID_USERS);
 
       const { result: r2, registry: reg2 } = await runCycle(
@@ -276,7 +276,7 @@ describe('Move agresivo — path + nombre + identifiers cambian, Shadow File int
 
       // ── Ciclo 1: billing con 5 servicios ──────────────────────────────────
       const billingDir = mkmod(cwd, 'src/modules/billing', 'billing', ID_BILLING);
-      // Escribir identifiers originales (InvoiceService + 4 más)
+      // Write original identifiers (InvoiceService + 4 more)
       writeService(billingDir, 'billing.service.ts', [
         'InvoiceService', 'PaymentService', 'SubscriptionService', 'TaxService', 'BillingService',
       ]);
@@ -338,11 +338,11 @@ describe('Move agresivo — path + nombre + identifiers cambian, Shadow File int
 describe('Borrado accidental + Undo', () => {
   it(
     'orders: bootstrap → 3 ciclos ausente → purgado → ' +
-    'restaurar con .nodulus original → newModule (sin recuperación de identidad)',
+    'restore with original .nodulus → newModule (no identity recovery)',
     async () => {
       const cwd     = mktmp();
       const ordersDir = mkmod(cwd, 'src/modules/orders', 'orders', ID_ORDERS);
-      // Guardar contenido del shadow file para restaurarlo después
+      // Save shadow file content to restore it later
       const shadowBackup = fs.readFileSync(path.join(ordersDir, '.nodulus'), 'utf8');
 
       // ── Ciclo 0: bootstrap inicial ─────────────────────────────────────────
@@ -372,7 +372,7 @@ describe('Borrado accidental + Undo', () => {
       writeIndex(ordersDir, 'orders');
       fs.writeFileSync(path.join(ordersDir, '.nodulus'), shadowBackup, 'utf8');
 
-      // ── Ciclo 4: reg3 está vacío (ID purgado) → el módulo es newModule ─────
+      // ── Cycle 4: reg3 is empty (ID purged) → module is newModule ─────────────────
       const { result: r4, registry: reg4 } = await runCycle(
         [{ name: 'orders', dirPath: ordersDir }],
         reg3,
@@ -385,8 +385,8 @@ describe('Borrado accidental + Undo', () => {
       expect(r4.moved).toHaveLength(0);
       expect(r4.stale).toHaveLength(0);
 
-      // El shadow file ID se reutiliza como ID del nuevo módulo
-      // (Step 0: shadowFile.id no está en prev registry → newModule con ese ID)
+      // The shadow file ID is reused as the ID of the new module
+      // (Step 0: shadowFile.id not in prev registry → newModule with that ID)
       const restored = r4.newModules[0];
       expect(restored.name).toBe('orders');
       expect(restored.id).toBe(ID_ORDERS); // reutiliza el shadow-file ID
@@ -400,13 +400,13 @@ describe('Borrado accidental + Undo', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 5. RETROCOMPATIBILIDAD — Proyecto sin ningún .nodulus
+// 5. BACKWARD COMPATIBILITY — Project with no .nodulus files
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('Retrocompatibilidad: proyecto sin ningún .nodulus', () => {
+describe('Backward compatibility: project with no .nodulus files', () => {
   it(
-    'sin shadow files → reconciliación completa, deleted siempre vacío en ciclos 1-2, ' +
-    'módulo ausente va a stale; en ciclo 3 va a deleted (grace period estándar)',
+    'no shadow files → full reconciliation, deleted always empty in cycles 1-2, ' +
+    'absent module goes to stale; in cycle 3 goes to deleted (standard grace period)',
     async () => {
       const cwd      = mktmp();
       const usersDir = mkmod(cwd, 'src/modules/users-legacy',  'users-legacy');  // sin shadow
@@ -417,17 +417,17 @@ describe('Retrocompatibilidad: proyecto sin ningún .nodulus', () => {
         { name: 'orders-legacy', dirPath: ordDir   },
       ];
 
-      // ── Ciclo 0: primera reconciliación ───────────────────────────────────
+      // ── Cycle 0: first reconciliation ───────────────────────────────────────────
       const { result: r0, registry: reg0 } = await runCycle(allDirs, null, cwd);
 
       expect(r0.newModules).toHaveLength(2);
       expect(r0.deleted).toHaveLength(0);
-      // Sin shadow files, los módulos nuevos no tienen shadowFileId
+      // Without shadow files, new modules have no shadowFileId
       for (const m of r0.newModules) {
         expect(m.shadowFileId).toBeUndefined();
       }
 
-      // Obtener IDs generados dinámicamente
+      // Get dynamically generated IDs
 
       const orderId = r0.newModules.find(m => m.name === 'orders-legacy')!.id;
 
@@ -469,7 +469,7 @@ describe('Retrocompatibilidad: proyecto sin ningún .nodulus', () => {
   );
 
   it(
-    'todos los discovered sin shadowFile → Steps 1-3 normales, deleted vacío, confirmed por path',
+    'all discovered without shadowFile → Steps 1-3 normal, deleted empty, confirmed by path',
     async () => {
       const cwd    = mktmp();
       const modDir = mkmod(cwd, 'src/modules/alpha', 'alpha'); // sin shadow
@@ -479,7 +479,7 @@ describe('Retrocompatibilidad: proyecto sin ningún .nodulus', () => {
       // Primera pasada → newModule
       const { registry: reg0 } = await runCycle(dirs, null, cwd);
 
-      // Segunda pasada (mismo módulo, mismo path) → confirmed por path
+      // Second pass (same module, same path) → confirmed by path
       const { result: r1 } = await runCycle(dirs, reg0, cwd);
 
       expect(r1.confirmed).toHaveLength(1);

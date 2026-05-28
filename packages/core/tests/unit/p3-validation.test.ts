@@ -75,7 +75,7 @@ describe('P3 Alias Validation', () => {
 
       expect(logger).toHaveBeenCalledWith(
         'warn',
-        expect.stringContaining('ese path no existe'),
+        expect.stringContaining('path does not exist'),
         expect.objectContaining({ _module: 'config' })
       );
     });

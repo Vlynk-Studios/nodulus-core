@@ -24,7 +24,7 @@ describe('Logger Utility', () => {
   });
 
   describe('defaultLogHandler & Pino Instance', () => {
-    it('en modo JSON emite objeto con campos time, level, module, msg', () => {
+    it('in JSON mode emits object with fields time, level, module, msg', () => {
       defaultLogHandler('info', 'Hello world', { _module: 'test' });
       
       expect(stdoutSpy).toHaveBeenCalled();
@@ -38,7 +38,7 @@ describe('Logger Utility', () => {
       expect(logOutput).toHaveProperty('service', 'system');
     });
 
-    it('respeta minLevel (mensajes por debajo del nivel no se emiten)', () => {
+    it('respects minLevel (messages below the level are not emitted)', () => {
       // Re-configure to warn
       setPinoInstance(createDefaultPinoInstance('json', 'warn'));
       
@@ -50,7 +50,7 @@ describe('Logger Utility', () => {
       expect(logOutput.msg).toBe('This should be logged');
     });
     
-    it('meta con err: new Error() serializa stack en modo JSON', () => {
+    it('meta with err: new Error() serializes stack in JSON mode', () => {
       const testError = new Error('Database connection failed');
       defaultLogHandler('error', 'Query failed', { err: testError });
       
@@ -66,7 +66,7 @@ describe('Logger Utility', () => {
   });
 
   describe('Public API (useLogger & createLogger)', () => {
-    it('useLogger("app") crea child logger con campo service: "app" en output JSON', () => {
+    it('useLogger("app") creates child logger with service: "app" field in JSON output', () => {
       const appLogger = useLogger('app');
       appLogger.info('App started');
       
@@ -89,22 +89,22 @@ describe('Logger Utility', () => {
   });
 
   describe('Configuration Resolution', () => {
-    it('resolveLogLevel() con NODULUS_LOG_LEVEL=warn retorna "warn"', () => {
+    it('resolveLogLevel() with NODULUS_LOG_LEVEL=warn returns "warn"', () => {
       vi.stubEnv('NODULUS_LOG_LEVEL', 'warn');
       expect(resolveLogLevel()).toBe('warn');
     });
 
-    it('resolveLogLevel() con NODE_DEBUG=nodulus retorna "debug"', () => {
+    it('resolveLogLevel() with NODE_DEBUG=nodulus returns "debug"', () => {
       vi.stubEnv('NODE_DEBUG', 'fs,nodulus,http');
       expect(resolveLogLevel()).toBe('debug');
     });
 
-    it('logFormat: "json" fuerza JSON aunque NODE_ENV no sea producción', () => {
+    it('logFormat: "json" forces JSON even if NODE_ENV is not production', () => {
       vi.stubEnv('NODE_ENV', 'development');
       expect(resolveLogFormat('json')).toBe('json');
     });
     
-    it('logFormat: "pretty" fuerza pino-pretty aunque NODE_ENV sea producción', () => {
+    it('logFormat: "pretty" forces pino-pretty even if NODE_ENV is production', () => {
       vi.stubEnv('NODE_ENV', 'production');
       expect(resolveLogFormat('pretty')).toBe('pretty');
     });

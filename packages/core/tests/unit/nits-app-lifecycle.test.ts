@@ -69,7 +69,7 @@ describe("NITS App Lifecycle (Shadow File Integration)", () => {
     return dir;
   }
 
-  it("Ciclo completo con Shadow File", async () => {
+  it("Full cycle with Shadow File", async () => {
     // 1. Bootstrap limpio sobre nits-app
     const dir1 = createCycleDir();
     cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(dir1);
@@ -109,7 +109,7 @@ describe("NITS App Lifecycle (Shadow File Integration)", () => {
     expect(record.path).toBe("src/domains/auth/users");
   });
 
-  it("Ciclo sin Shadow File (retrocompatibilidad)", async () => {
+  it("Cycle without Shadow File (backward compatibility)", async () => {
     // 1. Completely fresh app
     const dir1 = createCycleDir();
     fs.rmSync(path.join(dir1, "src/modules/users/.nodulus"), { force: true });
@@ -173,7 +173,7 @@ describe("NITS App Lifecycle (Shadow File Integration)", () => {
     expect(registryContent.modules["mod_a1b2c3d4"].status).toBe("active");
   });
 
-  it("Clonación", async () => {
+  it("Cloning", async () => {
     // Bootstrap first to establish baseline
     const dir1 = createCycleDir();
     cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(dir1);
@@ -209,7 +209,7 @@ describe("NITS App Lifecycle (Shadow File Integration)", () => {
       throw e;
     }
 
-    // 3. Verificar users en confirmed, users-copy en newModules con ID distinto
+    // 3. Verify users in confirmed, users-copy in newModules with a different ID
     const registryContent = JSON.parse(fs.readFileSync(path.join(dir2, ".nodulus", "registry.json"), "utf8"));
     const usersRecord = Object.values(registryContent.modules).find((m: any) => m.path === "src/modules/users") as any;
     const copyRecord = Object.values(registryContent.modules).find((m: any) => m.path === "src/modules/users-copy") as any;
@@ -225,7 +225,7 @@ describe("NITS App Lifecycle (Shadow File Integration)", () => {
     const copyShadowContent = JSON.parse(fs.readFileSync(path.join(copyPath, ".nodulus"), "utf8"));
     expect(copyShadowContent.id).toBe(copyRecord.id);
 
-    // Verificar warning de clonación
+    // Verify cloning warning
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("Duplicate module identity detected")
     );

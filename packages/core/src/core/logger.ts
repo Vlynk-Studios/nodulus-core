@@ -14,7 +14,7 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
 export const defaultLogHandler: LogHandler = (level, rawMessage, meta) => {
   const pinoLog = getPinoInstance();
 
-  // Separar _module del resto del meta para no contaminar el log estructurado
+  // Separate _module from the rest of the meta to avoid polluting the structured log
   const { _module, ...cleanMeta } = meta ?? {};
 
   pinoLog[level]({ module: _module, ...cleanMeta }, rawMessage);

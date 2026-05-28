@@ -52,7 +52,7 @@ describe('check — relative boundary violations', () => {
     roots.length = 0;
   });
 
-  it('módulo sin imports relativos cross-module → cero RELATIVE_BOUNDARY_VIOLATION', async () => {
+  it('module with no relative cross-module imports → zero RELATIVE_BOUNDARY_VIOLATION', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': "import { R } from './users.repository';",
       'users.repository.ts': 'export class UsersRepository {}',
@@ -66,7 +66,7 @@ describe('check — relative boundary violations', () => {
     ).toHaveLength(0);
   });
 
-  it('un import ../otro/otro.service → una violation con file, import y hint', async () => {
+  it('one import ../other/other.service → one violation with file, import and hint', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': "import { PaymentsService } from '../payments/payments.service';",
     });
@@ -83,7 +83,7 @@ describe('check — relative boundary violations', () => {
     expect(violations[0].hint).toContain('@modules');
   });
 
-  it('tres imports cross-module en el mismo archivo → tres violations', async () => {
+  it('three cross-module imports in the same file → three violations', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': [
         "import { P } from '../payments/payments.service';",
@@ -108,7 +108,7 @@ describe('check — relative boundary violations', () => {
     );
   });
 
-  it('imports cross-module en archivos distintos → una violation por import con file distinto', async () => {
+  it('cross-module imports in different files → one violation per import with different file', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': "import { P } from '../payments/payments.service';",
       'users.controller.ts': "import { P } from '../payments/payments.service';",
@@ -125,7 +125,7 @@ describe('check — relative boundary violations', () => {
     expect(new Set(files).size).toBe(2);
   });
 
-  it('detectViolations incluye boundary sin mezclar otros tipos por el relativo', async () => {
+  it('detectViolations includes boundary violations without mixing other types for relative', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': "import { P } from '../payments/payments.service';",
     });
@@ -160,7 +160,7 @@ describe('check — relative boundary violations', () => {
     process.exitCode = originalExitCode;
   });
 
-  it('hint menciona el alias @modules/<módulo>', async () => {
+  it('hint mentions the alias @modules/<module>', async () => {
     const root = createBoundaryFixture({
       'users.service.ts': "import { P } from '../payments/payments.service';",
     });
@@ -169,6 +169,6 @@ describe('check — relative boundary violations', () => {
     const graph = await buildModuleGraph({ modules: 'src/modules/*' } as never, root);
     const [violation] = detectRelativeBoundaryViolations(graph, root);
 
-    expect(violation.hint).toMatch(/@modules\/<módulo>/);
+    expect(violation.hint).toMatch(/@modules\/<module>/);
   });
 });
