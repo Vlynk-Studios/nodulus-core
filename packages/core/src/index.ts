@@ -16,10 +16,10 @@ export * from './core/logger.js';
 export * from './core/http-logger.js';
 export * from './preload/index.js';
 
-export { defineConfig, isValidAliasKey, RESERVED_ALIASES } from './config/nodulus-config.types.js';
-export type { NodulusConfig, AliasMap } from './config/nodulus-config.types.js';
-export { loadNodulusConfig } from './config/nodulus-config.js';
-export type { ResolvedNodulusConfig } from './config/nodulus-config.js';
+export * from './config/nodulus-config.types.js';
+export type * from './config/nodulus-config.types.js';
+export * from './config/nodulus-config.js';
+export type * from './config/nodulus-config.js';
 
 export type {
   CreateAppOptions,
