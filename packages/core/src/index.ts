@@ -13,6 +13,7 @@ export * from './aliases/cache.js';
 export * from './aliases/resolver.js';
 export * from './core/config.js';
 export * from './core/logger.js';
+export * from './core/http-logger.js';
 export * from './preload/index.js';
 
 export { defineConfig, isValidAliasKey, RESERVED_ALIASES } from './config/nodulus-config.types.js';

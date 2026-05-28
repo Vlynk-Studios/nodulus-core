@@ -53,16 +53,16 @@ export interface Logger {
 }
 
 export interface HttpLoggerOptions {
-  /** Rutas a ignorar. Default: []. Soporta strings exactas y globs simples. */
+  /** Routes to ignore. Default: []. Supports exact strings and simple globs. */
   ignore?: string[];
-  /** Loggear request body en debug. Default: false. */
+  /** Log request body in debug level. Default: false. */
   logBody?: boolean;
 }
 
 export interface HttpLogger {
-  /** Middleware de access log: METHOD /path STATUS Xms */
+  /** Access log middleware: METHOD /path STATUS Xms */
   requests(): RequestHandler;
-  /** Middleware de error handler (4 argumentos — firma Express). */
+  /** Error handler middleware (4 arguments — Express signature). */
   errors(): ErrorRequestHandler;
 }
 
