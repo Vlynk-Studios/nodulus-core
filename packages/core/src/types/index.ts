@@ -1,4 +1,4 @@
-import type { RequestHandler, Router } from 'express';
+import type { RequestHandler, ErrorRequestHandler, Router } from 'express';
 
 // ─── Internal registry entries ───────────────────────────────────────────────
 // These types are NOT part of the public API. They represent the shape of data
@@ -50,6 +50,20 @@ export interface Logger {
    * If `meta.err` or `meta.error` is an Error instance, it is automatically serialized with its stack trace in JSON output.
    */
   error(message: string, meta?: Record<string, unknown> & { err?: Error, error?: Error }): void;
+}
+
+export interface HttpLoggerOptions {
+  /** Rutas a ignorar. Default: []. Soporta strings exactas y globs simples. */
+  ignore?: string[];
+  /** Loggear request body en debug. Default: false. */
+  logBody?: boolean;
+}
+
+export interface HttpLogger {
+  /** Middleware de access log: METHOD /path STATUS Xms */
+  requests(): RequestHandler;
+  /** Middleware de error handler (4 argumentos — firma Express). */
+  errors(): ErrorRequestHandler;
 }
 
 // ─── Public API types ─────────────────────────────────────────────────────────

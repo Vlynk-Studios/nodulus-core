@@ -36,6 +36,8 @@ export type {
   LogLevel,
   LogHandler,
   Logger,
+  HttpLogger,
+  HttpLoggerOptions,
   LogFormat,
   WatcherOptions
 } from './types/index.js';
