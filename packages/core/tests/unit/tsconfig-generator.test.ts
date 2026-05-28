@@ -8,8 +8,6 @@ import {
   ensureTsconfigExtends,
 } from '../../src/config/tsconfig-generator.js';
 import type { ResolvedNodulusConfig } from '../../src/config/nodulus-config.js';
-import { defaultLogHandler } from '../../src/core/logger.js';
-
 const mkTmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nodulus-tsconfig-test-'));
 
 describe('tsconfig-generator', () => {
@@ -262,15 +260,15 @@ describe('tsconfig-generator', () => {
   describe('ensureTsconfigExtends()', () => {
     const hintFragment = 'Add "extends": "./tsconfig.nodulus.json"';
 
-    it('sin tsconfig.json emite log.info y no lanza', async () => {
+    it('sin tsconfig.json emite log.debug y no lanza', async () => {
       const mockLog = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
 
       await expect(ensureTsconfigExtends(tmpDir, mockLog as never)).resolves.toBeUndefined();
-      expect(mockLog.info).toHaveBeenCalledWith(
+      expect(mockLog.debug).toHaveBeenCalledWith(
         expect.stringContaining('tsconfig.json not found'),
         expect.any(Object),
       );
-      expect(mockLog.info).toHaveBeenCalledWith(
+      expect(mockLog.debug).toHaveBeenCalledWith(
         expect.stringContaining(hintFragment),
         expect.any(Object),
       );
